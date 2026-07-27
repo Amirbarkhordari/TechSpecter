@@ -14,6 +14,9 @@ from rich.console import Console
 from rich.table import Table
 
 from techspecter import __version__
+from techspecter.analysis.http.analyzer_ids import CLI_FLAG_ANALYZER_MAP, HTTP_ANALYZER_IDS
+from techspecter.analysis.results.analysis_result import AnalysisResult
+from techspecter.analysis.service import AnalysisService
 from techspecter.configuration.manager import (
     ConfigurationManager,
     get_configuration_manager,
@@ -69,6 +72,11 @@ def _build_cli_overrides(
     enable_analyzer: list[str] | None,
     output: str | None,
     report_format: OutputFormat | None,
+    http_analysis: bool | None = None,
+    headers: bool = False,
+    cookies: bool = False,
+    security_headers: bool = False,
+    redirects: bool = False,
 ) -> dict[str, Any]:
     """Build CLI override mapping for the configuration manager."""
     overrides: dict[str, Any] = {}
@@ -89,6 +97,38 @@ def _build_cli_overrides(
         analysis_override["enabled_analyzers"] = enable_analyzer
     if analysis_override:
         overrides["analysis"] = analysis_override
+
+    http_override: dict[str, Any] = {}
+    if http_analysis is not None:
+        http_override["http_analysis"] = http_analysis
+    if headers:
+        http_override["headers"] = True
+    if cookies:
+        http_override["cookies"] = True
+    if security_headers:
+        http_override["security_headers"] = True
+    if redirects:
+        http_override["redirects"] = True
+
+    specific_flags = headers or cookies or security_headers or redirects
+    if specific_flags:
+        enabled_ids: list[str] = []
+        if headers:
+            enabled_ids.extend(CLI_FLAG_ANALYZER_MAP["headers"])
+        if cookies:
+            enabled_ids.extend(CLI_FLAG_ANALYZER_MAP["cookies"])
+        if security_headers:
+            enabled_ids.extend(CLI_FLAG_ANALYZER_MAP["security_headers"])
+        if redirects:
+            enabled_ids.extend(CLI_FLAG_ANALYZER_MAP["redirects"])
+        analysis_override = overrides.setdefault("analysis", {})
+        existing_enabled = analysis_override.get("enabled_analyzers", [])
+        if existing_enabled:
+            enabled_ids = list(dict.fromkeys([*existing_enabled, *enabled_ids]))
+        analysis_override["enabled_analyzers"] = enabled_ids
+
+    if http_override:
+        overrides["http_analysis"] = http_override
 
     reporting_override: dict[str, Any] = {}
     if output is not None:
@@ -139,6 +179,7 @@ def cli_callback(
             enable_analyzer=[],
             output=None,
             report_format=None,
+            http_analysis=None,
         ),
     )
     set_configuration_manager(manager)
@@ -293,6 +334,7 @@ def fingerprint_command(
         enable_analyzer=enable_analyzer,
         output=output,
         report_format=report_format,
+        http_analysis=None,
     )
     if config is not None:
         manager = ConfigurationManager.load(config_path=config, cli_overrides=command_overrides)
@@ -367,6 +409,159 @@ def fingerprint_command(
         group_by_category=group_by_category,
         verbose=verbose_output,
     )
+
+
+def _render_analysis_summary(result: AnalysisResult) -> None:
+    """Render a human-readable HTTP analysis summary."""
+    console.print(f"\n[bold]Target:[/bold] {result.target_url}")
+    console.print(f"[bold]Elapsed:[/bold] {result.elapsed_ms:.0f} ms")
+    console.print(f"[bold]Findings:[/bold] {result.statistics.total_findings}")
+    console.print(f"[bold]Analyzers:[/bold] {', '.join(result.metadata.analyzers)}\n")
+
+    if not result.findings:
+        console.print("[yellow]No findings detected.[/yellow]")
+        return
+
+    table = Table(title="HTTP Analysis Findings")
+    table.add_column("Analyzer")
+    table.add_column("Severity")
+    table.add_column("Title", overflow="fold")
+    for finding in result.findings[:50]:
+        table.add_row(finding.analyzer, finding.severity.value, finding.title)
+    console.print(table)
+    if len(result.findings) > 50:
+        console.print(f"[dim]... and {len(result.findings) - 50} more findings[/dim]")
+
+
+@app.command("analyze")
+def analyze_command(
+    url: Annotated[str, typer.Argument(help="Target website URL to analyze passively.")],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output raw analysis results as JSON."),
+    ] = False,
+    report_format: Annotated[
+        OutputFormat | None,
+        typer.Option("--format", help="Export report format."),
+    ] = None,
+    output: Annotated[
+        str | None,
+        typer.Option("--output", help="Write exported report to this file."),
+    ] = None,
+    http_analysis: Annotated[
+        bool,
+        typer.Option("--http-analysis", help="Enable passive HTTP analysis analyzers."),
+    ] = True,
+    headers: Annotated[
+        bool,
+        typer.Option("--headers", help="Enable HTTP header analyzer."),
+    ] = False,
+    cookies: Annotated[
+        bool,
+        typer.Option("--cookies", help="Enable cookie analyzer."),
+    ] = False,
+    security_headers: Annotated[
+        bool,
+        typer.Option("--security-headers", help="Enable security header analyzers."),
+    ] = False,
+    redirects: Annotated[
+        bool,
+        typer.Option("--redirects", help="Enable redirect analyzer."),
+    ] = False,
+    disable_analyzer: Annotated[
+        list[str] | None,
+        typer.Option("--disable-analyzer", help="Disable an analyzer by ID."),
+    ] = None,
+    enable_analyzer: Annotated[
+        list[str] | None,
+        typer.Option("--enable-analyzer", help="Enable only listed analyzers when set."),
+    ] = None,
+    config: Annotated[
+        Path | None,
+        typer.Option("--config", help="Path to a YAML or JSON configuration file."),
+    ] = None,
+) -> None:
+    """Run passive HTTP analysis against a target website."""
+    if enable_analyzer is None:
+        enable_analyzer = []
+    if disable_analyzer is None:
+        disable_analyzer = []
+
+    manager = get_configuration_manager()
+    command_overrides = _build_cli_overrides(
+        debug=False,
+        verbose=False,
+        min_confidence=None,
+        disable_analyzer=disable_analyzer,
+        enable_analyzer=enable_analyzer or list(HTTP_ANALYZER_IDS),
+        output=output,
+        report_format=report_format,
+        http_analysis=http_analysis,
+        headers=headers,
+        cookies=cookies,
+        security_headers=security_headers,
+        redirects=redirects,
+    )
+    if config is not None:
+        manager = ConfigurationManager.load(config_path=config, cli_overrides=command_overrides)
+        set_configuration_manager(manager)
+    elif command_overrides:
+        manager.apply_cli_overrides(command_overrides)
+
+    active_config = manager.config
+    if headers and not active_config.http_analysis.is_analyzer_enabled("http-header-analyzer"):
+        console.print("[yellow]HTTP header analyzer is disabled by configuration.[/yellow]")
+        raise typer.Exit(code=1)
+
+    try:
+        service = AnalysisService()
+        result = asyncio.run(service.analyze_url(url))
+    except ValidationError as exc:
+        console.print(f"[red]Validation error:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    except TechSpecterError as exc:
+        console.print(f"[red]HTTP analysis failed:[/red] {exc}")
+        logger.exception("HTTP analysis failed for %s", url)
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        payload = result.model_dump(mode="json")
+        console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        return
+
+    report_service = ReportService()
+    selected_format = (
+        report_format.value if report_format is not None else active_config.reporting.default_format
+    )
+    export_path = output
+    if export_path is None and active_config.reporting.filename:
+        export_path = str(
+            Path(active_config.reporting.output_directory) / active_config.reporting.filename
+        )
+
+    try:
+        if selected_format is not None:
+            if not active_config.reporting.is_format_enabled(selected_format):
+                console.print(
+                    f"[red]Report format '{selected_format}' is disabled by configuration.[/red]"
+                )
+                raise typer.Exit(code=1)
+            export_result = report_service.generate_and_export_from_analysis(
+                result,
+                selected_format,  # type: ignore[arg-type]
+                output_path=export_path,
+                scan_duration_ms=result.elapsed_ms,
+            )
+            if export_path is None:
+                console.print(export_result.content)
+            else:
+                console.print(f"[green]Report written to[/green] {export_result.output_path}")
+            return
+
+        _render_analysis_summary(result)
+    except ReportError as exc:
+        console.print(f"[red]Report generation failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
 
 
 def main() -> None:

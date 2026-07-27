@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from techspecter.analysis.http.helpers import build_http_observation
 from techspecter.config import Settings, get_settings
 from techspecter.downloader.html_downloader import HtmlDownloader
 from techspecter.downloader.http_client import AsyncHttpClient, HttpClientConfig
@@ -100,11 +101,26 @@ class DiscoveryPipeline:
             elapsed_ms = (time.perf_counter() - started_perf) * 1000
             completed_at = datetime.now(tz=UTC)
 
+            http_response = build_http_observation(
+                url=html_document.request_url or normalized_url,
+                final_url=html_document.url,
+                status_code=html_document.status_code,
+                headers=html_document.headers,
+                raw_headers=html_document.raw_headers,
+                set_cookies=html_document.set_cookies,
+                redirects=html_document.redirects,
+                content_type=html_document.content_type,
+                encoding=html_document.encoding,
+                body_size=html_document.body_size,
+                elapsed_ms=html_document.elapsed_ms,
+            )
+
             result = DiscoveryResult(
                 target=target,
                 external_scripts=external_scripts,
                 inline_scripts=parse_result.inline_scripts,
                 downloads=downloads,
+                http_response=http_response,
                 elapsed_ms=elapsed_ms,
                 started_at=started_at,
                 completed_at=completed_at,

@@ -112,6 +112,16 @@ class ReportMetadata(TechSpecterModel):
     categories_detected: int = 0
 
 
+class ReportSection(TechSpecterModel):
+    """Structured report section for grouped findings and summaries."""
+
+    id: str
+    title: str
+    summary: str | None = None
+    findings: list[ReportFinding] = Field(default_factory=list)
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
 class Report(TechSpecterModel):
     """Complete scan report produced by the reporting engine."""
 
@@ -122,6 +132,7 @@ class Report(TechSpecterModel):
     technologies: list[ReportTechnology] = Field(default_factory=list)
     findings: list[ReportFinding] = Field(default_factory=list)
     groups: list[TechnologyGroup] = Field(default_factory=list)
+    sections: list[ReportSection] = Field(default_factory=list)
 
 
 class ExportResult(TechSpecterModel):

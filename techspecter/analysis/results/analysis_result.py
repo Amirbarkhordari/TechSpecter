@@ -47,4 +47,5 @@ class AnalysisResult(TechSpecterModel):
     metadata: AnalysisMetadata
     discovery: DiscoveryResult | None = None
     detection: DetectionResult | None = None
+    analyzer_results: list[AnalyzerResult] = Field(default_factory=list)
     elapsed_ms: float = 0.0

@@ -7,6 +7,7 @@ from datetime import datetime
 from pydantic import Field, HttpUrl
 
 from techspecter.models.base import TechSpecterModel
+from techspecter.models.http import HttpResponseObservation
 
 
 class Target(TechSpecterModel):
@@ -94,6 +95,7 @@ class DiscoveryResult(TechSpecterModel):
     external_scripts: list[ScriptResource] = Field(default_factory=list)
     inline_scripts: list[InlineScript] = Field(default_factory=list)
     downloads: list[DownloadResult] = Field(default_factory=list)
+    http_response: HttpResponseObservation | None = None
     elapsed_ms: float = 0.0
     started_at: datetime | None = None
     completed_at: datetime | None = None

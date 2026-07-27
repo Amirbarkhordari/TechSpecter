@@ -9,18 +9,22 @@ from datetime import UTC, datetime
 from techspecter import __version__
 from techspecter.analysis.analyzers.base import Analyzer
 from techspecter.analysis.analyzers.registry import AnalyzerRegistry, analyzer_registry
-from techspecter.analysis.analyzers.technology import TechnologyFingerprintAnalyzer
 from techspecter.analysis.converters import findings_to_detection_result
 from techspecter.analysis.models.finding import Finding
+from techspecter.analysis.pipeline.analyzer_resolution import resolve_analyzers
 from techspecter.analysis.results.aggregator import ResultAggregator
 from techspecter.analysis.results.analysis_result import (
     AnalysisMetadata,
     AnalysisResult,
     AnalyzerResult,
 )
+from techspecter.configuration.manager import get_configuration_manager
+from techspecter.configuration.models import AnalysisConfig, HttpAnalysisConfig
 from techspecter.crawler.discovery import DiscoveryPipeline
 from techspecter.fingerprinting.models import DetectionResult
 from techspecter.models.discovery import DiscoveryResult
+from techspecter.plugins.hooks import HookName
+from techspecter.plugins.manager import PluginManager
 
 logger = logging.getLogger(__name__)
 
@@ -35,22 +39,57 @@ class AnalysisPipeline:
         analyzers: list[Analyzer] | None = None,
         analyzer_registry_instance: AnalyzerRegistry | None = None,
         aggregator: ResultAggregator | None = None,
+        plugin_manager: PluginManager | None = None,
+        analysis_config: AnalysisConfig | None = None,
+        http_config: HttpAnalysisConfig | None = None,
+        load_builtin_plugins: bool = True,
     ) -> None:
         """Initialize the analysis pipeline."""
         self._discovery_pipeline = discovery_pipeline or DiscoveryPipeline()
         self._analyzer_registry = analyzer_registry_instance or analyzer_registry
         self._aggregator = aggregator or ResultAggregator()
-        if analyzers is not None:
-            self._analyzers = analyzers
-        else:
-            self._analyzers = self._default_analyzers()
+        self._plugin_manager = plugin_manager
+        self._analysis_config = (
+            analysis_config
+            if analysis_config is not None or analyzers is None
+            else AnalysisConfig()
+        )
+        self._http_config = (
+            http_config if http_config is not None or analyzers is None else HttpAnalysisConfig()
+        )
+        self._load_builtin_plugins = load_builtin_plugins
+        self._analyzers = resolve_analyzers(
+            explicit_analyzers=analyzers,
+            plugin_manager=self._ensure_plugin_manager(),
+            analysis_config=self._resolved_analysis_config(),
+            http_config=self._resolved_http_config(),
+        )
 
     async def run(self, target_url: str) -> AnalysisResult:
         """Discover resources and run all configured analyzers."""
         started = time.perf_counter()
+        plugin_manager = self._ensure_plugin_manager()
+        if plugin_manager is not None:
+            plugin_manager.run_hook(
+                HookName.BEFORE_DISCOVERY,
+                target_url=target_url,
+            )
+
         discovery_started = time.perf_counter()
         discovery = await self._discovery_pipeline.run(target_url)
         discovery_elapsed_ms = (time.perf_counter() - discovery_started) * 1000
+
+        if plugin_manager is not None:
+            plugin_manager.run_hook(
+                HookName.AFTER_DISCOVERY,
+                target_url=target_url,
+                data={"discovery": discovery},
+            )
+            plugin_manager.run_hook(
+                HookName.BEFORE_ANALYSIS,
+                target_url=target_url,
+                data={"discovery": discovery},
+            )
 
         analysis_started = time.perf_counter()
         analyzer_results = self._run_analyzers(discovery)
@@ -80,19 +119,38 @@ class AnalysisPipeline:
             len(analyzer_results),
             total_elapsed_ms,
         )
-        return AnalysisResult(
+        result = AnalysisResult(
             target_url=metadata.target_url,
             findings=findings,
             statistics=statistics,
             metadata=metadata,
             discovery=discovery,
             detection=detection,
+            analyzer_results=analyzer_results,
             elapsed_ms=total_elapsed_ms,
         )
+
+        if plugin_manager is not None:
+            plugin_manager.run_hook(
+                HookName.AFTER_ANALYSIS,
+                target_url=metadata.target_url,
+                data={"analysis": result},
+            )
+
+        return result
 
     def analyze_discovery(self, discovery: DiscoveryResult) -> AnalysisResult:
         """Run analyzers against an existing discovery result."""
         started = time.perf_counter()
+        plugin_manager = self._ensure_plugin_manager()
+        target_url = str(discovery.target.url)
+        if plugin_manager is not None:
+            plugin_manager.run_hook(
+                HookName.BEFORE_ANALYSIS,
+                target_url=target_url,
+                data={"discovery": discovery},
+            )
+
         analyzer_results = self._run_analyzers(discovery)
         findings = self._aggregator.aggregate(analyzer_results)
         statistics = self._aggregator.calculate_statistics(
@@ -103,22 +161,32 @@ class AnalysisPipeline:
         elapsed_ms = (time.perf_counter() - started) * 1000
         detection = _extract_detection(analyzer_results, discovery, findings)
         metadata = AnalysisMetadata(
-            target_url=str(discovery.target.url),
+            target_url=target_url,
             tool_version=__version__,
             analysis_elapsed_ms=elapsed_ms,
             total_elapsed_ms=elapsed_ms,
             analyzers=[result.analyzer_id for result in analyzer_results],
             timestamp=datetime.now(UTC),
         )
-        return AnalysisResult(
+        result = AnalysisResult(
             target_url=metadata.target_url,
             findings=findings,
             statistics=statistics,
             metadata=metadata,
             discovery=discovery,
             detection=detection,
+            analyzer_results=analyzer_results,
             elapsed_ms=elapsed_ms,
         )
+
+        if plugin_manager is not None:
+            plugin_manager.run_hook(
+                HookName.AFTER_ANALYSIS,
+                target_url=target_url,
+                data={"analysis": result},
+            )
+
+        return result
 
     def register_analyzer(self, analyzer: Analyzer) -> None:
         """Register an analyzer for future pipeline runs."""
@@ -127,19 +195,43 @@ class AnalysisPipeline:
             self._analyzers.append(analyzer)
 
     def _run_analyzers(self, discovery: DiscoveryResult) -> list[AnalyzerResult]:
-        """Execute all configured analyzers."""
+        """Execute all configured analyzers with failure isolation."""
         results: list[AnalyzerResult] = []
         for analyzer in self._analyzers:
             logger.info("Running analyzer '%s'", analyzer.metadata.id)
-            results.append(analyzer.run(discovery))
+            result = analyzer.run(discovery)
+            if result.errors:
+                logger.warning(
+                    "Analyzer '%s' completed with errors: %s",
+                    analyzer.metadata.id,
+                    "; ".join(result.errors),
+                )
+            results.append(result)
         return results
 
-    def _default_analyzers(self) -> list[Analyzer]:
-        """Return the default analyzer set."""
-        if self._analyzer_registry.list_instances():
-            return self._analyzer_registry.list_instances()
-        default = TechnologyFingerprintAnalyzer()
-        return [default]
+    def _ensure_plugin_manager(self) -> PluginManager | None:
+        """Return a plugin manager with built-in HTTP plugins loaded."""
+        if self._plugin_manager is not None:
+            return self._plugin_manager
+        if not self._load_builtin_plugins:
+            return None
+
+        manager = PluginManager()
+        manager.load_plugins(load_builtins=True)
+        self._plugin_manager = manager
+        return manager
+
+    def _resolved_analysis_config(self) -> AnalysisConfig:
+        """Return analysis configuration from constructor or global manager."""
+        if self._analysis_config is not None:
+            return self._analysis_config
+        return get_configuration_manager().config.analysis
+
+    def _resolved_http_config(self) -> HttpAnalysisConfig:
+        """Return HTTP analysis configuration from constructor or global manager."""
+        if self._http_config is not None:
+            return self._http_config
+        return get_configuration_manager().config.http_analysis
 
 
 def _extract_detection(

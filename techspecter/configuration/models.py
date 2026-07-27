@@ -156,12 +156,45 @@ class AnalyzersConfig(TechSpecterModel):
     rule_directories: list[str] = Field(default_factory=list)
 
 
+class HttpAnalysisConfig(TechSpecterModel):
+    """Passive HTTP analysis configuration."""
+
+    enabled: bool = True
+    http_analysis: bool = True
+    headers: bool = True
+    cookies: bool = True
+    security_headers: bool = True
+    redirects: bool = True
+    analyzers: dict[str, AnalyzerOptions] = Field(default_factory=dict)
+
+    def is_analyzer_enabled(self, analyzer_id: str) -> bool:
+        """Return whether an HTTP analyzer is enabled."""
+        if not self.enabled or not self.http_analysis:
+            return False
+
+        group_enabled = {
+            "http-header-analyzer": self.headers,
+            "cookie-analyzer": self.cookies,
+            "security-header-analyzer": self.security_headers,
+            "csp-analyzer": self.security_headers,
+            "redirect-analyzer": self.redirects,
+        }
+        if analyzer_id in group_enabled and not group_enabled[analyzer_id]:
+            return False
+
+        options = self.analyzers.get(analyzer_id)
+        if options is None:
+            return True
+        return options.enabled
+
+
 class TechSpecterConfig(TechSpecterModel):
     """Root configuration model for TechSpecter."""
 
     crawler: CrawlerConfig = Field(default_factory=CrawlerConfig)
     downloader: DownloaderConfig = Field(default_factory=DownloaderConfig)
     analysis: AnalysisConfig = Field(default_factory=AnalysisConfig)
+    http_analysis: HttpAnalysisConfig = Field(default_factory=HttpAnalysisConfig)
     reporting: ReportConfig = Field(default_factory=ReportConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)

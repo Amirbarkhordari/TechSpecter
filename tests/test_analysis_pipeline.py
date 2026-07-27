@@ -8,6 +8,7 @@ import pytest
 
 from techspecter.analysis.analyzers.technology import TechnologyFingerprintAnalyzer
 from techspecter.analysis.pipeline.pipeline import AnalysisPipeline
+from techspecter.configuration.models import AnalysisConfig
 from tests.analysis_fixtures import sample_detection_result, sample_discovery_result
 
 
@@ -16,7 +17,11 @@ async def test_pipeline_runs_discovery_and_analyzers() -> None:
     """Verify the pipeline orchestrates discovery and analyzers."""
     discovery = sample_discovery_result()
     detection = sample_detection_result()
-    pipeline = AnalysisPipeline(analyzers=[TechnologyFingerprintAnalyzer()])
+    pipeline = AnalysisPipeline(
+        analyzers=[TechnologyFingerprintAnalyzer()],
+        analysis_config=AnalysisConfig(),
+        load_builtin_plugins=False,
+    )
 
     with (
         patch.object(pipeline._discovery_pipeline, "run", AsyncMock(return_value=discovery)),
@@ -37,7 +42,11 @@ def test_analyze_discovery_without_network() -> None:
     """Verify analyzers can run against an existing discovery result."""
     discovery = sample_discovery_result()
     detection = sample_detection_result()
-    pipeline = AnalysisPipeline(analyzers=[TechnologyFingerprintAnalyzer()])
+    pipeline = AnalysisPipeline(
+        analyzers=[TechnologyFingerprintAnalyzer()],
+        analysis_config=AnalysisConfig(),
+        load_builtin_plugins=False,
+    )
 
     with patch(
         "techspecter.analysis.analyzers.technology.FingerprintPipeline.run",
@@ -51,7 +60,9 @@ def test_analyze_discovery_without_network() -> None:
 
 def test_pipeline_register_analyzer() -> None:
     """Verify additional analyzers can be registered."""
-    pipeline = AnalysisPipeline(analyzers=[])
+    pipeline = AnalysisPipeline(
+        analyzers=[], analysis_config=AnalysisConfig(), load_builtin_plugins=False
+    )
     analyzer = TechnologyFingerprintAnalyzer()
     pipeline.register_analyzer(analyzer)
     assert analyzer in pipeline._analyzers

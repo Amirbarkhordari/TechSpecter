@@ -283,6 +283,80 @@ techspecter plugins doctor --load
 techspecter plugins info
 ```
 
+## Passive HTTP Analysis
+
+Phase 6 introduces production-ready passive HTTP analyzer plugins. Every analyzer is shipped as an independent plugin under `techspecter.plugins.builtin.http`.
+
+### Architecture
+
+1. Discovery captures HTTP metadata into `DiscoveryResult.http_response` (`HttpResponseObservation`).
+2. Built-in analyzer plugins register through `PluginManager.load_plugins(load_builtins=True)`.
+3. `AnalysisPipeline` collects analyzers via `PluginManager.collect_analyzers()` and filters them with `AnalysisConfig` and `HttpAnalysisConfig`.
+4. Each analyzer extends `PassiveHttpAnalyzer` and emits normalized `Finding` objects through `build_http_finding()`.
+5. `ReportEngine.generate_from_analysis()` adds HTTP-focused report sections.
+
+### Built-in HTTP Analyzer Plugins
+
+| Analyzer ID | Plugin ID |
+|---|---|
+| `http-header-analyzer` | `http-header-analyzer-plugin` |
+| `security-header-analyzer` | `security-header-analyzer-plugin` |
+| `cookie-analyzer` | `cookie-analyzer-plugin` |
+| `csp-analyzer` | `csp-analyzer-plugin` |
+| `cors-analyzer` | `cors-analyzer-plugin` |
+| `cache-control-analyzer` | `cache-control-analyzer-plugin` |
+| `content-type-analyzer` | `content-type-analyzer-plugin` |
+| `server-fingerprint-analyzer` | `server-fingerprint-analyzer-plugin` |
+| `redirect-analyzer` | `redirect-analyzer-plugin` |
+| `http-response-metadata-analyzer` | `http-response-metadata-analyzer-plugin` |
+
+### Finding Generation
+
+HTTP analyzers should use `build_http_finding()` so every finding includes:
+
+- unique `id`
+- `analyzer` id
+- `category`, `title`, `description`
+- `severity`, `confidence`, `recommendation`
+- `evidence`
+- `metadata.source` and optional `metadata.references`
+
+### Configuration
+
+```yaml
+http_analysis:
+  enabled: true
+  http_analysis: true
+  headers: true
+  cookies: true
+  security_headers: true
+  redirects: true
+  analyzers:
+    cookie-analyzer:
+      enabled: true
+
+analysis:
+  disabled_analyzers:
+    - redirect-analyzer
+```
+
+### CLI Usage
+
+```bash
+techspecter analyze https://example.com
+techspecter analyze https://example.com --headers --cookies
+techspecter analyze https://example.com --security-headers --redirects
+techspecter analyze https://example.com --disable-analyzer cookie-analyzer
+techspecter analyze https://example.com --json
+```
+
+### Extension Points
+
+- Implement `PassiveHttpAnalyzer` for new passive HTTP analyzers.
+- Wrap the analyzer in an `AnalyzerPlugin` and export `plugin`.
+- Place the plugin module under a configured plugin directory or register an entry point in `techspecter.plugins`.
+- Use pipeline hooks (`before_analysis`, `after_analysis`) for cross-cutting behavior.
+
 ## Related Documentation
 
 - [Plugin SDK Guide](PLUGIN_SDK.md)

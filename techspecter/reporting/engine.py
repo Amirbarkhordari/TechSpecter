@@ -10,6 +10,7 @@ from techspecter import __version__
 from techspecter.analysis.models.finding import Finding
 from techspecter.analysis.results.analysis_result import AnalysisResult
 from techspecter.fingerprinting.models import UNKNOWN_VERSION, DetectionResult, TechnologyMatch
+from techspecter.reporting.http_sections import build_http_report_sections
 from techspecter.reporting.models import (
     Report,
     ReportEvidence,
@@ -135,6 +136,7 @@ class ReportEngine:
                 "summary": summary,
                 "statistics": statistics,
                 "findings": findings,
+                "sections": build_http_report_sections(analysis, findings),
             }
         )
 
