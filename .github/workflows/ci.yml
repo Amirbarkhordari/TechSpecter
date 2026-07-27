@@ -38,6 +38,7 @@ jobs:
           python -m techspecter --help
           python -m techspecter --version
           techspecter --version
+          techspecter discover --help
 
   build:
     name: Build package

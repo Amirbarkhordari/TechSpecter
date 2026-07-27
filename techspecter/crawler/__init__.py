@@ -1,5 +1,8 @@
-"""Web crawling module (Phase 2+).
+"""Web crawling and JavaScript discovery module."""
 
-This package will provide URL discovery, navigation, and scope management
-for web application analysis.
-"""
+from techspecter.crawler.discovery import DiscoveryPipeline, DiscoveryPipelineConfig
+
+__all__ = [
+    "DiscoveryPipeline",
+    "DiscoveryPipelineConfig",
+]

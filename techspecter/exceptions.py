@@ -11,6 +11,10 @@ class ConfigurationError(TechSpecterError):
     """Raised when application configuration is invalid or incomplete."""
 
 
+class ValidationError(TechSpecterError):
+    """Raised when input validation fails."""
+
+
 class PluginError(TechSpecterError):
     """Raised when a plugin fails to load, register, or execute."""
 

@@ -1,5 +1,14 @@
-"""HTTP resource downloader module (Phase 2+).
+"""HTTP resource fetching module."""
 
-This package will provide async HTTP fetching, caching, and retry logic
-for web resources.
-"""
+from techspecter.downloader.html_downloader import HtmlDocument, HtmlDownloader
+from techspecter.downloader.http_client import AsyncHttpClient, HttpClientConfig
+from techspecter.downloader.js_downloader import JsDownloadConfig, JsDownloader
+
+__all__ = [
+    "AsyncHttpClient",
+    "HtmlDocument",
+    "HtmlDownloader",
+    "HttpClientConfig",
+    "JsDownloadConfig",
+    "JsDownloader",
+]

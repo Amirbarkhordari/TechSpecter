@@ -20,9 +20,13 @@ TechSpecter aims to become the go-to open-source toolkit for deep web applicatio
 |---|---|
 | Modular plugin architecture | ✅ Phase 1 |
 | Cross-platform CLI | ✅ Phase 1 |
-| Web crawling & URL discovery | 🔜 Phase 2 |
-| JavaScript parsing & analysis | 🔜 Phase 2 |
-| Technology fingerprinting | 🔜 Phase 2 |
+| JavaScript discovery & download | ✅ Phase 2 |
+| URL validation & resolution | ✅ Phase 2 |
+| Async HTTP client with retries | ✅ Phase 2 |
+| HTML script parsing | ✅ Phase 2 |
+| Source map reference detection | ✅ Phase 2 |
+| Technology fingerprinting | 🔜 Phase 3 |
+| JavaScript content analysis | 🔜 Phase 3 |
 | CVE intelligence | 🔜 Phase 3 |
 | Secret discovery | 🔜 Phase 3 |
 | API endpoint discovery | 🔜 Phase 3 |
@@ -32,9 +36,9 @@ TechSpecter aims to become the go-to open-source toolkit for deep web applicatio
 
 ## Current Status
 
-**Phase 1 — Project Bootstrap** (current)
+**Phase 2 — JavaScript Discovery Engine** (current)
 
-This release establishes the production-ready project foundation: package structure, CLI, configuration, plugin registry, testing infrastructure, and CI/CD pipeline. No crawling, parsing, fingerprinting, or detection logic is implemented yet.
+This release implements JavaScript resource discovery and download: URL validation, HTML parsing, script URL resolution, deduplication, async downloading, source map reference detection, and structured JSON/human-readable CLI output. No fingerprinting, content analysis, or security detection is implemented yet.
 
 ---
 
@@ -47,14 +51,17 @@ This release establishes the production-ready project foundation: package struct
 - CI/CD with GitHub Actions
 - Initial test suite
 
-### Phase 2 — Core Engine
-- HTTP downloader with httpx
-- Web crawler with scope management
-- HTML & JavaScript parser
+### Phase 2 — JavaScript Discovery Engine ✅
+- URL validation and normalization
+- Async HTTP client with retries
+- HTML downloader and script parser
+- JavaScript downloader with concurrency control
+- Source map reference detection
+- `techspecter discover` CLI command
+
+### Phase 3 — Technology Fingerprinting
 - Technology fingerprint matcher
 - Signature database loader
-
-### Phase 3 — Intelligence Modules
 - JavaScript library & framework detection
 - Version identification
 - CVE correlation engine
@@ -114,7 +121,26 @@ python -m techspecter --version
 
 ```bash
 techspecter --debug --help
+techspecter --verbose discover https://example.com
 ```
+
+### Discover JavaScript resources
+
+```bash
+techspecter discover https://example.com
+techspecter discover example.com --json
+techspecter discover https://example.com --verbose
+```
+
+The `discover` command:
+
+1. Validates and normalizes the target URL
+2. Downloads the HTML document
+3. Discovers external and inline JavaScript resources
+4. Resolves and deduplicates script URLs
+5. Downloads external scripts asynchronously
+6. Detects `sourceMappingURL` references (without downloading maps)
+7. Displays a summary or JSON output
 
 ---
 

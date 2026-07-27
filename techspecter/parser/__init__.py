@@ -1,5 +1,10 @@
-"""Content parsing module (Phase 2+).
+"""Content parsing module."""
 
-This package will provide HTML, JavaScript, and other content parsers
-for extracting structured data from web resources.
-"""
+from techspecter.parser.html_parser import HtmlParseResult, HtmlScriptParser
+from techspecter.parser.sourcemap import detect_source_map_url
+
+__all__ = [
+    "HtmlParseResult",
+    "HtmlScriptParser",
+    "detect_source_map_url",
+]
