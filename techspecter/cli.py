@@ -24,6 +24,7 @@ from techspecter.exceptions import ReportError, TechSpecterError, ValidationErro
 from techspecter.fingerprinting.models import FingerprintAnalysisResult
 from techspecter.fingerprinting.service import FingerprintService
 from techspecter.models.discovery import DiscoveryResult
+from techspecter.plugins.cli import plugins_app
 from techspecter.reporting.renderer import render_report
 from techspecter.reporting.service import ReportService
 from techspecter.utils.logging import configure_logging
@@ -47,6 +48,9 @@ class OutputFormat(StrEnum):
     html = "html"
     csv = "csv"
     sarif = "sarif"
+
+
+app.add_typer(plugins_app, name="plugins")
 
 
 def version_callback(value: bool) -> None:

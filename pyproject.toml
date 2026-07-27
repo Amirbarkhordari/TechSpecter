@@ -60,6 +60,10 @@ dev = [
 [project.scripts]
 techspecter = "techspecter.cli:main"
 
+[project.entry-points."techspecter.plugins"]
+# Register third-party plugins here, for example:
+# example = "example_plugin:create_plugin"
+
 [project.urls]
 Homepage = "https://github.com/Amirbarkhordari/TechSpecter"
 Documentation = "https://github.com/Amirbarkhordari/TechSpecter#readme"
@@ -91,7 +95,6 @@ asyncio_mode = "auto"
 [tool.ruff]
 target-version = "py311"
 line-length = 100
-extend-exclude = ["_phase5_wip"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -99,7 +102,6 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.black]
 line-length = 100
 target-version = ["py311"]
-extend-exclude = "_phase5_wip"
 
 [tool.mypy]
 python_version = "3.11"

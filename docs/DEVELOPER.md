@@ -202,7 +202,7 @@ config = manager.config
 | `reporting` | Export formats, output directory, theme |
 | `logging` | Console/file logging, structured output |
 | `performance` | Rule caching and regex compilation |
-| `plugins` | Reserved for future plugin SDK integration |
+| `plugins` | Plugin SDK: directories, enable/disable lists, per-plugin settings |
 | `analyzers` | Reserved future analyzer directories |
 
 Export the active configuration:
@@ -271,8 +271,19 @@ result = RuleRunner(min_confidence=0).run(context)
 
 Future analyzers should load rules through `RuleLoader` and execute them with `RuleRunner` rather than hardcoding detection logic.
 
+## Plugin SDK
+
+TechSpecter provides a typed plugin SDK for analyzers, reporters, exporters, and rule packs. See [Plugin SDK Guide](PLUGIN_SDK.md) for architecture, lifecycle, discovery, and extension points.
+
+```bash
+techspecter plugins list --load
+techspecter plugins show example-plugin --load
+techspecter plugins validate --directory ./plugins
+```
+
 ## Related Documentation
 
+- [Plugin SDK Guide](PLUGIN_SDK.md)
 - [Architecture Overview](ARCHITECTURE.md)
 - [README](../README.md)
 - [Contributing](../CONTRIBUTING.md)

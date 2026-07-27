@@ -31,8 +31,18 @@ def test_register_and_get_plugin() -> None:
     plugin = _StubPlugin()
     reg.register(plugin)
     assert reg.get("stub") is plugin
+    assert reg.find("stub") is plugin
+    assert reg.exists("stub")
     assert reg.list_plugins() == ["stub"]
+    assert reg.list() == ("stub",)
     reg.unregister("stub")
+
+
+def test_find_missing_returns_none() -> None:
+    """Verify find returns None for unknown plugins."""
+    reg = PluginRegistry()
+    assert reg.find("missing") is None
+    assert not reg.exists("missing")
 
 
 def test_register_duplicate_raises() -> None:

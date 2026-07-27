@@ -119,12 +119,35 @@ class PerformanceConfig(TechSpecterModel):
     rule_batch_size: int = Field(default=100, ge=1)
 
 
+class PluginEntryConfig(TechSpecterModel):
+    """Per-plugin configuration entry."""
+
+    enabled: bool = True
+    settings: dict[str, object] = Field(default_factory=dict)
+
+
 class PluginsConfig(TechSpecterModel):
-    """Reserved plugin configuration section."""
+    """Plugin configuration section."""
 
     enabled: bool = True
     directories: list[str] = Field(default_factory=list)
     load_entry_points: bool = True
+    disabled_plugins: list[str] = Field(default_factory=list)
+    enabled_plugins: list[str] = Field(default_factory=list)
+    plugins: dict[str, PluginEntryConfig] = Field(default_factory=dict)
+
+    def is_plugin_enabled(self, plugin_id: str) -> bool:
+        """Return whether a plugin is enabled."""
+        if not self.enabled:
+            return False
+        if plugin_id in self.disabled_plugins:
+            return False
+        if self.enabled_plugins and plugin_id not in self.enabled_plugins:
+            return False
+        entry = self.plugins.get(plugin_id)
+        if entry is None:
+            return True
+        return entry.enabled
 
 
 class AnalyzersConfig(TechSpecterModel):
