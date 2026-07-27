@@ -19,8 +19,12 @@ from techspecter.analysis.results.analysis_result import (
     AnalyzerResult,
 )
 from techspecter.configuration.manager import get_configuration_manager
-from techspecter.configuration.models import AnalysisConfig, HttpAnalysisConfig
-from techspecter.crawler.discovery import DiscoveryPipeline
+from techspecter.configuration.models import (
+    AnalysisConfig,
+    HttpAnalysisConfig,
+    MetadataAnalysisConfig,
+)
+from techspecter.crawler.discovery import DiscoveryPipeline, DiscoveryPipelineConfig
 from techspecter.fingerprinting.models import DetectionResult
 from techspecter.models.discovery import DiscoveryResult
 from techspecter.plugins.hooks import HookName
@@ -42,10 +46,13 @@ class AnalysisPipeline:
         plugin_manager: PluginManager | None = None,
         analysis_config: AnalysisConfig | None = None,
         http_config: HttpAnalysisConfig | None = None,
+        metadata_config: MetadataAnalysisConfig | None = None,
         load_builtin_plugins: bool = True,
     ) -> None:
         """Initialize the analysis pipeline."""
-        self._discovery_pipeline = discovery_pipeline or DiscoveryPipeline()
+        self._discovery_pipeline = discovery_pipeline or DiscoveryPipeline(
+            DiscoveryPipelineConfig(collect_metadata=True),
+        )
         self._analyzer_registry = analyzer_registry_instance or analyzer_registry
         self._aggregator = aggregator or ResultAggregator()
         self._plugin_manager = plugin_manager
@@ -57,12 +64,18 @@ class AnalysisPipeline:
         self._http_config = (
             http_config if http_config is not None or analyzers is None else HttpAnalysisConfig()
         )
+        self._metadata_config = (
+            metadata_config
+            if metadata_config is not None or analyzers is None
+            else MetadataAnalysisConfig()
+        )
         self._load_builtin_plugins = load_builtin_plugins
         self._analyzers = resolve_analyzers(
             explicit_analyzers=analyzers,
             plugin_manager=self._ensure_plugin_manager(),
             analysis_config=self._resolved_analysis_config(),
             http_config=self._resolved_http_config(),
+            metadata_config=self._resolved_metadata_config(),
         )
 
     async def run(self, target_url: str) -> AnalysisResult:
@@ -232,6 +245,12 @@ class AnalysisPipeline:
         if self._http_config is not None:
             return self._http_config
         return get_configuration_manager().config.http_analysis
+
+    def _resolved_metadata_config(self) -> MetadataAnalysisConfig:
+        """Return metadata analysis configuration from constructor or global manager."""
+        if self._metadata_config is not None:
+            return self._metadata_config
+        return get_configuration_manager().config.metadata_analysis
 
 
 def _extract_detection(

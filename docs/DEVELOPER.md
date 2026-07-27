@@ -357,6 +357,64 @@ techspecter analyze https://example.com --json
 - Place the plugin module under a configured plugin directory or register an entry point in `techspecter.plugins`.
 - Use pipeline hooks (`before_analysis`, `after_analysis`) for cross-cutting behavior.
 
+## Passive Metadata & Well-Known Resource Analysis
+
+Phase 6 Part 2 extends passive analysis with metadata and well-known resource intelligence. Every analyzer is an independent plugin under `techspecter.plugins.builtin.metadata`.
+
+### Architecture
+
+1. Discovery parses HTML metadata via `HtmlMetadataParser` and collects well-known resources through `WellKnownResourceCollector` (fixed public paths and HTML-linked resources only — no brute force).
+2. Results are stored on `DiscoveryResult.metadata_observation` (`MetadataDiscoveryObservation`).
+3. Metadata analyzers extend `PassiveMetadataAnalyzer` and emit findings via `build_metadata_finding()`.
+4. `ReportEngine.generate_from_analysis()` adds metadata report sections via `build_metadata_report_sections()`.
+
+### Built-in Metadata Analyzer Plugins (24)
+
+| Category | Analyzer IDs |
+|---|---|
+| Well-known | `robots-analyzer`, `sitemap-analyzer`, `security-txt-analyzer`, `humans-txt-analyzer`, `ads-txt-analyzer`, `assetlinks-analyzer`, `apple-app-site-association-analyzer` |
+| Manifest | `manifest-analyzer`, `web-app-manifest-analyzer`, `browserconfig-analyzer` |
+| HTML metadata | `html-metadata-analyzer`, `html-comment-analyzer`, `opengraph-analyzer`, `twitter-card-analyzer`, `canonical-link-analyzer`, `alternate-link-analyzer`, `generator-meta-analyzer`, `theme-color-analyzer`, `application-metadata-analyzer`, `language-analyzer`, `favicon-analyzer` |
+| Framework/PWA | `framework-metadata-analyzer`, `service-worker-analyzer`, `sourcemap-analyzer` |
+
+### Configuration
+
+```yaml
+metadata_analysis:
+  enabled: true
+  metadata_analysis: true
+  well_known: true
+  manifest: true
+  robots: true
+  sitemap: true
+  security_txt: true
+  html_meta: true
+  framework_meta: true
+  sourcemaps: true
+  service_workers: true
+  analyzers:
+    robots-analyzer:
+      enabled: true
+```
+
+### CLI Usage
+
+```bash
+techspecter metadata https://example.com
+techspecter metadata https://example.com --robots --sitemap --security-txt
+techspecter metadata https://example.com --html-meta --framework-meta
+techspecter metadata https://example.com --sourcemaps --service-workers
+techspecter metadata https://example.com --disable-analyzer html-comment-analyzer
+techspecter metadata https://example.com --json
+```
+
+### Extension Points
+
+- Implement `PassiveMetadataAnalyzer` for new passive metadata analyzers.
+- Extend `HtmlMetadataParser` to extract additional normalized fields.
+- Add well-known resource types to `WELL_KNOWN_PATHS` in `metadata_collector.py` (fixed paths only).
+- Wrap analyzers in `AnalyzerPlugin` modules under `techspecter.plugins.builtin.metadata`.
+
 ## Related Documentation
 
 - [Plugin SDK Guide](PLUGIN_SDK.md)

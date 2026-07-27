@@ -188,6 +188,62 @@ class HttpAnalysisConfig(TechSpecterModel):
         return options.enabled
 
 
+class MetadataAnalysisConfig(TechSpecterModel):
+    """Passive metadata and well-known resource analysis configuration."""
+
+    enabled: bool = True
+    metadata_analysis: bool = True
+    well_known: bool = True
+    manifest: bool = True
+    robots: bool = True
+    sitemap: bool = True
+    security_txt: bool = True
+    html_meta: bool = True
+    framework_meta: bool = True
+    sourcemaps: bool = True
+    service_workers: bool = True
+    analyzers: dict[str, AnalyzerOptions] = Field(default_factory=dict)
+
+    def is_analyzer_enabled(self, analyzer_id: str) -> bool:
+        """Return whether a metadata analyzer is enabled."""
+        if not self.enabled or not self.metadata_analysis:
+            return False
+
+        group_enabled = {
+            "robots-analyzer": self.robots,
+            "sitemap-analyzer": self.sitemap,
+            "security-txt-analyzer": self.security_txt,
+            "humans-txt-analyzer": self.well_known,
+            "ads-txt-analyzer": self.well_known,
+            "assetlinks-analyzer": self.well_known,
+            "apple-app-site-association-analyzer": self.well_known,
+            "manifest-analyzer": self.manifest,
+            "web-app-manifest-analyzer": self.manifest,
+            "browserconfig-analyzer": self.manifest,
+            "html-metadata-analyzer": self.html_meta,
+            "html-comment-analyzer": self.html_meta,
+            "opengraph-analyzer": self.html_meta,
+            "twitter-card-analyzer": self.html_meta,
+            "canonical-link-analyzer": self.html_meta,
+            "alternate-link-analyzer": self.html_meta,
+            "generator-meta-analyzer": self.html_meta,
+            "theme-color-analyzer": self.html_meta,
+            "application-metadata-analyzer": self.html_meta,
+            "language-analyzer": self.html_meta,
+            "favicon-analyzer": self.html_meta,
+            "framework-metadata-analyzer": self.framework_meta,
+            "sourcemap-analyzer": self.sourcemaps,
+            "service-worker-analyzer": self.service_workers,
+        }
+        if analyzer_id in group_enabled and not group_enabled[analyzer_id]:
+            return False
+
+        options = self.analyzers.get(analyzer_id)
+        if options is None:
+            return True
+        return options.enabled
+
+
 class TechSpecterConfig(TechSpecterModel):
     """Root configuration model for TechSpecter."""
 
@@ -195,6 +251,7 @@ class TechSpecterConfig(TechSpecterModel):
     downloader: DownloaderConfig = Field(default_factory=DownloaderConfig)
     analysis: AnalysisConfig = Field(default_factory=AnalysisConfig)
     http_analysis: HttpAnalysisConfig = Field(default_factory=HttpAnalysisConfig)
+    metadata_analysis: MetadataAnalysisConfig = Field(default_factory=MetadataAnalysisConfig)
     reporting: ReportConfig = Field(default_factory=ReportConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)

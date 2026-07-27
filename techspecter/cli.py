@@ -15,6 +15,7 @@ from rich.table import Table
 
 from techspecter import __version__
 from techspecter.analysis.http.analyzer_ids import CLI_FLAG_ANALYZER_MAP, HTTP_ANALYZER_IDS
+from techspecter.analysis.metadata.analyzer_ids import CLI_FLAG_METADATA_MAP, METADATA_ANALYZER_IDS
 from techspecter.analysis.results.analysis_result import AnalysisResult
 from techspecter.analysis.service import AnalysisService
 from techspecter.configuration.manager import (
@@ -77,6 +78,16 @@ def _build_cli_overrides(
     cookies: bool = False,
     security_headers: bool = False,
     redirects: bool = False,
+    metadata_analysis: bool | None = None,
+    well_known: bool = False,
+    manifest: bool = False,
+    robots: bool = False,
+    sitemap: bool = False,
+    security_txt: bool = False,
+    html_meta: bool = False,
+    framework_meta: bool = False,
+    sourcemaps: bool = False,
+    service_workers: bool = False,
 ) -> dict[str, Any]:
     """Build CLI override mapping for the configuration manager."""
     overrides: dict[str, Any] = {}
@@ -129,6 +140,64 @@ def _build_cli_overrides(
 
     if http_override:
         overrides["http_analysis"] = http_override
+
+    metadata_override: dict[str, Any] = {}
+    if metadata_analysis is not None:
+        metadata_override["metadata_analysis"] = metadata_analysis
+    if well_known:
+        metadata_override["well_known"] = True
+    if manifest:
+        metadata_override["manifest"] = True
+    if robots:
+        metadata_override["robots"] = True
+    if sitemap:
+        metadata_override["sitemap"] = True
+    if security_txt:
+        metadata_override["security_txt"] = True
+    if html_meta:
+        metadata_override["html_meta"] = True
+    if framework_meta:
+        metadata_override["framework_meta"] = True
+    if sourcemaps:
+        metadata_override["sourcemaps"] = True
+    if service_workers:
+        metadata_override["service_workers"] = True
+
+    metadata_specific = (
+        well_known
+        or manifest
+        or robots
+        or sitemap
+        or security_txt
+        or html_meta
+        or framework_meta
+        or sourcemaps
+        or service_workers
+    )
+    if metadata_specific:
+        metadata_enabled_ids: list[str] = []
+        flag_map = {
+            "well_known": well_known,
+            "manifest": manifest,
+            "robots": robots,
+            "sitemap": sitemap,
+            "security_txt": security_txt,
+            "html_meta": html_meta,
+            "framework_meta": framework_meta,
+            "sourcemaps": sourcemaps,
+            "service_workers": service_workers,
+        }
+        for flag_name, enabled in flag_map.items():
+            if enabled:
+                metadata_enabled_ids.extend(CLI_FLAG_METADATA_MAP[flag_name])
+        analysis_override = overrides.setdefault("analysis", {})
+        existing_enabled = analysis_override.get("enabled_analyzers", [])
+        if existing_enabled:
+            metadata_enabled_ids = list(dict.fromkeys([*existing_enabled, *metadata_enabled_ids]))
+        analysis_override["enabled_analyzers"] = metadata_enabled_ids
+
+    if metadata_override:
+        overrides["metadata_analysis"] = metadata_override
 
     reporting_override: dict[str, Any] = {}
     if output is not None:
@@ -411,8 +480,10 @@ def fingerprint_command(
     )
 
 
-def _render_analysis_summary(result: AnalysisResult) -> None:
-    """Render a human-readable HTTP analysis summary."""
+def _render_analysis_summary(
+    result: AnalysisResult, *, title: str = "HTTP Analysis Findings"
+) -> None:
+    """Render a human-readable analysis summary."""
     console.print(f"\n[bold]Target:[/bold] {result.target_url}")
     console.print(f"[bold]Elapsed:[/bold] {result.elapsed_ms:.0f} ms")
     console.print(f"[bold]Findings:[/bold] {result.statistics.total_findings}")
@@ -422,7 +493,7 @@ def _render_analysis_summary(result: AnalysisResult) -> None:
         console.print("[yellow]No findings detected.[/yellow]")
         return
 
-    table = Table(title="HTTP Analysis Findings")
+    table = Table(title=title)
     table.add_column("Analyzer")
     table.add_column("Severity")
     table.add_column("Title", overflow="fold")
@@ -562,6 +633,211 @@ def analyze_command(
     except ReportError as exc:
         console.print(f"[red]Report generation failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
+
+
+def _run_metadata_analysis(
+    url: str,
+    *,
+    json_output: bool,
+    report_format: OutputFormat | None,
+    output: str | None,
+    metadata_analysis: bool,
+    well_known: bool,
+    manifest: bool,
+    robots: bool,
+    sitemap: bool,
+    security_txt: bool,
+    html_meta: bool,
+    framework_meta: bool,
+    sourcemaps: bool,
+    service_workers: bool,
+    disable_analyzer: list[str],
+    enable_analyzer: list[str],
+    config: Path | None,
+) -> None:
+    """Shared metadata analysis command implementation."""
+    manager = get_configuration_manager()
+    specific = (
+        well_known
+        or manifest
+        or robots
+        or sitemap
+        or security_txt
+        or html_meta
+        or framework_meta
+        or sourcemaps
+        or service_workers
+    )
+    resolved_enable = enable_analyzer or ([] if specific else list(METADATA_ANALYZER_IDS))
+    command_overrides = _build_cli_overrides(
+        debug=False,
+        verbose=False,
+        min_confidence=None,
+        disable_analyzer=disable_analyzer,
+        enable_analyzer=resolved_enable,
+        output=output,
+        report_format=report_format,
+        metadata_analysis=metadata_analysis,
+        well_known=well_known,
+        manifest=manifest,
+        robots=robots,
+        sitemap=sitemap,
+        security_txt=security_txt,
+        html_meta=html_meta,
+        framework_meta=framework_meta,
+        sourcemaps=sourcemaps,
+        service_workers=service_workers,
+    )
+    if config is not None:
+        manager = ConfigurationManager.load(config_path=config, cli_overrides=command_overrides)
+        set_configuration_manager(manager)
+    elif command_overrides:
+        manager.apply_cli_overrides(command_overrides)
+
+    active_config = manager.config
+    if robots and not active_config.metadata_analysis.is_analyzer_enabled("robots-analyzer"):
+        console.print("[yellow]Robots analyzer is disabled by configuration.[/yellow]")
+        raise typer.Exit(code=1)
+
+    try:
+        service = AnalysisService()
+        result = asyncio.run(service.analyze_url(url))
+    except ValidationError as exc:
+        console.print(f"[red]Validation error:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    except TechSpecterError as exc:
+        console.print(f"[red]Metadata analysis failed:[/red] {exc}")
+        logger.exception("Metadata analysis failed for %s", url)
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        payload = result.model_dump(mode="json")
+        console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        return
+
+    report_service = ReportService()
+    selected_format = (
+        report_format.value if report_format is not None else active_config.reporting.default_format
+    )
+    export_path = output
+    if export_path is None and active_config.reporting.filename:
+        export_path = str(
+            Path(active_config.reporting.output_directory) / active_config.reporting.filename
+        )
+
+    try:
+        if selected_format is not None:
+            if not active_config.reporting.is_format_enabled(selected_format):
+                console.print(
+                    f"[red]Report format '{selected_format}' is disabled by configuration.[/red]"
+                )
+                raise typer.Exit(code=1)
+            export_result = report_service.generate_and_export_from_analysis(
+                result,
+                selected_format,  # type: ignore[arg-type]
+                output_path=export_path,
+                scan_duration_ms=result.elapsed_ms,
+            )
+            if export_path is None:
+                console.print(export_result.content)
+            else:
+                console.print(f"[green]Report written to[/green] {export_result.output_path}")
+            return
+
+        _render_analysis_summary(result, title="Metadata Analysis Findings")
+    except ReportError as exc:
+        console.print(f"[red]Report generation failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+
+@app.command("metadata")
+def metadata_command(
+    url: Annotated[str, typer.Argument(help="Target website URL to analyze passively.")],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output raw analysis results as JSON."),
+    ] = False,
+    report_format: Annotated[
+        OutputFormat | None,
+        typer.Option("--format", help="Export report format."),
+    ] = None,
+    output: Annotated[
+        str | None,
+        typer.Option("--output", help="Write exported report to this file."),
+    ] = None,
+    metadata_analysis: Annotated[
+        bool,
+        typer.Option("--metadata-analysis", help="Enable metadata analysis analyzers."),
+    ] = True,
+    well_known: Annotated[
+        bool,
+        typer.Option("--well-known", help="Enable well-known resource analyzers."),
+    ] = False,
+    manifest: Annotated[
+        bool,
+        typer.Option("--manifest", help="Enable manifest analyzers."),
+    ] = False,
+    robots: Annotated[
+        bool,
+        typer.Option("--robots", help="Enable robots.txt analyzer."),
+    ] = False,
+    sitemap: Annotated[
+        bool,
+        typer.Option("--sitemap", help="Enable sitemap analyzer."),
+    ] = False,
+    security_txt: Annotated[
+        bool,
+        typer.Option("--security-txt", help="Enable security.txt analyzer."),
+    ] = False,
+    html_meta: Annotated[
+        bool,
+        typer.Option("--html-meta", help="Enable HTML metadata analyzers."),
+    ] = False,
+    framework_meta: Annotated[
+        bool,
+        typer.Option("--framework-meta", help="Enable framework metadata analyzer."),
+    ] = False,
+    sourcemaps: Annotated[
+        bool,
+        typer.Option("--sourcemaps", help="Enable SourceMap analyzer."),
+    ] = False,
+    service_workers: Annotated[
+        bool,
+        typer.Option("--service-workers", help="Enable service worker analyzer."),
+    ] = False,
+    disable_analyzer: Annotated[
+        list[str] | None,
+        typer.Option("--disable-analyzer", help="Disable an analyzer by ID."),
+    ] = None,
+    enable_analyzer: Annotated[
+        list[str] | None,
+        typer.Option("--enable-analyzer", help="Enable only listed analyzers when set."),
+    ] = None,
+    config: Annotated[
+        Path | None,
+        typer.Option("--config", help="Path to a YAML or JSON configuration file."),
+    ] = None,
+) -> None:
+    """Run passive metadata and well-known resource analysis."""
+    _run_metadata_analysis(
+        url,
+        json_output=json_output,
+        report_format=report_format,
+        output=output,
+        metadata_analysis=metadata_analysis,
+        well_known=well_known,
+        manifest=manifest,
+        robots=robots,
+        sitemap=sitemap,
+        security_txt=security_txt,
+        html_meta=html_meta,
+        framework_meta=framework_meta,
+        sourcemaps=sourcemaps,
+        service_workers=service_workers,
+        disable_analyzer=disable_analyzer or [],
+        enable_analyzer=enable_analyzer or [],
+        config=config,
+    )
 
 
 def main() -> None:

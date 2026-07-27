@@ -70,8 +70,8 @@ def test_loader_load_all_and_builtins() -> None:
     """Verify load_all aggregates sources and builtins can be requested."""
     loader = PluginLoader(plugin_directories=[], load_entry_points=False, load_builtins=True)
     loaded = loader.load_all()
-    assert len(loaded) == 10
-    assert len(loader.load_builtin_plugins()) == 10
+    assert len(loaded) == 34
+    assert len(loader.load_builtin_plugins()) == 34
 
 
 def test_loader_package_with_plugin_attribute() -> None:
