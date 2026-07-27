@@ -8,8 +8,7 @@ import pytest
 
 from techspecter.analysis.analyzers.technology import TechnologyFingerprintAnalyzer
 from techspecter.analysis.pipeline.pipeline import AnalysisPipeline
-from techspecter.fingerprinting.models import DetectionResult
-from tests.analysis_fixtures import sample_discovery_result, sample_detection_result
+from tests.analysis_fixtures import sample_detection_result, sample_discovery_result
 
 
 @pytest.mark.asyncio
@@ -19,12 +18,14 @@ async def test_pipeline_runs_discovery_and_analyzers() -> None:
     detection = sample_detection_result()
     pipeline = AnalysisPipeline(analyzers=[TechnologyFingerprintAnalyzer()])
 
-    with patch.object(pipeline._discovery_pipeline, "run", AsyncMock(return_value=discovery)):
-        with patch(
+    with (
+        patch.object(pipeline._discovery_pipeline, "run", AsyncMock(return_value=discovery)),
+        patch(
             "techspecter.analysis.analyzers.technology.FingerprintPipeline.run",
             return_value=detection,
-        ):
-            result = await pipeline.run("https://example.com")
+        ),
+    ):
+        result = await pipeline.run("https://example.com")
 
     assert result.target_url == "https://example.com/"
     assert len(result.findings) == 1

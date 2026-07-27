@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Any
+from enum import StrEnum
 
 from pydantic import Field, field_validator
 
@@ -11,7 +10,7 @@ from techspecter.analysis.models.finding import Severity
 from techspecter.models.base import TechSpecterModel
 
 
-class RuleType(str, Enum):
+class RuleType(StrEnum):
     """Supported rule matcher types."""
 
     REGEX = "regex"
@@ -19,7 +18,7 @@ class RuleType(str, Enum):
     HEADER = "header"
 
 
-class RuleCategory(str, Enum):
+class RuleCategory(StrEnum):
     """Standard rule categories."""
 
     TECHNOLOGY = "Technology"

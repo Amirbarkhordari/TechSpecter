@@ -58,8 +58,7 @@ def detection_result_to_findings(
 ) -> list[Finding]:
     """Convert a detection result into technology findings."""
     return [
-        technology_match_to_finding(match, analyzer_id=analyzer_id)
-        for match in detection.matches
+        technology_match_to_finding(match, analyzer_id=analyzer_id) for match in detection.matches
     ]
 
 
@@ -84,7 +83,9 @@ def findings_to_detection_result(
     for finding in findings:
         if not _is_technology_category(finding.category):
             continue
-        technology_id = str(finding.metadata.get("technology_id", finding.id.removeprefix("technology:")))
+        technology_id = str(
+            finding.metadata.get("technology_id", finding.id.removeprefix("technology:"))
+        )
         matches.append(
             TechnologyMatch(
                 technology=Technology(
@@ -98,7 +99,9 @@ def findings_to_detection_result(
                 version=str(finding.metadata.get("version", "Unknown")),
                 confidence=finding.confidence,
                 source_url=next((item.url for item in finding.evidence if item.url), None),
-                filename=next((item.file for item in finding.evidence if item.file), finding.location),
+                filename=next(
+                    (item.file for item in finding.evidence if item.file), finding.location
+                ),
                 evidence=[
                     PatternEvidence(
                         matcher="unknown",

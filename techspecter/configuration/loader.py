@@ -51,7 +51,7 @@ def export_config_file(config: dict[str, Any], path: Path | str, *, fmt: str | N
     file_path = Path(path)
     export_format = fmt or file_path.suffix.lower().lstrip(".")
     if export_format in {"yaml", "yml"}:
-        content = yaml.safe_dump(config, sort_keys=False)
+        content = str(yaml.safe_dump(config, sort_keys=False))
     elif export_format == "json":
         content = json.dumps(config, indent=2)
     else:

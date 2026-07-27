@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from techspecter.exceptions import RuleValidationError
 from techspecter.analysis.models.finding import Severity
+from techspecter.exceptions import RuleValidationError
 from techspecter.rules.models import Rule, RuleType
 
 

@@ -5,8 +5,7 @@ from __future__ import annotations
 import pytest
 
 from techspecter.analysis.analyzers.base import Analyzer, AnalyzerMetadata
-from techspecter.analysis.analyzers.registry import AnalyzerRegistry
-from techspecter.analysis.analyzers.registry import AnalyzerNotFoundError
+from techspecter.analysis.analyzers.registry import AnalyzerNotFoundError, AnalyzerRegistry
 from techspecter.analysis.models.finding import FindingCategory
 from techspecter.analysis.results.analysis_result import AnalyzerResult
 from techspecter.models.discovery import DiscoveryResult

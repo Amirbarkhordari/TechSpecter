@@ -9,7 +9,6 @@ from typing import Any
 
 import yaml
 
-from techspecter.exceptions import RuleLoadError
 from techspecter.rules.cache import RuleCache
 from techspecter.rules.models import Rule
 
@@ -61,10 +60,7 @@ class RuleLoader:
         """Load rules from a single file."""
         try:
             raw = path.read_text(encoding="utf-8")
-            if path.suffix.lower() == ".json":
-                payload = json.loads(raw)
-            else:
-                payload = yaml.safe_load(raw)
+            payload = json.loads(raw) if path.suffix.lower() == ".json" else yaml.safe_load(raw)
         except (OSError, yaml.YAMLError, json.JSONDecodeError) as exc:
             logger.warning("Failed to load rule file '%s': %s", path, exc)
             return []

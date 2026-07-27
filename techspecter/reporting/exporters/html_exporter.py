@@ -111,15 +111,15 @@ class HtmlExporter(BaseExporter):
             else:
                 evidence_html = "".join(
                     "<li>"
-                    f"<code>{html.escape(item.matcher_type)}</code> "
-                    f"<code>{html.escape(item.matched_pattern)}</code> "
+                    f"<code>{html.escape(item.matcher_type or 'unknown')}</code> "
+                    f"<code>{html.escape(item.matched_pattern or '')}</code> "
                     f"(file: {html.escape(item.matched_file or 'unknown')}, "
                     f"confidence: {item.confidence:.1f}%)"
                     "</li>"
                     for item in items
                 )
             sections.append(
-                "<section class=\"evidence-block\">"
+                '<section class="evidence-block">'
                 f"<h3>{html.escape(technology.name)}</h3>"
                 f"<ul>{evidence_html}</ul>"
                 "</section>"

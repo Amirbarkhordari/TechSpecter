@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Final
 
 from techspecter.configuration.defaults import DEFAULT_USER_AGENT
 from techspecter.configuration.env import ENV_PREFIX

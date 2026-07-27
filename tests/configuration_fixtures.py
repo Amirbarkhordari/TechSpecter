@@ -22,8 +22,7 @@ analysis:
 reporting:
   output_directory: ./reports
   theme: dark
-""".strip()
-        + "\n",
+""".strip() + "\n",
         encoding="utf-8",
     )
 

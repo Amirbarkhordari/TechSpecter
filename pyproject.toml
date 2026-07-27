@@ -53,6 +53,8 @@ dev = [
     "respx>=0.21.0",
     "ruff>=0.4.0",
     "mypy>=1.10.0",
+    "black>=24.0.0",
+    "types-PyYAML>=6.0.0",
 ]
 
 [project.scripts]
@@ -89,9 +91,15 @@ asyncio_mode = "auto"
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+extend-exclude = ["_phase5_wip"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+extend-exclude = "_phase5_wip"
 
 [tool.mypy]
 python_version = "3.11"

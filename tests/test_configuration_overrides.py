@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import os
-
+from techspecter.config import get_settings
 from techspecter.configuration.env import load_env_overrides
 from techspecter.configuration.manager import ConfigurationManager, reset_configuration_manager
-from techspecter.config import get_settings
 
 
 def test_env_overrides(monkeypatch) -> None:
@@ -37,6 +35,7 @@ def test_get_settings_uses_configuration_manager(monkeypatch) -> None:
 def test_cli_help_includes_config_option() -> None:
     """Verify CLI exposes configuration override options."""
     from typer.testing import CliRunner
+
     from techspecter.cli import app
 
     result = CliRunner().invoke(app, ["--help"])
@@ -47,6 +46,7 @@ def test_cli_help_includes_config_option() -> None:
 def test_fingerprint_help_includes_analyzer_options() -> None:
     """Verify fingerprint command exposes analyzer configuration flags."""
     from typer.testing import CliRunner
+
     from techspecter.cli import app
 
     result = CliRunner().invoke(app, ["fingerprint", "--help"])

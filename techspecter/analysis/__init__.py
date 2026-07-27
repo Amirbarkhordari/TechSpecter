@@ -9,7 +9,12 @@ from techspecter.analysis.analyzers import (
 )
 from techspecter.analysis.models import Evidence, Finding, FindingCategory, Severity
 from techspecter.analysis.pipeline import AnalysisPipeline
-from techspecter.analysis.results import AnalysisMetadata, AnalysisResult, AnalyzerResult, ResultAggregator
+from techspecter.analysis.results import (
+    AnalysisMetadata,
+    AnalysisResult,
+    AnalyzerResult,
+    ResultAggregator,
+)
 from techspecter.analysis.service import AnalysisService
 from techspecter.analysis.statistics import AnalysisStatistics
 

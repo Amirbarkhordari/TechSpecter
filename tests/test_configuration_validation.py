@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from techspecter.configuration.manager import ConfigurationManager
 from techspecter.configuration.merge import deep_merge
 from techspecter.configuration.models import AnalyzerOptions, TechSpecterConfig
 from techspecter.configuration.validator import ConfigurationValidator
-from techspecter.exceptions import ConfigurationError
 
 
 def test_deep_merge_nested_sections() -> None:
@@ -29,7 +29,7 @@ def test_configuration_validator_accepts_defaults() -> None:
 
 def test_analyzer_options_validate_confidence_bounds() -> None:
     """Verify analyzer option confidence bounds are enforced."""
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         AnalyzerOptions(min_confidence=150)
 
 

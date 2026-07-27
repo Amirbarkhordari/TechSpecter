@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import time
 
-from techspecter.rules.cache import RegexCache, RuleCache
+from techspecter.rules.cache import RegexCache
 from techspecter.rules.context import RuleExecutionContext
-from techspecter.rules.executors.regex import RegexRuleExecutor
 from techspecter.rules.loader import RuleLoader
-from techspecter.rules.models import RuleType
 from techspecter.rules.runner import RuleRunner
 from tests.rules_fixtures import sample_string_rule
 

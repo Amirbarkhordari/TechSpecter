@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 
 from techspecter import __version__
-from techspecter.analysis.models.finding import Finding, FindingCategory
+from techspecter.analysis.models.finding import Finding
 from techspecter.analysis.results.analysis_result import AnalysisResult
 from techspecter.fingerprinting.models import UNKNOWN_VERSION, DetectionResult, TechnologyMatch
 from techspecter.reporting.models import (
@@ -118,7 +118,8 @@ class ReportEngine:
                 "findings_detected": len(findings),
                 "technologies_detected": len(report.technologies),
                 "categories_detected": len(
-                    {finding.category for finding in findings} or {group.category for group in report.groups}
+                    {finding.category for finding in findings}
+                    or {group.category for group in report.groups}
                 ),
             }
         )
@@ -267,7 +268,9 @@ def _map_finding(finding: Finding) -> ReportFinding:
             html_element=item.html_element,
             javascript_location=item.javascript_location,
             confidence=finding.confidence,
-            version=str(finding.metadata.get("version")) if finding.metadata.get("version") else None,
+            version=(
+                str(finding.metadata.get("version")) if finding.metadata.get("version") else None
+            ),
         )
         for item in finding.evidence
     ]
@@ -313,7 +316,11 @@ def _calculate_analysis_statistics(
             "analyzer_counts": dict(sorted(analyzer_counts.items())),
             "category_counts": dict(sorted(category_counts.items())) or base.category_counts,
             "category_count": len(category_counts) or base.category_count,
-            "average_confidence": round(sum(confidences) / len(confidences), 2) if confidences else base.average_confidence,
+            "average_confidence": (
+                round(sum(confidences) / len(confidences), 2)
+                if confidences
+                else base.average_confidence
+            ),
             "highest_confidence": max(confidences) if confidences else base.highest_confidence,
             "scripts_analyzed": analysis.statistics.scripts_analyzed or base.scripts_analyzed,
         }

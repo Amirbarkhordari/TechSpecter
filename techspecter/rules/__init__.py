@@ -3,7 +3,7 @@
 from techspecter.rules.context import RuleExecutionContext
 from techspecter.rules.loader import RuleLoader
 from techspecter.rules.models import Rule, RuleCategory, RuleCondition, RuleType
-from techspecter.rules.runner import RuleRunResult, RuleRunner
+from techspecter.rules.runner import RuleRunner, RuleRunResult
 from techspecter.rules.validator import RuleValidationReport, RuleValidator
 
 __all__ = [

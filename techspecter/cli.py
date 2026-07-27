@@ -61,8 +61,8 @@ def _build_cli_overrides(
     debug: bool,
     verbose: bool,
     min_confidence: float | None,
-    disable_analyzer: list[str],
-    enable_analyzer: list[str],
+    disable_analyzer: list[str] | None,
+    enable_analyzer: list[str] | None,
     output: str | None,
     report_format: OutputFormat | None,
 ) -> dict[str, Any]:
@@ -256,22 +256,28 @@ def fingerprint_command(
     ] = False,
     min_confidence: Annotated[
         float | None,
-        typer.Option("--min-confidence", help="Minimum confidence threshold (divided by 100 if > 1)."),
+        typer.Option(
+            "--min-confidence", help="Minimum confidence threshold (divided by 100 if > 1)."
+        ),
     ] = None,
     disable_analyzer: Annotated[
-        list[str],
+        list[str] | None,
         typer.Option("--disable-analyzer", help="Disable an analyzer by ID."),
-    ] = [],
+    ] = None,
     enable_analyzer: Annotated[
-        list[str],
+        list[str] | None,
         typer.Option("--enable-analyzer", help="Enable only listed analyzers when set globally."),
-    ] = [],
+    ] = None,
     config: Annotated[
         Path | None,
         typer.Option("--config", help="Path to a YAML or JSON configuration file."),
     ] = None,
 ) -> None:
     """Discover JavaScript resources and identify technologies."""
+    if enable_analyzer is None:
+        enable_analyzer = []
+    if disable_analyzer is None:
+        disable_analyzer = []
     manager = get_configuration_manager()
     normalized_confidence = min_confidence
 
@@ -292,7 +298,9 @@ def fingerprint_command(
 
     active_config = manager.config
     if not active_config.analysis.is_analyzer_enabled("technology-fingerprint"):
-        console.print("[yellow]Technology fingerprint analyzer is disabled by configuration.[/yellow]")
+        console.print(
+            "[yellow]Technology fingerprint analyzer is disabled by configuration.[/yellow]"
+        )
         raise typer.Exit(code=1)
 
     try:
@@ -312,15 +320,21 @@ def fingerprint_command(
         return
 
     report_service = ReportService()
-    selected_format = report_format.value if report_format is not None else active_config.reporting.default_format
+    selected_format = (
+        report_format.value if report_format is not None else active_config.reporting.default_format
+    )
     export_path = output
     if export_path is None and active_config.reporting.filename:
-        export_path = str(Path(active_config.reporting.output_directory) / active_config.reporting.filename)
+        export_path = str(
+            Path(active_config.reporting.output_directory) / active_config.reporting.filename
+        )
 
     try:
         if selected_format is not None:
             if not active_config.reporting.is_format_enabled(selected_format):
-                console.print(f"[red]Report format '{selected_format}' is disabled by configuration.[/red]")
+                console.print(
+                    f"[red]Report format '{selected_format}' is disabled by configuration.[/red]"
+                )
                 raise typer.Exit(code=1)
             export_result = report_service.generate_and_export(
                 result.detection,

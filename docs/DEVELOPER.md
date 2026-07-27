@@ -148,6 +148,14 @@ Run the full suite:
 pytest
 ```
 
+Static analysis targets:
+
+```bash
+ruff check .
+black --check .
+mypy techspecter
+```
+
 Analysis-specific tests:
 
 - `tests/test_finding_model.py`

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import Field
@@ -12,7 +12,7 @@ from techspecter.analysis.models.evidence import Evidence
 from techspecter.models.base import TechSpecterModel
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     """Finding severity levels."""
 
     CRITICAL = "CRITICAL"
@@ -22,7 +22,7 @@ class Severity(str, Enum):
     INFO = "INFO"
 
 
-class FindingCategory(str, Enum):
+class FindingCategory(StrEnum):
     """Standard finding categories."""
 
     TECHNOLOGY = "Technology"

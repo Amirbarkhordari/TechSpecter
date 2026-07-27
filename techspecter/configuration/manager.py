@@ -17,7 +17,7 @@ from techspecter.configuration.validator import ConfigurationValidator
 
 logger = logging.getLogger(__name__)
 
-_active_manager: ContextVar["ConfigurationManager | None"] = ContextVar(
+_active_manager: ContextVar[ConfigurationManager | None] = ContextVar(
     "techspecter_configuration_manager",
     default=None,
 )
@@ -74,7 +74,7 @@ class ConfigurationManager:
             if fmt in {"yaml", "yml"}:
                 import yaml
 
-                return yaml.safe_dump(payload, sort_keys=False)
+                return str(yaml.safe_dump(payload, sort_keys=False))
             import json
 
             return json.dumps(payload, indent=2)

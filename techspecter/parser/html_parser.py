@@ -111,9 +111,7 @@ class HtmlScriptParser:
                 logger.warning("Skipping invalid script src '%s': %s", src_value, exc)
                 return inline_index
 
-            external_scripts.append(
-                build_script_resource(url=absolute_url, original_url=src_value)
-            )
+            external_scripts.append(build_script_resource(url=absolute_url, original_url=src_value))
             return inline_index
 
         content = script_tag.string

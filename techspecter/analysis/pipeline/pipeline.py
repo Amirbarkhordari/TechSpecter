@@ -11,8 +11,13 @@ from techspecter.analysis.analyzers.base import Analyzer
 from techspecter.analysis.analyzers.registry import AnalyzerRegistry, analyzer_registry
 from techspecter.analysis.analyzers.technology import TechnologyFingerprintAnalyzer
 from techspecter.analysis.converters import findings_to_detection_result
+from techspecter.analysis.models.finding import Finding
 from techspecter.analysis.results.aggregator import ResultAggregator
-from techspecter.analysis.results.analysis_result import AnalysisMetadata, AnalysisResult, AnalyzerResult
+from techspecter.analysis.results.analysis_result import (
+    AnalysisMetadata,
+    AnalysisResult,
+    AnalyzerResult,
+)
 from techspecter.crawler.discovery import DiscoveryPipeline
 from techspecter.fingerprinting.models import DetectionResult
 from techspecter.models.discovery import DiscoveryResult
@@ -140,7 +145,7 @@ class AnalysisPipeline:
 def _extract_detection(
     analyzer_results: list[AnalyzerResult],
     discovery: DiscoveryResult,
-    findings: list,
+    findings: list[Finding],
 ) -> DetectionResult | None:
     """Extract a detection result from analyzer output for backward compatibility."""
     for result in analyzer_results:
@@ -151,13 +156,15 @@ def _extract_detection(
             return raw_detection
         if isinstance(raw_detection, dict):
             return DetectionResult.model_validate(raw_detection)
-    technology_findings = [
-        finding for finding in findings if finding.id.startswith("technology:")
-    ]
+    technology_findings = [finding for finding in findings if finding.id.startswith("technology:")]
     if not technology_findings:
         return None
     elapsed_ms = next(
-        (result.elapsed_ms for result in analyzer_results if result.analyzer_id == "technology-fingerprint"),
+        (
+            result.elapsed_ms
+            for result in analyzer_results
+            if result.analyzer_id == "technology-fingerprint"
+        ),
         0.0,
     )
     return findings_to_detection_result(

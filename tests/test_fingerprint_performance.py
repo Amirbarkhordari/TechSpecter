@@ -14,8 +14,7 @@ def test_detection_completes_within_reasonable_time() -> None:
     engine = FingerprintEngine(SignatureLoader().load_all(reload=True))
     content = (
         'React.version="18.2.0"; React.createElement("div"); '
-        "__webpack_require__(1); axios.create({}); Vue.createApp({}); "
-        * 50
+        "__webpack_require__(1); axios.create({}); Vue.createApp({}); " * 50
     )
     context = MatchContext(
         content=content,

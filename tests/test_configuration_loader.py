@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from techspecter.configuration.loader import export_config_file, load_config_file
+from techspecter.configuration.loader import load_config_file
 from techspecter.configuration.manager import ConfigurationManager
 from techspecter.exceptions import ConfigurationError
 from tests.configuration_fixtures import write_json_config, write_yaml_config

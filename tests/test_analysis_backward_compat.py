@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -94,9 +94,9 @@ def test_report_service_supports_analysis_results() -> None:
     """Verify reports can be generated from analysis results."""
     detection = report_detection()
     findings = detection_result_to_findings(detection, analyzer_id="technology-fingerprint")
+    from techspecter import __version__
     from techspecter.analysis.results.analysis_result import AnalysisMetadata, AnalysisResult
     from techspecter.analysis.statistics.statistics import AnalysisStatistics
-    from techspecter import __version__
 
     analysis = AnalysisResult(
         target_url=detection.target_url,

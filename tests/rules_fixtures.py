@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from techspecter.rules.models import Rule, RuleCategory, RuleType
 from techspecter.analysis.models.finding import Severity
+from techspecter.rules.models import Rule, RuleCategory, RuleType
 
 
 def sample_string_rule(**overrides: object) -> Rule:
@@ -51,7 +51,6 @@ rules:
     type: regex
     pattern: "version\\\\s*=\\\\s*[0-9]+"
     target: content
-""".strip()
-        + "\n",
+""".strip() + "\n",
         encoding="utf-8",
     )

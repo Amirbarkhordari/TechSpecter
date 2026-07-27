@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 
-from techspecter.analysis.models.finding import Finding, FindingCategory
+from techspecter.analysis.converters import _is_technology_category
+from techspecter.analysis.models.finding import Finding
 from techspecter.analysis.results.analysis_result import AnalyzerResult
 from techspecter.analysis.statistics.statistics import AnalysisStatistics
 
@@ -74,8 +75,4 @@ class ResultAggregator:
 
     def technology_findings(self, findings: list[Finding]) -> list[Finding]:
         """Return findings in the Technology category."""
-        return [
-            finding
-            for finding in findings
-            if _is_technology_category(finding.category)
-        ]
+        return [finding for finding in findings if _is_technology_category(finding.category)]
