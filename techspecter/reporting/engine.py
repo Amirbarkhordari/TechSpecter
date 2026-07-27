@@ -10,6 +10,7 @@ from techspecter import __version__
 from techspecter.analysis.models.finding import Finding
 from techspecter.analysis.results.analysis_result import AnalysisResult
 from techspecter.fingerprinting.models import UNKNOWN_VERSION, DetectionResult, TechnologyMatch
+from techspecter.reporting.artifact_sections import build_artifact_report_sections
 from techspecter.reporting.http_sections import build_http_report_sections
 from techspecter.reporting.metadata_sections import build_metadata_report_sections
 from techspecter.reporting.models import (
@@ -140,6 +141,7 @@ class ReportEngine:
                 "sections": [
                     *build_http_report_sections(analysis, findings),
                     *build_metadata_report_sections(analysis, findings),
+                    *build_artifact_report_sections(analysis, findings),
                 ],
             }
         )

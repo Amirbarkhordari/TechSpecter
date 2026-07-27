@@ -14,6 +14,7 @@ from rich.console import Console
 from rich.table import Table
 
 from techspecter import __version__
+from techspecter.analysis.artifact.analyzer_ids import ARTIFACT_ANALYZER_IDS, CLI_FLAG_ARTIFACT_MAP
 from techspecter.analysis.http.analyzer_ids import CLI_FLAG_ANALYZER_MAP, HTTP_ANALYZER_IDS
 from techspecter.analysis.metadata.analyzer_ids import CLI_FLAG_METADATA_MAP, METADATA_ANALYZER_IDS
 from techspecter.analysis.results.analysis_result import AnalysisResult
@@ -88,6 +89,16 @@ def _build_cli_overrides(
     framework_meta: bool = False,
     sourcemaps: bool = False,
     service_workers: bool = False,
+    artifact_analysis: bool | None = None,
+    cloud_analysis: bool = False,
+    identity_analysis: bool = False,
+    graphql: bool = False,
+    openapi: bool = False,
+    firebase: bool = False,
+    oauth: bool = False,
+    third_party: bool = False,
+    analytics: bool = False,
+    monitoring: bool = False,
 ) -> dict[str, Any]:
     """Build CLI override mapping for the configuration manager."""
     overrides: dict[str, Any] = {}
@@ -198,6 +209,64 @@ def _build_cli_overrides(
 
     if metadata_override:
         overrides["metadata_analysis"] = metadata_override
+
+    artifact_override: dict[str, Any] = {}
+    if artifact_analysis is not None:
+        artifact_override["artifact_analysis"] = artifact_analysis
+    if cloud_analysis:
+        artifact_override["cloud_analysis"] = True
+    if identity_analysis:
+        artifact_override["identity_analysis"] = True
+    if graphql:
+        artifact_override["graphql"] = True
+    if openapi:
+        artifact_override["openapi"] = True
+    if firebase:
+        artifact_override["firebase"] = True
+    if oauth:
+        artifact_override["oauth"] = True
+    if third_party:
+        artifact_override["third_party"] = True
+    if analytics:
+        artifact_override["analytics"] = True
+    if monitoring:
+        artifact_override["monitoring"] = True
+
+    artifact_specific = (
+        cloud_analysis
+        or identity_analysis
+        or graphql
+        or openapi
+        or firebase
+        or oauth
+        or third_party
+        or analytics
+        or monitoring
+    )
+    if artifact_specific:
+        artifact_enabled_ids: list[str] = []
+        flag_map = {
+            "cloud_analysis": cloud_analysis,
+            "identity_analysis": identity_analysis,
+            "graphql": graphql,
+            "openapi": openapi,
+            "firebase": firebase,
+            "oauth": oauth,
+            "third_party": third_party,
+            "analytics": analytics,
+            "monitoring": monitoring,
+        }
+        for flag_name, enabled in flag_map.items():
+            if enabled:
+                artifact_enabled_ids.extend(CLI_FLAG_ARTIFACT_MAP[flag_name])
+        analysis_override = overrides.setdefault("analysis", {})
+        existing_enabled = analysis_override.get("enabled_analyzers", [])
+        if existing_enabled:
+            artifact_enabled_ids = list(dict.fromkeys([*existing_enabled, *artifact_enabled_ids]))
+        analysis_override["enabled_analyzers"] = artifact_enabled_ids
+
+    if artifact_override:
+        overrides["artifact_analysis"] = artifact_override
 
     reporting_override: dict[str, Any] = {}
     if output is not None:
@@ -834,6 +903,213 @@ def metadata_command(
         framework_meta=framework_meta,
         sourcemaps=sourcemaps,
         service_workers=service_workers,
+        disable_analyzer=disable_analyzer or [],
+        enable_analyzer=enable_analyzer or [],
+        config=config,
+    )
+
+
+def _run_artifact_analysis(
+    url: str,
+    *,
+    json_output: bool,
+    report_format: OutputFormat | None,
+    output: str | None,
+    artifact_analysis: bool,
+    cloud_analysis: bool,
+    identity_analysis: bool,
+    graphql: bool,
+    openapi: bool,
+    firebase: bool,
+    oauth: bool,
+    third_party: bool,
+    analytics: bool,
+    monitoring: bool,
+    disable_analyzer: list[str],
+    enable_analyzer: list[str],
+    config: Path | None,
+) -> None:
+    """Shared artifact analysis command implementation."""
+    manager = get_configuration_manager()
+    specific = (
+        cloud_analysis
+        or identity_analysis
+        or graphql
+        or openapi
+        or firebase
+        or oauth
+        or third_party
+        or analytics
+        or monitoring
+    )
+    resolved_enable = enable_analyzer or ([] if specific else list(ARTIFACT_ANALYZER_IDS))
+    command_overrides = _build_cli_overrides(
+        debug=False,
+        verbose=False,
+        min_confidence=None,
+        disable_analyzer=disable_analyzer,
+        enable_analyzer=resolved_enable,
+        output=output,
+        report_format=report_format,
+        artifact_analysis=artifact_analysis,
+        cloud_analysis=cloud_analysis,
+        identity_analysis=identity_analysis,
+        graphql=graphql,
+        openapi=openapi,
+        firebase=firebase,
+        oauth=oauth,
+        third_party=third_party,
+        analytics=analytics,
+        monitoring=monitoring,
+    )
+    if config is not None:
+        manager = ConfigurationManager.load(config_path=config, cli_overrides=command_overrides)
+        set_configuration_manager(manager)
+    elif command_overrides:
+        manager.apply_cli_overrides(command_overrides)
+
+    active_config = manager.config
+    if graphql and not active_config.artifact_analysis.is_analyzer_enabled(
+        "graphql-metadata-analyzer"
+    ):
+        console.print("[yellow]GraphQL analyzer is disabled by configuration.[/yellow]")
+        raise typer.Exit(code=1)
+
+    try:
+        service = AnalysisService()
+        result = asyncio.run(service.analyze_url(url))
+    except ValidationError as exc:
+        console.print(f"[red]Validation error:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    except TechSpecterError as exc:
+        console.print(f"[red]Artifact analysis failed:[/red] {exc}")
+        logger.exception("Artifact analysis failed for %s", url)
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        payload = result.model_dump(mode="json")
+        console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        return
+
+    report_service = ReportService()
+    selected_format = (
+        report_format.value if report_format is not None else active_config.reporting.default_format
+    )
+    export_path = output
+    if export_path is None and active_config.reporting.filename:
+        export_path = str(
+            Path(active_config.reporting.output_directory) / active_config.reporting.filename
+        )
+
+    try:
+        if selected_format is not None:
+            if not active_config.reporting.is_format_enabled(selected_format):
+                console.print(
+                    f"[red]Report format '{selected_format}' is disabled by configuration.[/red]"
+                )
+                raise typer.Exit(code=1)
+            export_result = report_service.generate_and_export_from_analysis(
+                result,
+                selected_format,  # type: ignore[arg-type]
+                output_path=export_path,
+                scan_duration_ms=result.elapsed_ms,
+            )
+            if export_path is None:
+                console.print(export_result.content)
+            else:
+                console.print(f"[green]Report written to[/green] {export_result.output_path}")
+            return
+
+        _render_analysis_summary(result, title="Artifact Analysis Findings")
+    except ReportError as exc:
+        console.print(f"[red]Report generation failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+
+@app.command("artifacts")
+def artifacts_command(
+    url: Annotated[str, typer.Argument(help="Target website URL to analyze passively.")],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output raw analysis results as JSON."),
+    ] = False,
+    report_format: Annotated[
+        OutputFormat | None,
+        typer.Option("--format", help="Export report format."),
+    ] = None,
+    output: Annotated[
+        str | None,
+        typer.Option("--output", help="Write exported report to this file."),
+    ] = None,
+    artifact_analysis: Annotated[
+        bool,
+        typer.Option("--artifact-analysis", help="Enable artifact analysis analyzers."),
+    ] = True,
+    cloud_analysis: Annotated[
+        bool,
+        typer.Option("--cloud-analysis", help="Enable cloud service analyzers."),
+    ] = False,
+    identity_analysis: Annotated[
+        bool,
+        typer.Option("--identity-analysis", help="Enable identity analyzers."),
+    ] = False,
+    graphql: Annotated[
+        bool,
+        typer.Option("--graphql", help="Enable GraphQL metadata analyzer."),
+    ] = False,
+    openapi: Annotated[
+        bool,
+        typer.Option("--openapi", help="Enable OpenAPI analyzer."),
+    ] = False,
+    firebase: Annotated[
+        bool,
+        typer.Option("--firebase", help="Enable Firebase analyzer."),
+    ] = False,
+    oauth: Annotated[
+        bool,
+        typer.Option("--oauth", help="Enable OAuth/OIDC analyzers."),
+    ] = False,
+    third_party: Annotated[
+        bool,
+        typer.Option("--third-party", help="Enable third-party service analyzer."),
+    ] = False,
+    analytics: Annotated[
+        bool,
+        typer.Option("--analytics", help="Enable analytics service analyzer."),
+    ] = False,
+    monitoring: Annotated[
+        bool,
+        typer.Option("--monitoring", help="Enable monitoring service analyzer."),
+    ] = False,
+    disable_analyzer: Annotated[
+        list[str] | None,
+        typer.Option("--disable-analyzer", help="Disable an analyzer by ID."),
+    ] = None,
+    enable_analyzer: Annotated[
+        list[str] | None,
+        typer.Option("--enable-analyzer", help="Enable only listed analyzers when set."),
+    ] = None,
+    config: Annotated[
+        Path | None,
+        typer.Option("--config", help="Path to a YAML or JSON configuration file."),
+    ] = None,
+) -> None:
+    """Run passive cloud, identity, and API artifact analysis."""
+    _run_artifact_analysis(
+        url,
+        json_output=json_output,
+        report_format=report_format,
+        output=output,
+        artifact_analysis=artifact_analysis,
+        cloud_analysis=cloud_analysis,
+        identity_analysis=identity_analysis,
+        graphql=graphql,
+        openapi=openapi,
+        firebase=firebase,
+        oauth=oauth,
+        third_party=third_party,
+        analytics=analytics,
+        monitoring=monitoring,
         disable_analyzer=disable_analyzer or [],
         enable_analyzer=enable_analyzer or [],
         config=config,

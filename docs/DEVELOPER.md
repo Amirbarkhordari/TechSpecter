@@ -415,6 +415,69 @@ techspecter metadata https://example.com --json
 - Add well-known resource types to `WELL_KNOWN_PATHS` in `metadata_collector.py` (fixed paths only).
 - Wrap analyzers in `AnalyzerPlugin` modules under `techspecter.plugins.builtin.metadata`.
 
+## Passive Cloud, Identity & API Artifact Analysis
+
+Phase 7 Part 1 extends passive analysis with cloud, identity, API, and third-party artifact intelligence. Every analyzer is an independent plugin under `techspecter.plugins.builtin.artifact`.
+
+### Architecture
+
+1. Discovery collects HTTP responses, HTML metadata, well-known resources, and script content (Phase 6).
+2. `ArtifactExtractor` scans **already-collected** data only — no new HTTP requests, no validation, no brute force.
+3. Extracted indicators are stored on `DiscoveryResult.artifact_observation` (`ArtifactDiscoveryObservation`).
+4. Artifact analyzers extend `PassiveArtifactAnalyzer` and emit findings via `build_artifact_finding()`.
+5. `ReportEngine.generate_from_analysis()` adds artifact report sections via `build_artifact_report_sections()`.
+
+### Built-in Artifact Analyzer Plugins (15)
+
+| Category | Analyzer IDs |
+|---|---|
+| Identity / Tokens | `api-key-analyzer`, `jwt-analyzer`, `oauth-metadata-analyzer`, `openid-connect-analyzer` |
+| API | `graphql-metadata-analyzer`, `openapi-analyzer` |
+| Cloud | `firebase-analyzer`, `aws-metadata-analyzer`, `azure-metadata-analyzer`, `google-cloud-metadata-analyzer`, `cdn-analyzer` |
+| Third-party | `third-party-service-analyzer`, `analytics-service-analyzer`, `monitoring-service-analyzer` |
+| Technology | `technology-exposure-analyzer` |
+
+### Configuration
+
+```yaml
+artifact_analysis:
+  enabled: true
+  artifact_analysis: true
+  cloud_analysis: true
+  identity_analysis: true
+  graphql: true
+  openapi: true
+  firebase: true
+  oauth: true
+  third_party: true
+  analytics: true
+  monitoring: true
+  min_confidence: 0.0
+  severity_threshold: INFO
+  analyzers:
+    jwt-analyzer:
+      enabled: true
+      min_confidence: 50.0
+```
+
+### CLI Usage
+
+```bash
+techspecter artifacts https://example.com
+techspecter artifacts https://example.com --cloud-analysis --identity-analysis
+techspecter artifacts https://example.com --graphql --openapi
+techspecter artifacts https://example.com --firebase --oauth
+techspecter artifacts https://example.com --third-party --analytics --monitoring
+techspecter artifacts https://example.com --disable-analyzer jwt-analyzer
+techspecter artifacts https://example.com --json
+```
+
+### Extension Points
+
+- Implement `PassiveArtifactAnalyzer` or `TypedArtifactAnalyzer` for new passive artifact analyzers.
+- Add detection patterns to `ArtifactExtractor` in `extractor.py` (passive pattern matching only).
+- Wrap analyzers in `AnalyzerPlugin` modules under `techspecter.plugins.builtin.artifact`.
+
 ## Related Documentation
 
 - [Plugin SDK Guide](PLUGIN_SDK.md)

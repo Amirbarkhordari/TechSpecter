@@ -244,6 +244,62 @@ class MetadataAnalysisConfig(TechSpecterModel):
         return options.enabled
 
 
+class ArtifactAnalysisConfig(TechSpecterModel):
+    """Passive cloud, identity, and API artifact analysis configuration."""
+
+    enabled: bool = True
+    artifact_analysis: bool = True
+    cloud_analysis: bool = True
+    identity_analysis: bool = True
+    graphql: bool = True
+    openapi: bool = True
+    firebase: bool = True
+    oauth: bool = True
+    third_party: bool = True
+    analytics: bool = True
+    monitoring: bool = True
+    min_confidence: float = Field(default=0.0, ge=0.0, le=100.0)
+    severity_threshold: str = "INFO"
+    analyzers: dict[str, AnalyzerOptions] = Field(default_factory=dict)
+
+    def is_analyzer_enabled(self, analyzer_id: str) -> bool:
+        """Return whether an artifact analyzer is enabled."""
+        if not self.enabled or not self.artifact_analysis:
+            return False
+
+        group_enabled = {
+            "api-key-analyzer": self.identity_analysis,
+            "jwt-analyzer": self.identity_analysis,
+            "oauth-metadata-analyzer": self.oauth,
+            "openid-connect-analyzer": self.oauth,
+            "graphql-metadata-analyzer": self.graphql,
+            "openapi-analyzer": self.openapi,
+            "firebase-analyzer": self.firebase,
+            "aws-metadata-analyzer": self.cloud_analysis,
+            "azure-metadata-analyzer": self.cloud_analysis,
+            "google-cloud-metadata-analyzer": self.cloud_analysis,
+            "cdn-analyzer": self.cloud_analysis,
+            "third-party-service-analyzer": self.third_party,
+            "analytics-service-analyzer": self.analytics,
+            "monitoring-service-analyzer": self.monitoring,
+            "technology-exposure-analyzer": self.artifact_analysis,
+        }
+        if analyzer_id in group_enabled and not group_enabled[analyzer_id]:
+            return False
+
+        options = self.analyzers.get(analyzer_id)
+        if options is None:
+            return True
+        return options.enabled
+
+    def analyzer_min_confidence(self, analyzer_id: str) -> float:
+        """Return minimum confidence threshold for an artifact analyzer."""
+        options = self.analyzers.get(analyzer_id)
+        if options is None:
+            return self.min_confidence
+        return max(self.min_confidence, options.min_confidence)
+
+
 class TechSpecterConfig(TechSpecterModel):
     """Root configuration model for TechSpecter."""
 
@@ -252,6 +308,7 @@ class TechSpecterConfig(TechSpecterModel):
     analysis: AnalysisConfig = Field(default_factory=AnalysisConfig)
     http_analysis: HttpAnalysisConfig = Field(default_factory=HttpAnalysisConfig)
     metadata_analysis: MetadataAnalysisConfig = Field(default_factory=MetadataAnalysisConfig)
+    artifact_analysis: ArtifactAnalysisConfig = Field(default_factory=ArtifactAnalysisConfig)
     reporting: ReportConfig = Field(default_factory=ReportConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
