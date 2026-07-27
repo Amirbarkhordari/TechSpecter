@@ -15,8 +15,8 @@ from techspecter import __version__
 from techspecter.config import get_settings
 from techspecter.crawler.discovery import DiscoveryPipeline
 from techspecter.exceptions import TechSpecterError, ValidationError
-from techspecter.fingerprints.models import FingerprintAnalysisResult
-from techspecter.fingerprints.service import FingerprintService
+from techspecter.fingerprinting.models import FingerprintAnalysisResult
+from techspecter.fingerprinting.service import FingerprintService
 from techspecter.models.discovery import DiscoveryResult
 from techspecter.utils.logging import configure_logging
 

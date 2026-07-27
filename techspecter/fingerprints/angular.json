@@ -1,0 +1,20 @@
+{
+  "id": "angular",
+  "name": "Angular",
+  "category": "framework",
+  "website": "https://angular.io",
+  "description": "Platform for building mobile and desktop web applications",
+  "priority": 95,
+  "confidence": 85,
+  "tags": ["javascript", "framework", "frontend"],
+  "patterns": [
+    {"matcher": "filename", "pattern": "angular", "weight": 25},
+    {"matcher": "string", "pattern": "ng.version", "weight": 30},
+    {"matcher": "string", "pattern": "@angular/core", "weight": 35},
+    {"matcher": "global", "pattern": "angular", "weight": 25}
+  ],
+  "version_patterns": [
+    {"pattern": "ng\\.version\\s*=\\s*\\{\\s*full:\\s*[\"']([0-9][0-9a-zA-Z.+-_]*)[\"']", "weight": 25},
+    {"pattern": "Angular\\s+v?([0-9][0-9a-zA-Z.+-_]*)", "weight": 15}
+  ]
+}

@@ -1,5 +1,5 @@
 """Technology detection module."""
 
-from techspecter.fingerprints.service import FingerprintService
+from techspecter.fingerprinting.service import FingerprintService
 
 __all__ = ["FingerprintService"]

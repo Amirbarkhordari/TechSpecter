@@ -37,9 +37,9 @@ TechSpecter aims to become the go-to open-source toolkit for deep web applicatio
 
 ## Current Status
 
-**Phase 3 — JavaScript Fingerprinting Engine** (current, v0.3.0)
+**Phase 3A — JavaScript Fingerprinting Core Engine** (current, v0.3.1)
 
-TechSpecter discovers JavaScript resources, downloads them, and identifies technologies using an extensible JSON fingerprint database. Supported capabilities include multi-matcher detection, version extraction, confidence scoring, and CLI-driven analysis with JSON output. CVE matching, secret scanning, and endpoint discovery are not implemented yet.
+TechSpecter discovers JavaScript resources, downloads them, and identifies technologies using an extensible JSON fingerprint database. The core engine lives in `techspecter/fingerprinting/`; fingerprint definitions live in `techspecter/fingerprints/`. Supported capabilities include multi-matcher detection, version extraction, confidence scoring, and CLI-driven analysis with JSON output.
 
 ---
 
@@ -60,12 +60,17 @@ TechSpecter discovers JavaScript resources, downloads them, and identifies techn
 - Source map reference detection
 - `techspecter discover` CLI command
 
-### Phase 3 — JavaScript Fingerprinting Engine ✅
-- JSON fingerprint repository (`signatures/`)
+### Phase 3A — JavaScript Fingerprinting Core Engine ✅
+- Dedicated `techspecter/fingerprinting/` engine package
+- JSON fingerprint database in `techspecter/fingerprints/`
 - Signature loader with schema validation
 - Multi-matcher fingerprint engine (string, regex, filename, source map, global)
 - Version extraction and confidence scoring
 - `techspecter fingerprint` CLI command
+
+### Phase 3B — Fingerprint Expansion 🔜
+- Expanded fingerprint database
+- Detection optimization and advanced heuristics
 
 ### Phase 4 — Security Intelligence
 - CVE correlation engine
@@ -155,7 +160,7 @@ techspecter fingerprint https://example.com --verbose
 The `fingerprint` command chains discovery with technology detection:
 
 1. Discovers and downloads JavaScript resources
-2. Loads fingerprint signatures from `signatures/`
+2. Loads fingerprint signatures from `techspecter/fingerprints/`
 3. Runs matcher plugins against each script
 4. Extracts version strings when available
 5. Calculates confidence scores (0–100)
@@ -167,16 +172,24 @@ The `fingerprint` command chains discovery with technology detection:
 
 ### Repository Layout
 
-Fingerprint definitions live in the `signatures/` directory as individual JSON files.
-Adding a new technology requires **only a new JSON file** — no Python changes.
+Fingerprint definitions live in `techspecter/fingerprints/` as individual JSON files.
+The detection engine lives in `techspecter/fingerprinting/`. Adding a new technology
+requires **only a new JSON file** — no Python changes.
 
 ```
-signatures/
-├── schema.json      # JSON schema reference
-├── react.json
-├── vue.json
-├── jquery.json
-└── ...
+techspecter/
+├── fingerprinting/          # Core engine (loaders, matchers, scoring)
+│   ├── engine.py
+│   ├── loader.py
+│   ├── extractor.py
+│   ├── scoring.py
+│   ├── service.py
+│   └── matchers/
+└── fingerprints/            # JSON fingerprint database
+    ├── schema.json
+    ├── react.json
+    ├── vue.json
+    └── ...
 ```
 
 ### JSON Schema
@@ -228,11 +241,11 @@ DetectionResult
 
 ### Adding a New Technology
 
-1. Create `signatures/my-tech.json` following the schema in `signatures/schema.json`
+1. Create `techspecter/fingerprints/my-tech.json` following `techspecter/fingerprints/schema.json`
 2. Define `patterns` and optional `version_patterns`
 3. Run `techspecter fingerprint <url>` — no code changes required
 
-Environment variable `TECHSPECTER_SIGNATURES_DIR` can point to a custom signatures directory.
+Environment variable `TECHSPECTER_SIGNATURES_DIR` can point to a custom fingerprints directory.
 
 ---
 
@@ -245,13 +258,13 @@ TechSpecter/
 │   ├── crawler/           # Web crawling (Phase 2)
 │   ├── downloader/        # HTTP resource fetching (Phase 2)
 │   ├── parser/            # Content parsing (Phase 2)
-│   ├── detector/          # Technology detection (Phase 2)
-│   ├── fingerprints/      # Signature definitions (Phase 2)
-│   ├── report/            # Report generation (Phase 3)
+│   ├── fingerprinting/    # Fingerprinting engine (Phase 3A)
+│   ├── fingerprints/      # JSON fingerprint database (Phase 3A)
+│   ├── detector/          # Detection service facade
+│   ├── report/            # Report generation (Phase 4)
 │   ├── models/            # Pydantic data models
 │   ├── utils/             # Shared utilities
 │   └── plugins/           # Plugin registry & discovery
-├── signatures/            # Technology fingerprint signatures
 ├── tests/                 # Test suite
 ├── docs/                  # Documentation
 └── .github/workflows/     # CI/CD pipelines

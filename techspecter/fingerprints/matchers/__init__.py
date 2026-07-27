@@ -1,13 +1,9 @@
-"""Built-in fingerprint pattern matchers."""
+"""Backward-compatible re-exports."""
 
-from techspecter.fingerprints.matchers.base import (
+from techspecter.fingerprinting.matchers.base import (
     MatcherRegistry,
     PatternMatcher,
     build_default_registry,
 )
 
-__all__ = [
-    "MatcherRegistry",
-    "PatternMatcher",
-    "build_default_registry",
-]
+__all__ = ["MatcherRegistry", "PatternMatcher", "build_default_registry"]

@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Nothing yet.
 
+## [0.3.1] - 2026-07-27
+
+### Added
+- Dedicated `techspecter/fingerprinting/` core engine package (Phase 3A)
+- `FingerprintPattern` model and spec-aligned matcher module names
+
+### Changed
+- Fingerprint JSON database relocated to `techspecter/fingerprints/`
+- `SignatureLoader` resolves bundled fingerprints first, with legacy `signatures/` fallback
+- `techspecter/fingerprints/` Python modules are backward-compatible re-exports
+
 ## [0.3.0] - 2026-07-27
 
 ### Added
@@ -70,7 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial test suite
 - Project documentation (README, CONTRIBUTING, LICENSE)
 
-[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.1.0...v0.2.0

@@ -8,13 +8,13 @@ from pathlib import Path
 import pytest
 
 from techspecter.exceptions import FingerprintLoadError
-from techspecter.fingerprints.loader import SignatureLoader, resolve_signatures_directory
+from techspecter.fingerprinting.loader import SignatureLoader, resolve_signatures_directory
 
 
-def test_resolve_signatures_directory_uses_project_signatures() -> None:
-    """Verify the default signatures directory resolves to the repository folder."""
+def test_resolve_signatures_directory_uses_bundled_fingerprints() -> None:
+    """Verify the default fingerprints directory resolves to the bundled database."""
     path = resolve_signatures_directory()
-    assert path.name == "signatures"
+    assert path.name == "fingerprints"
     assert (path / "react.json").is_file()
 
 
