@@ -15,6 +15,8 @@ from techspecter import __version__
 from techspecter.config import get_settings
 from techspecter.crawler.discovery import DiscoveryPipeline
 from techspecter.exceptions import TechSpecterError, ValidationError
+from techspecter.fingerprints.models import FingerprintAnalysisResult
+from techspecter.fingerprints.service import FingerprintService
 from techspecter.models.discovery import DiscoveryResult
 from techspecter.utils.logging import configure_logging
 
@@ -157,6 +159,81 @@ def discover_command(
         return
 
     _render_discovery_result(result)
+
+
+def _serialize_fingerprint_result(result: FingerprintAnalysisResult) -> dict[str, Any]:
+    """Convert a fingerprint analysis result to JSON.
+
+    Args:
+        result: Combined discovery and detection output.
+
+    Returns:
+        JSON-compatible dictionary without raw JavaScript content.
+    """
+    payload = result.model_dump(mode="json")
+    return payload
+
+
+def _render_fingerprint_result(result: FingerprintAnalysisResult) -> None:
+    """Render a human-readable fingerprint analysis summary.
+
+    Args:
+        result: Combined discovery and detection output.
+    """
+    console.print(f"\n[bold]Target:[/bold] {result.target_url}")
+    console.print(f"[bold]Elapsed:[/bold] {result.elapsed_ms:.0f} ms")
+    console.print(
+        f"[bold]Scripts analyzed:[/bold] {result.detection.scripts_analyzed}\n"
+    )
+
+    if not result.detection.matches:
+        console.print("[yellow]No JavaScript technologies detected.[/yellow]")
+        return
+
+    table = Table(title="Detected Technologies")
+    table.add_column("Technology")
+    table.add_column("Category")
+    table.add_column("Version")
+    table.add_column("Confidence")
+    table.add_column("Source")
+    for match in result.detection.matches:
+        source = match.filename or match.source_url or "-"
+        table.add_row(
+            match.technology.name,
+            match.technology.category,
+            match.version,
+            f"{match.confidence:.1f}",
+            source,
+        )
+    console.print(table)
+
+
+@app.command("fingerprint")
+def fingerprint_command(
+    url: Annotated[str, typer.Argument(help="Target website URL to fingerprint.")],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output results as JSON."),
+    ] = False,
+) -> None:
+    """Discover JavaScript resources and identify technologies."""
+    try:
+        service = FingerprintService()
+        result = asyncio.run(service.analyze_url(url))
+    except ValidationError as exc:
+        console.print(f"[red]Validation error:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    except TechSpecterError as exc:
+        console.print(f"[red]Fingerprint analysis failed:[/red] {exc}")
+        logger.exception("Fingerprint analysis failed for %s", url)
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        payload = _serialize_fingerprint_result(result)
+        console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        return
+
+    _render_fingerprint_result(result)
 
 
 def main() -> None:

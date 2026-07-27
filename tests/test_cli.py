@@ -21,11 +21,11 @@ def test_cli_version() -> None:
     """Verify the --version flag prints the current version."""
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "TechSpecter 0.2.1" in result.stdout
+    assert "TechSpecter 0.3.0" in result.stdout
 
 
 def test_cli_version_short_flag() -> None:
     """Verify the -V short flag prints the current version."""
     result = runner.invoke(app, ["-V"])
     assert result.exit_code == 0
-    assert "0.2.1" in result.stdout
+    assert "0.3.0" in result.stdout

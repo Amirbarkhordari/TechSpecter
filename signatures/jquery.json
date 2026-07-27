@@ -1,0 +1,20 @@
+{
+  "id": "jquery",
+  "name": "jQuery",
+  "category": "library",
+  "website": "https://jquery.com",
+  "description": "Fast, small, and feature-rich JavaScript library",
+  "priority": 90,
+  "confidence": 80,
+  "tags": ["javascript", "library", "dom"],
+  "patterns": [
+    {"matcher": "filename", "pattern": "jquery", "weight": 25},
+    {"matcher": "string", "pattern": "jQuery.fn.jquery", "weight": 30},
+    {"matcher": "global", "pattern": "jQuery", "weight": 35},
+    {"matcher": "global", "pattern": "$", "weight": 10}
+  ],
+  "version_patterns": [
+    {"pattern": "jQuery\\.fn\\.jquery\\s*=\\s*[\"']([0-9][0-9a-zA-Z.+-_]*)[\"']", "weight": 25},
+    {"pattern": "jquery\\s*[:=]\\s*[\"']([0-9][0-9a-zA-Z.+-_]*)[\"']", "weight": 15, "flags": "i"}
+  ]
+}

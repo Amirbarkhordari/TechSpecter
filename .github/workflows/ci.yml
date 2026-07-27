@@ -39,6 +39,7 @@ jobs:
           python -m techspecter --version
           techspecter --version
           techspecter discover --help
+          techspecter fingerprint --help
 
   build:
     name: Build package

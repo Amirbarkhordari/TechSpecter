@@ -61,6 +61,7 @@ class DownloadResult(TechSpecterModel):
         download_duration_ms: Download duration in milliseconds.
         error_message: Error description when download failed.
         source_map_url: Detected ``sourceMappingURL`` reference, if any.
+        content: Downloaded JavaScript body text when available.
     """
 
     url: HttpUrl
@@ -73,6 +74,7 @@ class DownloadResult(TechSpecterModel):
     download_duration_ms: float | None = None
     error_message: str | None = None
     source_map_url: str | None = None
+    content: str | None = None
 
 
 class DiscoveryResult(TechSpecterModel):

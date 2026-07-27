@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Final
 
 DEFAULT_USER_AGENT: Final[str] = (
-    "TechSpecter/0.2.1 (+https://github.com/Amirbarkhordari/TechSpecter)"
+    "TechSpecter/0.3.0 (+https://github.com/Amirbarkhordari/TechSpecter)"
 )
 ENV_PREFIX: Final[str] = "TECHSPECTER_"
 
@@ -82,7 +82,7 @@ class Settings:
     """
 
     app_name: str = "TechSpecter"
-    version: str = "0.2.1"
+    version: str = "0.3.0"
     debug: bool = False
     user_agent: str = DEFAULT_USER_AGENT
     request_timeout: float = 30.0
@@ -102,7 +102,7 @@ def get_settings() -> Settings:
     """
     return Settings(
         app_name=os.environ.get(f"{ENV_PREFIX}APP_NAME", "TechSpecter"),
-        version=os.environ.get(f"{ENV_PREFIX}VERSION", "0.2.1"),
+        version=os.environ.get(f"{ENV_PREFIX}VERSION", "0.3.0"),
         debug=_env_bool(f"{ENV_PREFIX}DEBUG", False),
         user_agent=os.environ.get(f"{ENV_PREFIX}USER_AGENT", DEFAULT_USER_AGENT),
         request_timeout=_env_float(f"{ENV_PREFIX}REQUEST_TIMEOUT", 30.0),

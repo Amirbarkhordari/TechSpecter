@@ -25,20 +25,21 @@ TechSpecter aims to become the go-to open-source toolkit for deep web applicatio
 | Async HTTP client with retries | ✅ Phase 2 |
 | HTML script parsing | ✅ Phase 2 |
 | Source map reference detection | ✅ Phase 2 |
-| Technology fingerprinting | 🔜 Phase 3 |
-| JavaScript content analysis | 🔜 Phase 3 |
-| CVE intelligence | 🔜 Phase 3 |
-| Secret discovery | 🔜 Phase 3 |
-| API endpoint discovery | 🔜 Phase 3 |
-| Report generation engine | 🔜 Phase 3 |
+| JavaScript technology fingerprinting | ✅ Phase 3 |
+| Version extraction | ✅ Phase 3 |
+| JSON fingerprint repository | ✅ Phase 3 |
+| CVE intelligence | 🔜 Phase 4 |
+| Secret discovery | 🔜 Phase 4 |
+| API endpoint discovery | 🔜 Phase 4 |
+| Report generation engine | 🔜 Phase 4 |
 
 ---
 
 ## Current Status
 
-**Phase 2 — JavaScript Discovery Engine** (current, v0.2.1)
+**Phase 3 — JavaScript Fingerprinting Engine** (current, v0.3.0)
 
-This release implements JavaScript resource discovery and download: URL validation, HTML parsing, script URL resolution, deduplication, async downloading, source map reference detection, and structured JSON/human-readable CLI output. A stabilization pass in v0.2.1 hardened logging, validation errors, and source map propagation. No fingerprinting, content analysis, or security detection is implemented yet.
+TechSpecter discovers JavaScript resources, downloads them, and identifies technologies using an extensible JSON fingerprint database. Supported capabilities include multi-matcher detection, version extraction, confidence scoring, and CLI-driven analysis with JSON output. CVE matching, secret scanning, and endpoint discovery are not implemented yet.
 
 ---
 
@@ -59,17 +60,18 @@ This release implements JavaScript resource discovery and download: URL validati
 - Source map reference detection
 - `techspecter discover` CLI command
 
-### Phase 3 — Technology Fingerprinting
-- Technology fingerprint matcher
-- Signature database loader
-- JavaScript library & framework detection
-- Version identification
+### Phase 3 — JavaScript Fingerprinting Engine ✅
+- JSON fingerprint repository (`signatures/`)
+- Signature loader with schema validation
+- Multi-matcher fingerprint engine (string, regex, filename, source map, global)
+- Version extraction and confidence scoring
+- `techspecter fingerprint` CLI command
+
+### Phase 4 — Security Intelligence
 - CVE correlation engine
 - Secret & credential discovery
 - API endpoint discovery
 - Rich reporting (JSON, HTML, SARIF)
-
-### Phase 4 — Ecosystem
 - Plugin marketplace
 - Custom signature authoring
 - Integration with security tooling (Burp, Nuclei, etc.)
@@ -141,6 +143,96 @@ The `discover` command:
 5. Downloads external scripts asynchronously
 6. Detects `sourceMappingURL` references (without downloading maps)
 7. Displays a summary or JSON output
+
+### Fingerprint JavaScript technologies
+
+```bash
+techspecter fingerprint https://example.com
+techspecter fingerprint example.com --json
+techspecter fingerprint https://example.com --verbose
+```
+
+The `fingerprint` command chains discovery with technology detection:
+
+1. Discovers and downloads JavaScript resources
+2. Loads fingerprint signatures from `signatures/`
+3. Runs matcher plugins against each script
+4. Extracts version strings when available
+5. Calculates confidence scores (0–100)
+6. Displays detected technologies or JSON output
+
+---
+
+## Fingerprint Architecture
+
+### Repository Layout
+
+Fingerprint definitions live in the `signatures/` directory as individual JSON files.
+Adding a new technology requires **only a new JSON file** — no Python changes.
+
+```
+signatures/
+├── schema.json      # JSON schema reference
+├── react.json
+├── vue.json
+├── jquery.json
+└── ...
+```
+
+### JSON Schema
+
+Each fingerprint supports:
+
+| Field | Description |
+|---|---|
+| `id` | Unique technology identifier |
+| `name` | Display name |
+| `category` | Technology category |
+| `website` | Official website |
+| `description` | Short description |
+| `patterns` | Detection patterns with matcher type and weight |
+| `version_patterns` | Regex patterns with capture groups for versions |
+| `priority` | Match sorting priority |
+| `confidence` | Base confidence score |
+| `tags` | Optional classification tags |
+
+Pattern matcher types: `string`, `regex`, `filename`, `sourcemap`, `global`
+
+Example pattern:
+
+```json
+{
+  "matcher": "string",
+  "pattern": "React.createElement",
+  "weight": 40
+}
+```
+
+### Detection Pipeline
+
+```
+Downloaded JavaScript
+        ↓
+SignatureLoader (cached)
+        ↓
+FingerprintEngine
+        ↓
+Pattern Matchers
+        ↓
+VersionExtractor
+        ↓
+ConfidenceScorer
+        ↓
+DetectionResult
+```
+
+### Adding a New Technology
+
+1. Create `signatures/my-tech.json` following the schema in `signatures/schema.json`
+2. Define `patterns` and optional `version_patterns`
+3. Run `techspecter fingerprint <url>` — no code changes required
+
+Environment variable `TECHSPECTER_SIGNATURES_DIR` can point to a custom signatures directory.
 
 ---
 

@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Nothing yet.
 
+## [0.3.0] - 2026-07-27
+
+### Added
+- JavaScript Fingerprinting Engine (Phase 3)
+- JSON fingerprint repository with 10 bundled technologies
+- `SignatureLoader` with schema validation, caching, and graceful error handling
+- `FingerprintEngine` with pluggable matchers: string, regex, filename, sourcemap, global
+- `VersionExtractor` with regex-based version detection
+- `ConfidenceScorer` with normalized 0–100 scoring
+- `FingerprintPipeline` and `FingerprintService` orchestration layer
+- CLI command: `techspecter fingerprint <url>` with `--json` support
+- Fingerprint-specific exception hierarchy
+- Comprehensive fingerprint test suite (26 new tests)
+
+### Changed
+- `DownloadResult` now optionally stores downloaded JavaScript content for analysis
+- Package bundles `signatures/` directory in wheel distributions
+
 ## [0.2.1] - 2026-07-27
 
 ### Fixed
@@ -52,7 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial test suite
 - Project documentation (README, CONTRIBUTING, LICENSE)
 
-[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Amirbarkhordari/TechSpecter/releases/tag/v0.1.0

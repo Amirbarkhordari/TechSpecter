@@ -1,0 +1,19 @@
+{
+  "id": "alpine",
+  "name": "Alpine.js",
+  "category": "library",
+  "website": "https://alpinejs.dev",
+  "description": "Minimal framework for composing JavaScript behavior in markup",
+  "priority": 80,
+  "confidence": 80,
+  "tags": ["javascript", "library", "ui", "frontend"],
+  "patterns": [
+    {"matcher": "filename", "pattern": "alpine", "weight": 25},
+    {"matcher": "string", "pattern": "Alpine.start", "weight": 30},
+    {"matcher": "string", "pattern": "x-data", "weight": 15},
+    {"matcher": "global", "pattern": "Alpine", "weight": 30}
+  ],
+  "version_patterns": [
+    {"pattern": "Alpine\\.version\\s*=\\s*[\"']([0-9][0-9a-zA-Z.+-_]*)[\"']", "weight": 25}
+  ]
+}

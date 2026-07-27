@@ -1,0 +1,19 @@
+{
+  "id": "vue",
+  "name": "Vue.js",
+  "category": "framework",
+  "website": "https://vuejs.org",
+  "description": "Progressive JavaScript framework for building user interfaces",
+  "priority": 95,
+  "confidence": 85,
+  "tags": ["javascript", "ui", "framework", "frontend"],
+  "patterns": [
+    {"matcher": "filename", "pattern": "vue", "weight": 20},
+    {"matcher": "string", "pattern": "Vue.createApp", "weight": 35},
+    {"matcher": "string", "pattern": "Vue.version", "weight": 25},
+    {"matcher": "global", "pattern": "Vue", "weight": 30}
+  ],
+  "version_patterns": [
+    {"pattern": "Vue\\.version\\s*=\\s*[\"']([0-9][0-9a-zA-Z.+-_]*)[\"']", "weight": 25}
+  ]
+}

@@ -1,5 +1,5 @@
-"""Technology detection module (Phase 2+).
+"""Technology detection module."""
 
-This package will provide fingerprint matching and technology identification
-engines.
-"""
+from techspecter.fingerprints.service import FingerprintService
+
+__all__ = ["FingerprintService"]

@@ -43,5 +43,25 @@ class DetectorError(TechSpecterError):
     """Raised when technology detection operations fail."""
 
 
+class FingerprintError(DetectorError):
+    """Base exception for fingerprinting operations."""
+
+
+class FingerprintLoadError(FingerprintError):
+    """Raised when fingerprint signatures cannot be loaded."""
+
+
+class InvalidFingerprintError(FingerprintError):
+    """Raised when a fingerprint definition is invalid."""
+
+
+class PatternMatchError(FingerprintError):
+    """Raised when pattern matching fails unexpectedly."""
+
+
+class VersionExtractionError(FingerprintError):
+    """Raised when version extraction fails unexpectedly."""
+
+
 class ReportError(TechSpecterError):
     """Raised when report generation or export fails."""

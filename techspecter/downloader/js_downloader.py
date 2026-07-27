@@ -127,6 +127,7 @@ class JsDownloader:
         content_type = response.headers.get("content-type")
         content_length = len(response.content)
         source_map_url: str | None = None
+        body_text: str | None = None
 
         if response.status_code < 400 and response.content:
             body_text = _decode_response_body(response)
@@ -153,6 +154,7 @@ class JsDownloader:
             download_duration_ms=duration_ms,
             error_message=error_message,
             source_map_url=source_map_url,
+            content=body_text,
         )
 
 
