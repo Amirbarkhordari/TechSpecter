@@ -2,67 +2,90 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Final
+
+from techspecter.configuration.models import LoggingConfig
 
 DEFAULT_LOG_FORMAT: Final[str] = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 DEFAULT_DATE_FORMAT: Final[str] = "%Y-%m-%d %H:%M:%S"
 _NOISY_LOGGERS: Final[tuple[str, ...]] = ("httpx", "httpcore", "hpack")
 
-_handler: logging.Handler | None = None
+_handlers: list[logging.Handler] = []
 
 
-def configure_logging(level: str = "INFO") -> None:
-    """Configure application logging exactly once per process.
+class StructuredFormatter(logging.Formatter):
+    """JSON structured log formatter."""
 
-    Logging is written to ``stderr`` so CLI test runners that capture or close
-    ``stdout`` do not trigger handler I/O errors. Subsequent calls update the
-    configured log level without adding duplicate handlers.
+    def format(self, record: logging.LogRecord) -> str:
+        """Format a log record as JSON."""
+        payload = {
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload)
 
-    Args:
-        level: Logging level name (e.g. ``INFO``, ``DEBUG``, ``WARNING``).
-    """
-    global _handler
 
-    numeric_level = getattr(logging, level.upper(), logging.INFO)
+def configure_logging(level: str = "INFO", config: LoggingConfig | None = None) -> None:
+    """Configure application logging exactly once per process."""
+    global _handlers
+
+    logging_config = config or LoggingConfig(level=level)
+    numeric_level = getattr(logging, logging_config.level.upper(), logging.INFO)
+    if logging_config.debug:
+        numeric_level = logging.DEBUG
+
     root = logging.getLogger()
+    if not _handlers:
+        if logging_config.console:
+            console_handler = logging.StreamHandler(sys.stderr)
+            if logging_config.structured:
+                console_handler.setFormatter(StructuredFormatter())
+            else:
+                console_handler.setFormatter(
+                    logging.Formatter(DEFAULT_LOG_FORMAT, datefmt=DEFAULT_DATE_FORMAT)
+                )
+            root.addHandler(console_handler)
+            _handlers.append(console_handler)
 
-    if _handler is None:
-        _handler = logging.StreamHandler(sys.stderr)
-        _handler.setFormatter(
-            logging.Formatter(DEFAULT_LOG_FORMAT, datefmt=DEFAULT_DATE_FORMAT)
-        )
-        root.addHandler(_handler)
+        if logging_config.file and logging_config.file_path:
+            file_handler = logging.FileHandler(logging_config.file_path, encoding="utf-8")
+            if logging_config.structured:
+                file_handler.setFormatter(StructuredFormatter())
+            else:
+                file_handler.setFormatter(
+                    logging.Formatter(DEFAULT_LOG_FORMAT, datefmt=DEFAULT_DATE_FORMAT)
+                )
+            root.addHandler(file_handler)
+            _handlers.append(file_handler)
 
     root.setLevel(numeric_level)
-    _handler.setLevel(numeric_level)
+    for handler in _handlers:
+        handler.setLevel(numeric_level)
 
     for logger_name in _NOISY_LOGGERS:
         logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
 def reset_logging() -> None:
-    """Remove configured handlers.
-
-    Intended for test isolation. Production code should not call this helper.
-    """
-    global _handler
+    """Remove configured handlers."""
+    global _handlers
 
     root = logging.getLogger()
-    if _handler is not None:
-        root.removeHandler(_handler)
-        _handler.close()
-        _handler = None
+    for handler in _handlers:
+        root.removeHandler(handler)
+        handler.close()
+    _handlers = []
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Return a named logger instance.
-
-    Args:
-        name: Logger name, typically ``__name__`` of the calling module.
-
-    Returns:
-        A configured ``logging.Logger`` instance.
-    """
+    """Return a named logger instance."""
     return logging.getLogger(name)

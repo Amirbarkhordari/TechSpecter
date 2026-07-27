@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Nothing yet.
 
+## [0.7.0] - 2026-07-28
+
+### Added
+- Centralized configuration framework in `techspecter/configuration/`
+- YAML/JSON configuration loading, environment mapping, CLI overrides, and export
+- Analyzer, reporting, logging, performance, and reserved plugin configuration sections
+- Generic passive rule engine in `techspecter/rules/`
+- Rule types: regex, string, header with validation, caching, and finding generation
+- CLI options: `--config`, `--min-confidence`, `--disable-analyzer`, `--enable-analyzer`
+- Structured and file logging support via configuration
+- 33 new configuration and rule engine tests
+
+### Changed
+- `get_settings()` now derives from `ConfigurationManager` for backward compatibility
+- CLI initializes centralized configuration on startup
+
 ## [0.6.0] - 2026-07-28
 
 ### Added
@@ -131,7 +147,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial test suite
 - Project documentation (README, CONTRIBUTING, LICENSE)
 
-[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.4.0...v0.5.0
 [0.3.1]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.3.0...v0.3.1

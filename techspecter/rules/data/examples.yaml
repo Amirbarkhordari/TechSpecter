@@ -1,0 +1,30 @@
+# Example passive rules for TechSpecter rule engine validation.
+rules:
+  - id: example-string-marker
+    name: Example String Marker
+    description: Detects a known example marker string in downloaded content.
+    category: Information Disclosure
+    severity: INFO
+    confidence: 40
+    enabled: true
+    author: TechSpecter
+    version: "1.0.0"
+    tags: [example, passive]
+    type: string
+    pattern: "TechSpecterExampleMarker"
+    target: content
+    recommendation: Review whether the marker should be exposed publicly.
+    references:
+      - https://github.com/Amirbarkhordari/TechSpecter
+
+  - id: example-security-header-absent
+    name: Missing Security Header Example
+    description: Example header rule checking for a security-related header name.
+    category: Headers
+    severity: LOW
+    confidence: 30
+    enabled: false
+    type: header
+    pattern: "x-content-type-options"
+    target: header_name
+    recommendation: Consider defining standard security headers for public responses.

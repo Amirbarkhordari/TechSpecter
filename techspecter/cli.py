@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from enum import StrEnum
+from pathlib import Path
 from typing import Annotated, Any
 
 import orjson
@@ -13,7 +14,11 @@ from rich.console import Console
 from rich.table import Table
 
 from techspecter import __version__
-from techspecter.config import get_settings
+from techspecter.configuration.manager import (
+    ConfigurationManager,
+    get_configuration_manager,
+    set_configuration_manager,
+)
 from techspecter.crawler.discovery import DiscoveryPipeline
 from techspecter.exceptions import ReportError, TechSpecterError, ValidationError
 from techspecter.fingerprinting.models import FingerprintAnalysisResult
@@ -28,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 app = typer.Typer(
     name="techspecter",
-    help="TechSpecter — Web Technology Fingerprinting and JavaScript Intelligence framework.",
+    help="TechSpecter — Passive Web Application Analysis Framework.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -51,6 +56,49 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+def _build_cli_overrides(
+    *,
+    debug: bool,
+    verbose: bool,
+    min_confidence: float | None,
+    disable_analyzer: list[str],
+    enable_analyzer: list[str],
+    output: str | None,
+    report_format: OutputFormat | None,
+) -> dict[str, Any]:
+    """Build CLI override mapping for the configuration manager."""
+    overrides: dict[str, Any] = {}
+
+    logging_override: dict[str, Any] = {}
+    if debug or verbose:
+        logging_override["debug"] = True
+        logging_override["level"] = "DEBUG"
+    if logging_override:
+        overrides["logging"] = logging_override
+
+    analysis_override: dict[str, Any] = {}
+    if min_confidence is not None:
+        analysis_override["min_confidence"] = min_confidence
+    if disable_analyzer:
+        analysis_override["disabled_analyzers"] = disable_analyzer
+    if enable_analyzer:
+        analysis_override["enabled_analyzers"] = enable_analyzer
+    if analysis_override:
+        overrides["analysis"] = analysis_override
+
+    reporting_override: dict[str, Any] = {}
+    if output is not None:
+        output_path = Path(output)
+        reporting_override["output_directory"] = str(output_path.parent or ".")
+        reporting_override["filename"] = output_path.name
+    if report_format is not None:
+        reporting_override["default_format"] = report_format.value
+    if reporting_override:
+        overrides["reporting"] = reporting_override
+
+    return overrides
+
+
 @app.callback()
 def cli_callback(
     version: Annotated[
@@ -63,6 +111,10 @@ def cli_callback(
             is_eager=True,
         ),
     ] = None,
+    config: Annotated[
+        Path | None,
+        typer.Option("--config", help="Path to a YAML or JSON configuration file."),
+    ] = None,
     debug: Annotated[
         bool,
         typer.Option("--debug", help="Enable debug logging."),
@@ -72,10 +124,21 @@ def cli_callback(
         typer.Option("--verbose", help="Enable verbose (DEBUG) logging."),
     ] = False,
 ) -> None:
-    """TechSpecter — professional web technology fingerprinting framework."""
-    settings = get_settings()
-    log_level = "DEBUG" if debug or verbose or settings.debug else settings.log_level
-    configure_logging(level=log_level)
+    """TechSpecter — passive web application analysis framework."""
+    manager = ConfigurationManager.load(
+        config_path=config,
+        cli_overrides=_build_cli_overrides(
+            debug=debug,
+            verbose=verbose,
+            min_confidence=None,
+            disable_analyzer=[],
+            enable_analyzer=[],
+            output=None,
+            report_format=None,
+        ),
+    )
+    set_configuration_manager(manager)
+    configure_logging(config=manager.config.logging)
     logger.debug("TechSpecter CLI initialized (v%s)", __version__)
 
 
@@ -191,8 +254,47 @@ def fingerprint_command(
         bool,
         typer.Option("--verbose-output", help="Include matched pattern evidence in output."),
     ] = False,
+    min_confidence: Annotated[
+        float | None,
+        typer.Option("--min-confidence", help="Minimum confidence threshold (divided by 100 if > 1)."),
+    ] = None,
+    disable_analyzer: Annotated[
+        list[str],
+        typer.Option("--disable-analyzer", help="Disable an analyzer by ID."),
+    ] = [],
+    enable_analyzer: Annotated[
+        list[str],
+        typer.Option("--enable-analyzer", help="Enable only listed analyzers when set globally."),
+    ] = [],
+    config: Annotated[
+        Path | None,
+        typer.Option("--config", help="Path to a YAML or JSON configuration file."),
+    ] = None,
 ) -> None:
     """Discover JavaScript resources and identify technologies."""
+    manager = get_configuration_manager()
+    normalized_confidence = min_confidence
+
+    command_overrides = _build_cli_overrides(
+        debug=False,
+        verbose=False,
+        min_confidence=normalized_confidence,
+        disable_analyzer=disable_analyzer,
+        enable_analyzer=enable_analyzer,
+        output=output,
+        report_format=report_format,
+    )
+    if config is not None:
+        manager = ConfigurationManager.load(config_path=config, cli_overrides=command_overrides)
+        set_configuration_manager(manager)
+    elif command_overrides:
+        manager.apply_cli_overrides(command_overrides)
+
+    active_config = manager.config
+    if not active_config.analysis.is_analyzer_enabled("technology-fingerprint"):
+        console.print("[yellow]Technology fingerprint analyzer is disabled by configuration.[/yellow]")
+        raise typer.Exit(code=1)
+
     try:
         service = FingerprintService()
         result = asyncio.run(service.analyze_url(url))
@@ -210,15 +312,23 @@ def fingerprint_command(
         return
 
     report_service = ReportService()
+    selected_format = report_format.value if report_format is not None else active_config.reporting.default_format
+    export_path = output
+    if export_path is None and active_config.reporting.filename:
+        export_path = str(Path(active_config.reporting.output_directory) / active_config.reporting.filename)
+
     try:
-        if report_format is not None:
+        if selected_format is not None:
+            if not active_config.reporting.is_format_enabled(selected_format):
+                console.print(f"[red]Report format '{selected_format}' is disabled by configuration.[/red]")
+                raise typer.Exit(code=1)
             export_result = report_service.generate_and_export(
                 result.detection,
-                report_format.value,  # type: ignore[arg-type]
-                output_path=output,
+                selected_format,  # type: ignore[arg-type]
+                output_path=export_path,
                 scan_duration_ms=result.elapsed_ms,
             )
-            if output is None:
+            if export_path is None:
                 console.print(export_result.content)
             else:
                 console.print(f"[green]Report written to[/green] {export_result.output_path}")

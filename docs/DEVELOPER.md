@@ -166,6 +166,103 @@ TechSpecter is **passive only**. Analyzers must:
 
 Future analyzers should classify observations as findings with appropriate severity and confidence, not as vulnerability verdicts unless explicitly scoped to passive information disclosure.
 
+## Configuration Framework
+
+All components read settings from the centralized `ConfigurationManager`:
+
+```python
+from techspecter.configuration import ConfigurationManager, get_configuration_manager
+
+manager = ConfigurationManager.load(config_path="techspecter.yaml")
+config = manager.config
+```
+
+### Configuration Layers
+
+1. Built-in defaults
+2. YAML or JSON configuration file
+3. Environment variables (`TECHSPECTER_*`)
+4. CLI overrides (`--config`, `--min-confidence`, `--disable-analyzer`, etc.)
+
+### Sections
+
+| Section | Purpose |
+|---|---|
+| `crawler` | Discovery behavior |
+| `downloader` | HTTP timeouts, retries, concurrency |
+| `analysis` | Analyzer enablement and thresholds |
+| `reporting` | Export formats, output directory, theme |
+| `logging` | Console/file logging, structured output |
+| `performance` | Rule caching and regex compilation |
+| `plugins` | Reserved for future plugin SDK integration |
+| `analyzers` | Reserved future analyzer directories |
+
+Export the active configuration:
+
+```python
+yaml_content = manager.export()
+manager.export("active-config.yaml")
+```
+
+## Rule Engine
+
+Rules are stored outside Python code in YAML or JSON files under `techspecter/rules/data/` or custom directories.
+
+### Rule Lifecycle
+
+```
+Rule files (YAML/JSON)
+        ↓
+RuleLoader (discovery + cache)
+        ↓
+RuleValidator
+        ↓
+RuleRunner
+        ↓
+Finding
+```
+
+### Rule Types
+
+| Type | Executor | Target |
+|---|---|---|
+| `string` | `StringRuleExecutor` | content, filename, url |
+| `regex` | `RegexRuleExecutor` | content, filename, url |
+| `header` | `HeaderRuleExecutor` | response headers |
+
+### Example Rule
+
+```yaml
+id: example-marker
+name: Example Marker
+description: Detects a passive marker string.
+category: Information Disclosure
+severity: INFO
+confidence: 40
+enabled: true
+type: string
+pattern: "ExampleMarker"
+target: content
+recommendation: Review whether the marker should be public.
+references:
+  - https://example.com/docs
+```
+
+### Running Rules
+
+```python
+from techspecter.rules import RuleExecutionContext, RuleRunner
+
+context = RuleExecutionContext(
+    target_url="https://example.com/app.js",
+    content="ExampleMarker",
+    headers={"Server": "nginx"},
+)
+result = RuleRunner(min_confidence=0).run(context)
+```
+
+Future analyzers should load rules through `RuleLoader` and execute them with `RuleRunner` rather than hardcoding detection logic.
+
 ## Related Documentation
 
 - [Architecture Overview](ARCHITECTURE.md)

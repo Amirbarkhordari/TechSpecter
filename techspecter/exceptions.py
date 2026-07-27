@@ -11,6 +11,18 @@ class ConfigurationError(TechSpecterError):
     """Raised when application configuration is invalid or incomplete."""
 
 
+class RuleError(TechSpecterError):
+    """Raised when rule loading or execution fails."""
+
+
+class RuleLoadError(RuleError):
+    """Raised when rules cannot be loaded from storage."""
+
+
+class RuleValidationError(RuleError):
+    """Raised when a rule definition fails validation."""
+
+
 class ValidationError(TechSpecterError):
     """Raised when input validation fails."""
 

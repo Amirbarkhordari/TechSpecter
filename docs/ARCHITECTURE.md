@@ -27,6 +27,8 @@ Each stage is isolated behind clear interfaces so new analyzers and exporters ca
 ```
 techspecter/
 ├── analysis/              # Generic analysis framework
+├── configuration/         # Centralized configuration framework
+├── rules/                 # Generic passive rule engine
 │   ├── analyzers/         # Analyzer abstractions and implementations
 │   ├── models/            # Finding, Evidence, Severity, Category
 │   ├── pipeline/          # AnalysisPipeline orchestration
@@ -126,6 +128,38 @@ Exporter (json | markdown | html | csv | sarif)
 ```
 
 Technology findings are mapped to both `ReportTechnology` (backward compatible) and `ReportFinding` (generic).
+
+## Configuration Architecture
+
+TechSpecter uses a layered configuration model managed by `ConfigurationManager`:
+
+```
+Defaults → File (YAML/JSON) → Environment → CLI overrides → Validated TechSpecterConfig
+```
+
+All runtime components should read from `get_configuration_manager().config`. Legacy code continues to use `get_settings()`, which maps downloader and logging values from the centralized configuration.
+
+## Rule Engine Architecture
+
+The rule engine decouples passive detection logic from analyzer implementations:
+
+```
+Rule files
+    ↓
+RuleLoader (cached)
+    ↓
+RuleValidator
+    ↓
+RuleRunner
+    ↓
+Executors (regex | string | header)
+    ↓
+Finding
+```
+
+Rules are validated for duplicate IDs, severity, confidence bounds, and regex correctness. Regex patterns are compiled once and cached for performance.
+
+Future analyzers will consume rules through the rule runner instead of embedding pattern logic directly.
 
 ## Design Principles
 
