@@ -9,8 +9,10 @@ __all__ = [
     "PluginConfigurationError",
     "PluginDependencyError",
     "PluginError",
+    "PluginExecutionError",
     "PluginLoadError",
     "PluginNotFoundError",
+    "PluginRegistrationError",
     "PluginValidationError",
 ]
 
@@ -33,3 +35,11 @@ class PluginConfigurationError(PluginError):
 
 class PluginDependencyError(PluginError):
     """Raised when plugin dependencies cannot be satisfied."""
+
+
+class PluginExecutionError(PluginError):
+    """Raised when plugin execution fails."""
+
+
+class PluginRegistrationError(PluginError):
+    """Raised when plugin registration fails."""

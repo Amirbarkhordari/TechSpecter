@@ -1,0 +1,10 @@
+id: example-rule
+name: Example Rule
+description: Example rule contributed by the rule pack plugin.
+severity: INFO
+confidence: 10
+enabled: true
+type: string
+pattern: ExampleMarker
+target: content
+recommendation: Review whether the example marker should be public.

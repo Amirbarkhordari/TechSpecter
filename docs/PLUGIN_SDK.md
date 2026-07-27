@@ -136,13 +136,108 @@ Environment variables for other sections remain unchanged. Plugin settings are r
 | `list_by_type(type)` | Filter by `PluginType` |
 | `metadata_view()` | Immutable metadata mapping |
 
+## Developer SDK Package
+
+Third-party developers should import from `techspecter.plugins.developer`:
+
+```python
+from techspecter.plugins.developer import (
+    AnalyzerPlugin,
+    MetadataBuilder,
+    hook,
+    metadata_for,
+    plugin,
+    validate_plugin,
+)
+```
+
+Utilities include metadata builders, registration decorators, validation helpers, diagnostics, and typing aliases.
+
+## PluginContext and Services
+
+`PluginContext` is the standard dependency passed into lifecycle methods. Part 2 adds a stable `services` facade:
+
+| Service | Purpose |
+|---------|---------|
+| `services.version` | Active TechSpecter version |
+| `services.configuration` | Read-only configuration manager |
+| `services.registry` | Read-only plugin registry |
+| `services.manager` | Read-only plugin manager |
+| `services.hooks` | Pipeline hook registry |
+| `services.create_report_service()` | Report service factory |
+| `services.create_analysis_service()` | Analysis service factory |
+
+Existing context fields (`metadata`, `settings`, `resources`, `logger`, `data`) remain unchanged.
+
+## Pipeline Hooks
+
+Plugins can register pipeline hooks through `HookPlugin.register_hooks()` or the `@hook` decorator:
+
+| Hook | When |
+|------|------|
+| `before_discovery` | Before discovery starts |
+| `after_discovery` | After discovery completes |
+| `before_analysis` | Before analysis starts |
+| `after_analysis` | After analysis completes |
+| `before_reporting` | Before report generation |
+| `after_reporting` | After report generation |
+| `before_export` | Before export |
+| `after_export` | After export |
+
+Hook failures are isolated and logged. One failing plugin never stops the pipeline.
+
+## Event System
+
+`PluginManager.events` publishes lifecycle and pipeline events:
+
+- `PluginLoaded`, `PluginEnabled`, `PluginDisabled`, `PluginInitialized`, `PluginShutdown`
+- `AnalysisStarted`, `AnalysisCompleted`, `ReportGenerated`, `ExportCompleted`
+
+Subscribe with `EventBus.subscribe()` and publish with `EventBus.publish()`.
+
+## Execution Safety
+
+Use `safe_call()` and `safe_call_or_raise()` from `techspecter.plugins.safety` to isolate plugin failures. Hook and event handlers use these utilities automatically.
+
 ## CLI
 
 ```bash
 techspecter plugins list [--load]
 techspecter plugins show <plugin-id> [--load]
 techspecter plugins validate [--directory PATH]
+techspecter plugins doctor [--load]
+techspecter plugins info
 ```
+
+## Example Plugins
+
+Reference implementations live under `techspecter/plugins/examples/`:
+
+- `example_analyzer_plugin.py`
+- `example_reporter_plugin.py`
+- `example_rule_pack_plugin.py`
+
+## Best Practices
+
+- Use lowercase kebab-case plugin IDs.
+- Declare accurate `minimum_core_version` and `minimum_python_version`.
+- Keep lifecycle hooks fast and failure-free.
+- Use `PluginContext.services` instead of importing internal modules.
+- Follow semantic versioning for plugin releases.
+
+## Version Compatibility
+
+- Match `minimum_core_version` to the lowest TechSpecter version you support.
+- Use `validate_plugin()` and `plugins doctor` before publishing.
+- Prefer additive changes within the same major plugin version.
+
+## Migration Guidance
+
+Part 2 extends Part 1 without breaking changes:
+
+- Existing plugins continue to work unchanged.
+- `PluginContext.services` is optional and populated by `PluginManager`.
+- New hooks, events, and diagnostics are opt-in.
 
 ## Extension Points
 
@@ -150,9 +245,10 @@ techspecter plugins validate [--directory PATH]
 - Register report engines through `ReporterPlugin.report_engines()`
 - Register exporters through `ExporterPlugin.exporters()`
 - Register rule directories through `RulePackPlugin.rule_directories()`
+- Register pipeline hooks through `HookPlugin.register_hooks()`
 - Collect contributions via `PluginManager.collect_*()` methods
 
-Pipeline integration is deferred to future phases. This milestone establishes the SDK foundation only.
+Pipeline hook execution is available through `PluginManager.run_hook()`. Full pipeline wiring remains a future phase.
 
 ## Exceptions
 
@@ -163,6 +259,8 @@ Pipeline integration is deferred to future phases. This milestone establishes th
 | `PluginCompatibilityError` | Version or platform mismatch |
 | `PluginConfigurationError` | Invalid plugin configuration |
 | `PluginDependencyError` | Missing plugin dependencies |
+| `PluginExecutionError` | Runtime plugin execution failure |
+| `PluginRegistrationError` | Registration failure |
 | `PluginNotFoundError` | Unknown plugin identifier |
 
 ## Backward Compatibility

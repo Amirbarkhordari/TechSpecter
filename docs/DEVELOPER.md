@@ -279,6 +279,8 @@ TechSpecter provides a typed plugin SDK for analyzers, reporters, exporters, and
 techspecter plugins list --load
 techspecter plugins show example-plugin --load
 techspecter plugins validate --directory ./plugins
+techspecter plugins doctor --load
+techspecter plugins info
 ```
 
 ## Related Documentation

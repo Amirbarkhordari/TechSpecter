@@ -5,8 +5,12 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from techspecter.plugins.metadata import PluginMetadata
+
+if TYPE_CHECKING:
+    from techspecter.plugins.services import PluginServices
 
 
 @dataclass(slots=True)
@@ -63,6 +67,7 @@ class PluginContext:
     resources: PluginResources
     logger: PluginLogger
     data: dict[str, object] = field(default_factory=dict)
+    services: PluginServices | None = None
 
     @property
     def plugin_id(self) -> str:

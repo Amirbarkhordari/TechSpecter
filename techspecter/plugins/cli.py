@@ -10,8 +10,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from techspecter import __version__
 from techspecter.configuration.manager import get_configuration_manager
 from techspecter.plugins.config import PluginConfiguration
+from techspecter.plugins.developer.diagnostics import diagnose_plugins, environment_diagnostics
 from techspecter.plugins.loader import PluginLoader
 from techspecter.plugins.manager import PluginManager
 from techspecter.plugins.metadata import PluginMetadata
@@ -173,3 +175,55 @@ def validate_plugins(
     console.print(table)
     if invalid_count:
         raise typer.Exit(code=1)
+
+
+@plugins_app.command("doctor")
+def doctor_plugins(
+    load: Annotated[
+        bool,
+        typer.Option("--load", help="Load plugins before running diagnostics."),
+    ] = False,
+) -> None:
+    """Run plugin environment and registry diagnostics."""
+    config = get_configuration_manager().config
+    plugin_config = PluginConfiguration.from_plugins_config(config.plugins)
+    manager = PluginManager(configuration=plugin_config)
+    if load:
+        manager.load_plugins(load_builtins=False)
+
+    report = diagnose_plugins(manager=manager, configuration=plugin_config)
+    env = report.environment
+    console.print("[bold]TechSpecter Plugin Doctor[/bold]")
+    console.print(f"TechSpecter: {env.techspecter_version}")
+    console.print(f"Python: {env.python_version} ({env.implementation})")
+    console.print(f"Platform: {env.platform}")
+    console.print(f"Registered plugins: {len(report.registry.registered_plugins)}")
+
+    if report.warnings:
+        console.print("\n[yellow]Warnings[/yellow]")
+        for warning in report.warnings:
+            console.print(f"- {warning}")
+
+    if report.issues:
+        console.print("\n[red]Issues[/red]")
+        for issue in report.issues:
+            console.print(f"- {issue}")
+        raise typer.Exit(code=1)
+
+    console.print("\n[green]No plugin issues detected.[/green]")
+
+
+@plugins_app.command("info")
+def plugin_info() -> None:
+    """Show plugin SDK and runtime information."""
+    env = environment_diagnostics()
+    config = get_configuration_manager().config.plugins
+    console.print("[bold]TechSpecter Plugin SDK[/bold]")
+    console.print(f"TechSpecter version: {__version__}")
+    console.print(f"Python version: {env.python_version}")
+    console.print(f"Platform: {env.platform}")
+    console.print(f"Plugin system enabled: {config.enabled}")
+    console.print(f"Plugin directories: {', '.join(config.directories) or '-'}")
+    console.print(f"Entry points enabled: {config.load_entry_points}")
+    console.print("SDK import path: techspecter.plugins.developer")
+    console.print("Entry point group: techspecter.plugins")

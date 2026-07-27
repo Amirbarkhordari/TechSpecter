@@ -11,6 +11,7 @@ from techspecter.core.interfaces import Plugin as CorePlugin
 from techspecter.core.interfaces import PluginMetadata as CorePluginMetadata
 from techspecter.core.interfaces import ScanResult
 from techspecter.plugins.context import PluginContext
+from techspecter.plugins.hooks import HookRegistry
 from techspecter.plugins.metadata import PluginMetadata, PluginType
 from techspecter.reporting.engine import ReportEngine
 from techspecter.reporting.exporters.base import BaseExporter
@@ -142,3 +143,10 @@ class RulePackPlugin(Plugin):
 def plugin_type_for(plugin: Plugin) -> PluginType:
     """Return the declared plugin type for an SDK plugin instance."""
     return plugin.plugin_metadata.plugin_type
+
+
+class HookPlugin(Plugin):
+    """Plugin that registers pipeline hooks."""
+
+    def register_hooks(self, registry: HookRegistry, context: PluginContext) -> None:
+        """Register pipeline hook callbacks."""
