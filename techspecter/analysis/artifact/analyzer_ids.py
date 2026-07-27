@@ -18,6 +18,33 @@ ARTIFACT_ANALYZER_IDS: tuple[str, ...] = (
     "analytics-service-analyzer",
     "monitoring-service-analyzer",
     "technology-exposure-analyzer",
+    "secret-pattern-analyzer",
+    "configuration-artifact-analyzer",
+    "build-artifact-analyzer",
+    "debug-artifact-analyzer",
+    "backup-artifact-analyzer",
+    "environment-artifact-analyzer",
+    "source-artifact-analyzer",
+    "client-configuration-analyzer",
+    "development-artifact-analyzer",
+    "infrastructure-metadata-analyzer",
+    "exposure-classification-analyzer",
+    "risk-classification-analyzer",
+)
+
+SENSITIVE_ARTIFACT_ANALYZER_IDS: tuple[str, ...] = (
+    "secret-pattern-analyzer",
+    "configuration-artifact-analyzer",
+    "build-artifact-analyzer",
+    "debug-artifact-analyzer",
+    "backup-artifact-analyzer",
+    "environment-artifact-analyzer",
+    "source-artifact-analyzer",
+    "client-configuration-analyzer",
+    "development-artifact-analyzer",
+    "infrastructure-metadata-analyzer",
+    "exposure-classification-analyzer",
+    "risk-classification-analyzer",
 )
 
 CLI_FLAG_ARTIFACT_MAP: dict[str, tuple[str, ...]] = {
@@ -42,7 +69,23 @@ CLI_FLAG_ARTIFACT_MAP: dict[str, tuple[str, ...]] = {
     "third_party": ("third-party-service-analyzer",),
     "analytics": ("analytics-service-analyzer",),
     "monitoring": ("monitoring-service-analyzer",),
+    "secret_analysis": ("secret-pattern-analyzer",),
+    "config_analysis": (
+        "configuration-artifact-analyzer",
+        "environment-artifact-analyzer",
+        "client-configuration-analyzer",
+    ),
+    "build_analysis": ("build-artifact-analyzer",),
+    "debug_analysis": ("debug-artifact-analyzer",),
+    "backup_analysis": ("backup-artifact-analyzer",),
+    "classification": ("exposure-classification-analyzer",),
+    "risk_summary": ("risk-classification-analyzer",),
 }
+
+
+def is_sensitive_artifact_analyzer(analyzer_id: str) -> bool:
+    """Return whether an analyzer ID belongs to the sensitive artifact set."""
+    return analyzer_id in SENSITIVE_ARTIFACT_ANALYZER_IDS
 
 
 def is_artifact_analyzer(analyzer_id: str) -> bool:

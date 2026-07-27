@@ -258,6 +258,15 @@ class ArtifactAnalysisConfig(TechSpecterModel):
     third_party: bool = True
     analytics: bool = True
     monitoring: bool = True
+    sensitive_analysis: bool = True
+    secret_analysis: bool = True
+    config_analysis: bool = True
+    build_analysis: bool = True
+    debug_analysis: bool = True
+    backup_analysis: bool = True
+    classification: bool = True
+    risk_summary: bool = True
+    entropy_threshold: float = Field(default=3.5, ge=0.0)
     min_confidence: float = Field(default=0.0, ge=0.0, le=100.0)
     severity_threshold: str = "INFO"
     analyzers: dict[str, AnalyzerOptions] = Field(default_factory=dict)
@@ -283,6 +292,18 @@ class ArtifactAnalysisConfig(TechSpecterModel):
             "analytics-service-analyzer": self.analytics,
             "monitoring-service-analyzer": self.monitoring,
             "technology-exposure-analyzer": self.artifact_analysis,
+            "secret-pattern-analyzer": self.secret_analysis,
+            "configuration-artifact-analyzer": self.config_analysis,
+            "environment-artifact-analyzer": self.config_analysis,
+            "client-configuration-analyzer": self.config_analysis,
+            "build-artifact-analyzer": self.build_analysis,
+            "debug-artifact-analyzer": self.debug_analysis,
+            "backup-artifact-analyzer": self.backup_analysis,
+            "source-artifact-analyzer": self.sensitive_analysis,
+            "development-artifact-analyzer": self.sensitive_analysis,
+            "infrastructure-metadata-analyzer": self.sensitive_analysis,
+            "exposure-classification-analyzer": self.classification,
+            "risk-classification-analyzer": self.risk_summary,
         }
         if analyzer_id in group_enabled and not group_enabled[analyzer_id]:
             return False

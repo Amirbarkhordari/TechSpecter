@@ -70,6 +70,78 @@ PLUGINS = [
         "technology-exposure-analyzer-plugin",
         "Technology Exposure Analyzer Plugin",
     ),
+    (
+        "secret_pattern",
+        "SecretPatternAnalyzer",
+        "secret-pattern-analyzer-plugin",
+        "Secret Pattern Analyzer Plugin",
+    ),
+    (
+        "configuration_artifact",
+        "ConfigurationArtifactAnalyzer",
+        "configuration-artifact-analyzer-plugin",
+        "Configuration Artifact Analyzer Plugin",
+    ),
+    (
+        "build_artifact",
+        "BuildArtifactAnalyzer",
+        "build-artifact-analyzer-plugin",
+        "Build Artifact Analyzer Plugin",
+    ),
+    (
+        "debug_artifact",
+        "DebugArtifactAnalyzer",
+        "debug-artifact-analyzer-plugin",
+        "Debug Artifact Analyzer Plugin",
+    ),
+    (
+        "backup_artifact",
+        "BackupArtifactAnalyzer",
+        "backup-artifact-analyzer-plugin",
+        "Backup Artifact Analyzer Plugin",
+    ),
+    (
+        "environment_artifact",
+        "EnvironmentArtifactAnalyzer",
+        "environment-artifact-analyzer-plugin",
+        "Environment Artifact Analyzer Plugin",
+    ),
+    (
+        "source_artifact",
+        "SourceArtifactAnalyzer",
+        "source-artifact-analyzer-plugin",
+        "Source Artifact Analyzer Plugin",
+    ),
+    (
+        "client_configuration",
+        "ClientConfigurationAnalyzer",
+        "client-configuration-analyzer-plugin",
+        "Client Configuration Analyzer Plugin",
+    ),
+    (
+        "development_artifact",
+        "DevelopmentArtifactAnalyzer",
+        "development-artifact-analyzer-plugin",
+        "Development Artifact Analyzer Plugin",
+    ),
+    (
+        "infrastructure_metadata",
+        "InfrastructureMetadataAnalyzer",
+        "infrastructure-metadata-analyzer-plugin",
+        "Infrastructure Metadata Analyzer Plugin",
+    ),
+    (
+        "exposure_classification",
+        "ExposureClassificationAnalyzer",
+        "exposure-classification-analyzer-plugin",
+        "Exposure Classification Analyzer Plugin",
+    ),
+    (
+        "risk_classification",
+        "RiskClassificationAnalyzer",
+        "risk-classification-analyzer-plugin",
+        "Risk Classification Analyzer Plugin",
+    ),
 ]
 
 ROOT = Path(__file__).resolve().parents[1]

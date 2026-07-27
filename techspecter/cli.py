@@ -14,7 +14,11 @@ from rich.console import Console
 from rich.table import Table
 
 from techspecter import __version__
-from techspecter.analysis.artifact.analyzer_ids import ARTIFACT_ANALYZER_IDS, CLI_FLAG_ARTIFACT_MAP
+from techspecter.analysis.artifact.analyzer_ids import (
+    ARTIFACT_ANALYZER_IDS,
+    CLI_FLAG_ARTIFACT_MAP,
+    SENSITIVE_ARTIFACT_ANALYZER_IDS,
+)
 from techspecter.analysis.http.analyzer_ids import CLI_FLAG_ANALYZER_MAP, HTTP_ANALYZER_IDS
 from techspecter.analysis.metadata.analyzer_ids import CLI_FLAG_METADATA_MAP, METADATA_ANALYZER_IDS
 from techspecter.analysis.results.analysis_result import AnalysisResult
@@ -99,6 +103,13 @@ def _build_cli_overrides(
     third_party: bool = False,
     analytics: bool = False,
     monitoring: bool = False,
+    secret_analysis: bool = False,
+    config_analysis: bool = False,
+    build_analysis: bool = False,
+    debug_analysis: bool = False,
+    backup_analysis: bool = False,
+    classification: bool = False,
+    risk_summary: bool = False,
 ) -> dict[str, Any]:
     """Build CLI override mapping for the configuration manager."""
     overrides: dict[str, Any] = {}
@@ -231,6 +242,20 @@ def _build_cli_overrides(
         artifact_override["analytics"] = True
     if monitoring:
         artifact_override["monitoring"] = True
+    if secret_analysis:
+        artifact_override["secret_analysis"] = True
+    if config_analysis:
+        artifact_override["config_analysis"] = True
+    if build_analysis:
+        artifact_override["build_analysis"] = True
+    if debug_analysis:
+        artifact_override["debug_analysis"] = True
+    if backup_analysis:
+        artifact_override["backup_analysis"] = True
+    if classification:
+        artifact_override["classification"] = True
+    if risk_summary:
+        artifact_override["risk_summary"] = True
 
     artifact_specific = (
         cloud_analysis
@@ -242,6 +267,13 @@ def _build_cli_overrides(
         or third_party
         or analytics
         or monitoring
+        or secret_analysis
+        or config_analysis
+        or build_analysis
+        or debug_analysis
+        or backup_analysis
+        or classification
+        or risk_summary
     )
     if artifact_specific:
         artifact_enabled_ids: list[str] = []
@@ -255,6 +287,13 @@ def _build_cli_overrides(
             "third_party": third_party,
             "analytics": analytics,
             "monitoring": monitoring,
+            "secret_analysis": secret_analysis,
+            "config_analysis": config_analysis,
+            "build_analysis": build_analysis,
+            "debug_analysis": debug_analysis,
+            "backup_analysis": backup_analysis,
+            "classification": classification,
+            "risk_summary": risk_summary,
         }
         for flag_name, enabled in flag_map.items():
             if enabled:
@@ -925,9 +964,17 @@ def _run_artifact_analysis(
     third_party: bool,
     analytics: bool,
     monitoring: bool,
+    secret_analysis: bool,
+    config_analysis: bool,
+    build_analysis: bool,
+    debug_analysis: bool,
+    backup_analysis: bool,
+    classification: bool,
+    risk_summary: bool,
     disable_analyzer: list[str],
     enable_analyzer: list[str],
     config: Path | None,
+    default_analyzer_ids: tuple[str, ...] | None = None,
 ) -> None:
     """Shared artifact analysis command implementation."""
     manager = get_configuration_manager()
@@ -941,8 +988,16 @@ def _run_artifact_analysis(
         or third_party
         or analytics
         or monitoring
+        or secret_analysis
+        or config_analysis
+        or build_analysis
+        or debug_analysis
+        or backup_analysis
+        or classification
+        or risk_summary
     )
-    resolved_enable = enable_analyzer or ([] if specific else list(ARTIFACT_ANALYZER_IDS))
+    fallback_ids = default_analyzer_ids or ARTIFACT_ANALYZER_IDS
+    resolved_enable = enable_analyzer or ([] if specific else list(fallback_ids))
     command_overrides = _build_cli_overrides(
         debug=False,
         verbose=False,
@@ -961,6 +1016,13 @@ def _run_artifact_analysis(
         third_party=third_party,
         analytics=analytics,
         monitoring=monitoring,
+        secret_analysis=secret_analysis,
+        config_analysis=config_analysis,
+        build_analysis=build_analysis,
+        debug_analysis=debug_analysis,
+        backup_analysis=backup_analysis,
+        classification=classification,
+        risk_summary=risk_summary,
     )
     if config is not None:
         manager = ConfigurationManager.load(config_path=config, cli_overrides=command_overrides)
@@ -1081,6 +1143,34 @@ def artifacts_command(
         bool,
         typer.Option("--monitoring", help="Enable monitoring service analyzer."),
     ] = False,
+    secret_analysis: Annotated[
+        bool,
+        typer.Option("--secret-analysis", help="Enable secret pattern analyzer."),
+    ] = False,
+    config_analysis: Annotated[
+        bool,
+        typer.Option("--config-analysis", help="Enable configuration artifact analyzers."),
+    ] = False,
+    build_analysis: Annotated[
+        bool,
+        typer.Option("--build-analysis", help="Enable build artifact analyzer."),
+    ] = False,
+    debug_analysis: Annotated[
+        bool,
+        typer.Option("--debug-analysis", help="Enable debug artifact analyzer."),
+    ] = False,
+    backup_analysis: Annotated[
+        bool,
+        typer.Option("--backup-analysis", help="Enable backup artifact analyzer."),
+    ] = False,
+    classification: Annotated[
+        bool,
+        typer.Option("--classification", help="Enable exposure classification analyzer."),
+    ] = False,
+    risk_summary: Annotated[
+        bool,
+        typer.Option("--risk-summary", help="Enable risk classification analyzer."),
+    ] = False,
     disable_analyzer: Annotated[
         list[str] | None,
         typer.Option("--disable-analyzer", help="Disable an analyzer by ID."),
@@ -1110,9 +1200,102 @@ def artifacts_command(
         third_party=third_party,
         analytics=analytics,
         monitoring=monitoring,
+        secret_analysis=secret_analysis,
+        config_analysis=config_analysis,
+        build_analysis=build_analysis,
+        debug_analysis=debug_analysis,
+        backup_analysis=backup_analysis,
+        classification=classification,
+        risk_summary=risk_summary,
         disable_analyzer=disable_analyzer or [],
         enable_analyzer=enable_analyzer or [],
         config=config,
+    )
+
+
+@app.command("sensitive")
+def sensitive_command(
+    url: Annotated[str, typer.Argument(help="Target website URL to analyze passively.")],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output raw analysis results as JSON."),
+    ] = False,
+    report_format: Annotated[
+        OutputFormat | None,
+        typer.Option("--format", help="Export report format."),
+    ] = None,
+    output: Annotated[
+        str | None,
+        typer.Option("--output", help="Write exported report to this file."),
+    ] = None,
+    secret_analysis: Annotated[
+        bool,
+        typer.Option("--secret-analysis", help="Enable secret pattern analyzer."),
+    ] = True,
+    config_analysis: Annotated[
+        bool,
+        typer.Option("--config-analysis", help="Enable configuration artifact analyzers."),
+    ] = False,
+    build_analysis: Annotated[
+        bool,
+        typer.Option("--build-analysis", help="Enable build artifact analyzer."),
+    ] = False,
+    debug_analysis: Annotated[
+        bool,
+        typer.Option("--debug-analysis", help="Enable debug artifact analyzer."),
+    ] = False,
+    backup_analysis: Annotated[
+        bool,
+        typer.Option("--backup-analysis", help="Enable backup artifact analyzer."),
+    ] = False,
+    classification: Annotated[
+        bool,
+        typer.Option("--classification", help="Enable exposure classification analyzer."),
+    ] = False,
+    risk_summary: Annotated[
+        bool,
+        typer.Option("--risk-summary", help="Enable risk classification analyzer."),
+    ] = False,
+    disable_analyzer: Annotated[
+        list[str] | None,
+        typer.Option("--disable-analyzer", help="Disable an analyzer by ID."),
+    ] = None,
+    enable_analyzer: Annotated[
+        list[str] | None,
+        typer.Option("--enable-analyzer", help="Enable only listed analyzers when set."),
+    ] = None,
+    config: Annotated[
+        Path | None,
+        typer.Option("--config", help="Path to a YAML or JSON configuration file."),
+    ] = None,
+) -> None:
+    """Run passive secret, configuration, and build artifact analysis."""
+    _run_artifact_analysis(
+        url,
+        json_output=json_output,
+        report_format=report_format,
+        output=output,
+        artifact_analysis=True,
+        cloud_analysis=False,
+        identity_analysis=False,
+        graphql=False,
+        openapi=False,
+        firebase=False,
+        oauth=False,
+        third_party=False,
+        analytics=False,
+        monitoring=False,
+        secret_analysis=secret_analysis,
+        config_analysis=config_analysis,
+        build_analysis=build_analysis,
+        debug_analysis=debug_analysis,
+        backup_analysis=backup_analysis,
+        classification=classification,
+        risk_summary=risk_summary,
+        disable_analyzer=disable_analyzer or [],
+        enable_analyzer=enable_analyzer or [],
+        config=config,
+        default_analyzer_ids=SENSITIVE_ARTIFACT_ANALYZER_IDS,
     )
 
 

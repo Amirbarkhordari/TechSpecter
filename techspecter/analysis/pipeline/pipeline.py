@@ -10,6 +10,7 @@ from techspecter import __version__
 from techspecter.analysis.analyzers.base import Analyzer
 from techspecter.analysis.analyzers.registry import AnalyzerRegistry, analyzer_registry
 from techspecter.analysis.artifact.extractor import ArtifactExtractor
+from techspecter.analysis.artifact.sensitive_extractor import SensitiveArtifactExtractor
 from techspecter.analysis.converters import findings_to_detection_result
 from techspecter.analysis.models.finding import Finding
 from techspecter.analysis.pipeline.analyzer_resolution import resolve_analyzers
@@ -243,6 +244,21 @@ class AnalysisPipeline:
         if discovery.artifact_observation is not None:
             return discovery
         observation = self._artifact_extractor.extract(discovery)
+        artifact_config = self._resolved_artifact_config()
+        if artifact_config.sensitive_analysis:
+            sensitive_extractor = SensitiveArtifactExtractor(
+                entropy_threshold=artifact_config.entropy_threshold,
+            )
+            sensitive_refs = sensitive_extractor.extract(discovery)
+            merged_sources = list(
+                dict.fromkeys([*observation.sources_scanned, *("sensitive",)]),
+            )
+            observation = observation.model_copy(
+                update={
+                    "references": observation.references + sensitive_refs,
+                    "sources_scanned": merged_sources,
+                },
+            )
         return discovery.model_copy(update={"artifact_observation": observation})
 
     def _ensure_plugin_manager(self) -> PluginManager | None:

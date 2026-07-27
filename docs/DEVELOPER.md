@@ -478,6 +478,62 @@ techspecter artifacts https://example.com --json
 - Add detection patterns to `ArtifactExtractor` in `extractor.py` (passive pattern matching only).
 - Wrap analyzers in `AnalyzerPlugin` modules under `techspecter.plugins.builtin.artifact`.
 
+## Passive Secret, Configuration & Build Artifact Analysis
+
+Phase 7 Part 2 extends artifact intelligence with secret pattern detection, configuration/build/debug/backup artifact analysis, classification, and risk prioritization.
+
+### Architecture
+
+1. `ArtifactExtractor` collects cloud/identity/API indicators (Part 1).
+2. `SensitiveArtifactExtractor` scans the same collected data for secrets, configuration, build, debug, and backup patterns.
+3. `ClassificationEngine` maps references to standard exposure buckets.
+4. `RiskEngine` assigns passive severity, confidence, and risk level (no CVSS, no exploitation claims).
+5. Twelve additional analyzers extend `PassiveArtifactAnalyzer` under `techspecter.plugins.builtin.artifact`.
+
+### Built-in Sensitive Artifact Analyzer Plugins (12)
+
+| Category | Analyzer IDs |
+|---|---|
+| Secrets | `secret-pattern-analyzer` |
+| Configuration | `configuration-artifact-analyzer`, `environment-artifact-analyzer`, `client-configuration-analyzer` |
+| Build / Debug / Backup | `build-artifact-analyzer`, `debug-artifact-analyzer`, `backup-artifact-analyzer` |
+| Source / Dev / Infra | `source-artifact-analyzer`, `development-artifact-analyzer`, `infrastructure-metadata-analyzer` |
+| Classification | `exposure-classification-analyzer`, `risk-classification-analyzer` |
+
+### Configuration
+
+```yaml
+artifact_analysis:
+  sensitive_analysis: true
+  secret_analysis: true
+  config_analysis: true
+  build_analysis: true
+  debug_analysis: true
+  backup_analysis: true
+  classification: true
+  risk_summary: true
+  entropy_threshold: 3.5
+  min_confidence: 0.0
+```
+
+### CLI Usage
+
+```bash
+techspecter sensitive https://example.com
+techspecter sensitive https://example.com --secret-analysis --config-analysis
+techspecter sensitive https://example.com --build-analysis --debug-analysis --backup-analysis
+techspecter sensitive https://example.com --classification --risk-summary
+techspecter artifacts https://example.com --secret-analysis --risk-summary
+techspecter sensitive https://example.com --json
+```
+
+### Extension Points
+
+- Add passive patterns to `SensitiveArtifactExtractor` (never validate secrets).
+- Extend `ClassificationEngine` mapping for new artifact types.
+- Extend `RiskEngine` severity rules for new classifications.
+- Implement `CategoryArtifactAnalyzer` subclasses for new analyzers.
+
 ## Related Documentation
 
 - [Plugin SDK Guide](PLUGIN_SDK.md)

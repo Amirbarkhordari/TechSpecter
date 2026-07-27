@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from techspecter.analysis.artifact.analyzer_ids import ARTIFACT_ANALYZER_IDS, is_artifact_analyzer
+from techspecter.analysis.artifact.analyzer_ids import (
+    ARTIFACT_ANALYZER_IDS,
+    SENSITIVE_ARTIFACT_ANALYZER_IDS,
+    is_artifact_analyzer,
+)
 from techspecter.analysis.results.analysis_result import AnalysisResult
 from techspecter.reporting.models import ReportFinding, ReportSection
 
@@ -69,6 +73,43 @@ def build_artifact_report_sections(
         finding
         for finding in artifact_findings
         if finding.analyzer == "technology-exposure-analyzer"
+    ]
+    secret_findings = [
+        finding for finding in artifact_findings if finding.analyzer == "secret-pattern-analyzer"
+    ]
+    config_findings = [
+        finding
+        for finding in artifact_findings
+        if finding.analyzer
+        in {
+            "configuration-artifact-analyzer",
+            "environment-artifact-analyzer",
+            "client-configuration-analyzer",
+        }
+    ]
+    build_findings = [
+        finding for finding in artifact_findings if finding.analyzer == "build-artifact-analyzer"
+    ]
+    debug_findings = [
+        finding for finding in artifact_findings if finding.analyzer == "debug-artifact-analyzer"
+    ]
+    backup_findings = [
+        finding for finding in artifact_findings if finding.analyzer == "backup-artifact-analyzer"
+    ]
+    classification_findings = [
+        finding
+        for finding in artifact_findings
+        if finding.analyzer == "exposure-classification-analyzer"
+    ]
+    risk_findings = [
+        finding
+        for finding in artifact_findings
+        if finding.analyzer == "risk-classification-analyzer"
+    ]
+    sensitive_findings = [
+        finding
+        for finding in artifact_findings
+        if finding.analyzer in SENSITIVE_ARTIFACT_ANALYZER_IDS
     ]
 
     analyzer_errors: dict[str, list[str]] = defaultdict(list)
@@ -153,6 +194,80 @@ def build_artifact_report_sections(
             title="Technology Exposure",
             summary=f"{len(technology_findings)} technology exposure findings observed.",
             findings=technology_findings,
+        ),
+        ReportSection(
+            id="sensitive-secrets",
+            title="Sensitive Secrets",
+            summary=f"{len(secret_findings)} secret pattern findings observed.",
+            findings=secret_findings,
+        ),
+        ReportSection(
+            id="configuration-artifacts",
+            title="Configuration Artifacts",
+            summary=f"{len(config_findings)} configuration artifact findings observed.",
+            findings=config_findings,
+        ),
+        ReportSection(
+            id="build-artifacts",
+            title="Build Artifacts",
+            summary=f"{len(build_findings)} build artifact findings observed.",
+            findings=build_findings,
+        ),
+        ReportSection(
+            id="debug-artifacts",
+            title="Debug Artifacts",
+            summary=f"{len(debug_findings)} debug artifact findings observed.",
+            findings=debug_findings,
+        ),
+        ReportSection(
+            id="backup-artifacts",
+            title="Backup Artifacts",
+            summary=f"{len(backup_findings)} backup artifact findings observed.",
+            findings=backup_findings,
+        ),
+        ReportSection(
+            id="risk-classification",
+            title="Risk Classification",
+            summary=f"{len(risk_findings)} risk classification findings observed.",
+            findings=risk_findings,
+        ),
+        ReportSection(
+            id="artifact-categories",
+            title="Artifact Categories",
+            summary=f"{len(classification_findings)} exposure classification findings observed.",
+            findings=classification_findings,
+        ),
+        ReportSection(
+            id="exposure-summary",
+            title="Exposure Summary",
+            summary=f"{len(sensitive_findings)} sensitive artifact findings across all categories.",
+            findings=sensitive_findings,
+            metadata=artifact_stats,
+        ),
+        ReportSection(
+            id="executive-summary",
+            title="Executive Summary",
+            summary=(
+                f"{len(artifact_findings)} total artifact findings across "
+                f"{len(ARTIFACT_ANALYZER_IDS)} analyzers."
+            ),
+            metadata={
+                "total_findings": len(artifact_findings),
+                "secret_findings": len(secret_findings),
+                "config_findings": len(config_findings),
+                "high_risk_findings": len(
+                    [f for f in risk_findings if f.severity in {"HIGH", "CRITICAL"}]
+                ),
+            },
+        ),
+        ReportSection(
+            id="analyzer-statistics",
+            title="Analyzer Statistics",
+            summary="Detailed analyzer execution statistics.",
+            metadata={
+                "analyzer_counts": analyzer_summary,
+                "sensitive_analyzer_ids": list(SENSITIVE_ARTIFACT_ANALYZER_IDS),
+            },
         ),
         ReportSection(
             id="artifact-analyzer-summary",

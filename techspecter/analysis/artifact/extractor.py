@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
 
+from techspecter.analysis.artifact.sources import ArtifactTextSource, collect_artifact_text_sources
 from techspecter.models.artifact import ArtifactDiscoveryObservation, ArtifactReference
 from techspecter.models.discovery import DiscoveryResult
 
@@ -79,21 +79,12 @@ _PATTERN_DEFINITIONS: tuple[tuple[str, str, re.Pattern[str]], ...] = (
 )
 
 
-@dataclass(frozen=True, slots=True)
-class _TextSource:
-    """A text source scanned for passive artifact indicators."""
-
-    content: str
-    source: str
-    location: str | None = None
-
-
 class ArtifactExtractor:
     """Extract passive artifact indicators from collected discovery data."""
 
     def extract(self, discovery: DiscoveryResult) -> ArtifactDiscoveryObservation:
         """Scan already-collected data for passive artifact indicators."""
-        sources = self._collect_text_sources(discovery)
+        sources = collect_artifact_text_sources(discovery)
         references: list[ArtifactReference] = []
         seen: set[tuple[str, str, str]] = set()
 
@@ -112,117 +103,9 @@ class ArtifactExtractor:
             sources_scanned=[item.source for item in sources],
         )
 
-    def _collect_text_sources(self, discovery: DiscoveryResult) -> list[_TextSource]:
-        """Gather text from HTTP, HTML, metadata, scripts, and well-known resources."""
-        sources: list[_TextSource] = []
-        target_url = str(discovery.target.url)
-
-        if discovery.http_response is not None:
-            http = discovery.http_response
-            header_text = "\n".join(f"{k}: {v}" for k, v in http.headers.items())
-            if header_text:
-                sources.append(
-                    _TextSource(content=header_text, source="http-headers", location=target_url),
-                )
-            for redirect in http.redirects:
-                sources.append(
-                    _TextSource(
-                        content=redirect.url,
-                        source="http-redirect",
-                        location=redirect.url,
-                    ),
-                )
-
-        if discovery.metadata_observation is not None:
-            metadata = discovery.metadata_observation
-            if metadata.html is not None:
-                html = metadata.html
-                html_fields = [
-                    html.title,
-                    html.description,
-                    html.keywords,
-                    html.author,
-                    html.generator,
-                    *html.framework_hints,
-                    *html.pwa_indicators,
-                    *html.ssr_indicators,
-                ]
-                for key, value in html.opengraph.items():
-                    html_fields.append(f"{key}={value}")
-                for key, value in html.twitter_cards.items():
-                    html_fields.append(f"{key}={value}")
-                combined = "\n".join(item for item in html_fields if item)
-                if combined:
-                    sources.append(
-                        _TextSource(content=combined, source="html-metadata", location=html.url),
-                    )
-                for link in html.links:
-                    sources.append(
-                        _TextSource(
-                            content=f"{link.rel} {link.href}",
-                            source="html-link",
-                            location=html.url,
-                        ),
-                    )
-                for comment in html.comments:
-                    sources.append(
-                        _TextSource(
-                            content=comment.content,
-                            source="html-comment",
-                            location=html.url,
-                        ),
-                    )
-
-            for resource in metadata.well_known_resources:
-                if resource.content:
-                    sources.append(
-                        _TextSource(
-                            content=resource.content,
-                            source=f"well-known:{resource.resource_type}",
-                            location=resource.url,
-                        ),
-                    )
-
-        for script in discovery.inline_scripts:
-            sources.append(
-                _TextSource(
-                    content=script.content,
-                    source="inline-script",
-                    location=f"inline-script:{script.index}",
-                ),
-            )
-
-        for download in discovery.downloads:
-            if download.content:
-                sources.append(
-                    _TextSource(
-                        content=download.content,
-                        source="external-script",
-                        location=str(download.url),
-                    ),
-                )
-            sources.append(
-                _TextSource(
-                    content=str(download.url),
-                    source="external-script-url",
-                    location=str(download.url),
-                ),
-            )
-
-        for external in discovery.external_scripts:
-            sources.append(
-                _TextSource(
-                    content=str(external.url),
-                    source="external-script-url",
-                    location=str(external.url),
-                ),
-            )
-
-        return sources
-
     def _scan_text(
         self,
-        text_source: _TextSource,
+        text_source: ArtifactTextSource,
         seen: set[tuple[str, str, str]],
     ) -> list[ArtifactReference]:
         """Scan a text source for artifact patterns."""
