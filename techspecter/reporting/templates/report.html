@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TechSpecter Scan Report</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f172a;
+      --panel: #111827;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --border: #1f2937;
+      --high: #22c55e;
+      --medium: #eab308;
+      --low: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 32px 20px 48px; }
+    header, section, footer {
+      background: rgba(17, 24, 39, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+    h1, h2, h3 { margin-top: 0; }
+    h1 { font-size: 2rem; }
+    h2 { font-size: 1.25rem; color: var(--accent); }
+    .meta-grid, .cards {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+    .meta-item, .card {
+      background: #0b1220;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .label { color: var(--muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .value { font-size: 1.1rem; font-weight: 600; margin-top: 6px; word-break: break-word; }
+    .metric { font-size: 2rem; font-weight: 700; margin: 8px 0 0; color: var(--accent); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 12px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-size: 0.85rem; text-transform: uppercase; }
+    .confidence {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+    .confidence.high { background: rgba(34, 197, 94, 0.15); color: var(--high); }
+    .confidence.medium { background: rgba(234, 179, 8, 0.15); color: var(--medium); }
+    .confidence.low { background: rgba(239, 68, 68, 0.15); color: var(--low); }
+    .evidence-block ul { margin: 0; padding-left: 20px; }
+    footer { color: var(--muted); font-size: 0.9rem; }
+    @media (max-width: 720px) {
+      .container { padding: 20px 12px 32px; }
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>TechSpecter Scan Report</h1>
+      <p>{{SUMMARY_HEADLINE}}</p>
+      <div class="meta-grid">
+        <div class="meta-item"><div class="label">Target</div><div class="value">{{TARGET_URL}}</div></div>
+        <div class="meta-item"><div class="label">Tool</div><div class="value">{{TOOL_NAME}} {{TOOL_VERSION}}</div></div>
+        <div class="meta-item"><div class="label">Scan Timestamp</div><div class="value">{{SCAN_TIMESTAMP}}</div></div>
+        <div class="meta-item"><div class="label">Scan Duration</div><div class="value">{{SCAN_DURATION}} ms</div></div>
+      </div>
+    </header>
+
+    <section>
+      <h2>Summary</h2>
+      <div class="cards">
+        <div class="card"><div class="label">Technologies</div><div class="metric">{{TECHNOLOGY_COUNT}}</div></div>
+        <div class="card"><div class="label">Categories</div><div class="metric">{{CATEGORY_COUNT}}</div></div>
+        <div class="card"><div class="label">Scripts Analyzed</div><div class="metric">{{SCRIPTS_ANALYZED}}</div></div>
+        <div class="card"><div class="label">Average Confidence</div><div class="metric">{{AVERAGE_CONFIDENCE}}%</div></div>
+        <div class="card"><div class="label">Highest Confidence</div><div class="metric">{{HIGHEST_CONFIDENCE}}%</div></div>
+        <div class="card"><div class="label">Known Versions</div><div class="metric">{{KNOWN_VERSIONS}}</div></div>
+        <div class="card"><div class="label">Unknown Versions</div><div class="metric">{{UNKNOWN_VERSIONS}}</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Categories</h2>
+      <div class="cards">{{CATEGORY_CARDS}}</div>
+    </section>
+
+    <section>
+      <h2>Detected Technologies</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Technology</th>
+            <th>Category</th>
+            <th>Version</th>
+            <th>Confidence</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{TECHNOLOGY_ROWS}}
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Evidence</h2>
+      {{EVIDENCE_SECTIONS}}
+    </section>
+
+    <footer>
+      Generated by {{TOOL_NAME}} {{TOOL_VERSION}} on {{SCAN_TIMESTAMP}}.
+    </footer>
+  </div>
+</body>
+</html>

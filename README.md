@@ -30,18 +30,18 @@ TechSpecter aims to become the go-to open-source toolkit for deep web applicatio
 | Expanded fingerprint database (64 technologies) | ✅ Phase 3B |
 | Fingerprint validation tooling | ✅ Phase 3B |
 | Enhanced confidence scoring | ✅ Phase 3B |
-| CVE intelligence | 🔜 Phase 4 |
-| Secret discovery | 🔜 Phase 4 |
-| API endpoint discovery | 🔜 Phase 4 |
-| Report generation engine | 🔜 Phase 4 |
+| Multi-format reporting engine | ✅ Phase 4 |
+| CVE intelligence | 🔜 Phase 5 |
+| Secret discovery | 🔜 Phase 5 |
+| API endpoint discovery | 🔜 Phase 5 |
 
 ---
 
 ## Current Status
 
-**Phase 3B — Fingerprint Database & Detection Expansion** (current, v0.4.0)
+**Phase 4 — Reporting Engine** (current, v0.5.0)
 
-TechSpecter ships with **64 technology fingerprints** across frameworks, CSS libraries, JavaScript utilities, visualization tools, editors, bundlers, and meta-frameworks. Detection accuracy improvements include multi-source version extraction, matcher-type confidence weighting, structured evidence output, and fingerprint validation tooling.
+TechSpecter includes a production-grade reporting engine that transforms `DetectionResult` output into structured reports. Supported export formats include JSON, Markdown, HTML, CSV, and SARIF. The reporting layer is fully independent from the fingerprinting engine.
 
 ---
 
@@ -78,7 +78,14 @@ TechSpecter ships with **64 technology fingerprints** across frameworks, CSS lib
 - Structured `PatternEvidence` in detection results
 - CLI: `--compact`, `--group-by-category`, `--verbose-output`
 
-### Phase 4 — Security Intelligence
+### Phase 4 — Reporting Engine ✅
+- Dedicated `techspecter/reporting/` package
+- `ReportEngine` transforms `DetectionResult` into structured `Report` models
+- Exporters: JSON, Markdown, HTML, CSV, SARIF
+- `ReportService` for generation, export, and file output
+- CLI: `--format`, `--output`, enhanced console rendering
+
+### Phase 5 — Security Intelligence
 - CVE correlation engine
 - Secret & credential discovery
 - API endpoint discovery
@@ -160,10 +167,17 @@ The `discover` command:
 ```bash
 techspecter fingerprint https://example.com
 techspecter fingerprint example.com --json
+techspecter fingerprint https://example.com --format html --output report.html
+techspecter fingerprint https://example.com --format markdown
+techspecter fingerprint https://example.com --format sarif --output results.sarif
 techspecter fingerprint https://example.com --compact
 techspecter fingerprint https://example.com --group-by-category
 techspecter fingerprint https://example.com --verbose-output
 ```
+
+Supported `--format` values: `json`, `markdown`, `html`, `csv`, `sarif`
+
+Legacy `--json` outputs raw analysis results. `--format json` outputs the structured report model.
 
 The `fingerprint` command chains discovery with technology detection:
 
@@ -262,6 +276,51 @@ from techspecter.fingerprinting import FingerprintValidator
 
 report = FingerprintValidator().validate_all()
 assert report.is_valid
+```
+
+---
+
+## Reporting Architecture
+
+The reporting engine is independent from fingerprinting. Detection produces a `DetectionResult`; reporting transforms it into exportable output.
+
+```
+DetectionResult
+        ↓
+ReportEngine
+        ↓
+Report (metadata, statistics, technologies, evidence)
+        ↓
+Exporter (json | markdown | html | csv | sarif)
+        ↓
+ExportResult / Console Renderer
+```
+
+### Supported Report Formats
+
+| Format | Description |
+|---|---|
+| `json` | Structured report model with metadata, statistics, and evidence |
+| `markdown` | Professional Markdown document for documentation and sharing |
+| `html` | Responsive standalone HTML report (pure HTML/CSS template) |
+| `csv` | One row per detected technology |
+| `sarif` | SARIF 2.1.0 output for CI/CD integration |
+
+### Custom Exporters
+
+Implement `BaseExporter` and register it with `ReportService`:
+
+```python
+from techspecter.reporting import ReportService, ReportEngine
+from techspecter.reporting.exporters.base import BaseExporter
+
+class MyExporter(BaseExporter):
+    format = "json"
+
+    def export(self, report):
+        return report.model_dump_json()
+
+service = ReportService(exporters={"json": MyExporter()})
 ```
 
 ---

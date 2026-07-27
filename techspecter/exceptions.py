@@ -65,3 +65,15 @@ class VersionExtractionError(FingerprintError):
 
 class ReportError(TechSpecterError):
     """Raised when report generation or export fails."""
+
+
+class ExportError(ReportError):
+    """Raised when a report export operation fails."""
+
+
+class TemplateError(ReportError):
+    """Raised when a report template cannot be loaded or rendered."""
+
+
+class InvalidReportError(ReportError):
+    """Raised when a report model fails validation."""

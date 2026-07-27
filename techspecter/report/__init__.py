@@ -1,5 +1,19 @@
-"""Scan report generation module (Phase 2+).
+"""Backward-compatible re-exports for the reporting engine."""
 
-This package will provide report formatting, serialization, and export
-capabilities for scan results.
-"""
+from techspecter.reporting import (
+    ExportResult,
+    Report,
+    ReportEngine,
+    ReportFormat,
+    ReportService,
+    render_report,
+)
+
+__all__ = [
+    "ExportResult",
+    "Report",
+    "ReportEngine",
+    "ReportFormat",
+    "ReportService",
+    "render_report",
+]

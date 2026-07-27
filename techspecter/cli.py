@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from enum import StrEnum
 from typing import Annotated, Any
 
 import orjson
@@ -14,11 +15,12 @@ from rich.table import Table
 from techspecter import __version__
 from techspecter.config import get_settings
 from techspecter.crawler.discovery import DiscoveryPipeline
-from techspecter.exceptions import TechSpecterError, ValidationError
-from techspecter.fingerprinting.display import render_fingerprint_result
+from techspecter.exceptions import ReportError, TechSpecterError, ValidationError
 from techspecter.fingerprinting.models import FingerprintAnalysisResult
 from techspecter.fingerprinting.service import FingerprintService
 from techspecter.models.discovery import DiscoveryResult
+from techspecter.reporting.renderer import render_report
+from techspecter.reporting.service import ReportService
 from techspecter.utils.logging import configure_logging
 
 console = Console()
@@ -32,12 +34,18 @@ app = typer.Typer(
 )
 
 
-def version_callback(value: bool) -> None:
-    """Print the application version and exit.
+class OutputFormat(StrEnum):
+    """Supported fingerprint report export formats."""
 
-    Args:
-        value: When ``True``, print version information and raise ``typer.Exit``.
-    """
+    json = "json"
+    markdown = "markdown"
+    html = "html"
+    csv = "csv"
+    sarif = "sarif"
+
+
+def version_callback(value: bool) -> None:
+    """Print the application version and exit."""
     if value:
         console.print(f"TechSpecter {__version__}")
         raise typer.Exit()
@@ -72,23 +80,12 @@ def cli_callback(
 
 
 def _serialize_discovery_result(result: DiscoveryResult) -> dict[str, Any]:
-    """Convert a discovery result to a JSON-serializable dictionary.
-
-    Args:
-        result: Discovery pipeline result.
-
-    Returns:
-        JSON-compatible dictionary representation.
-    """
+    """Convert a discovery result to a JSON-serializable dictionary."""
     return result.model_dump(mode="json")
 
 
 def _render_discovery_result(result: DiscoveryResult) -> None:
-    """Render a human-readable discovery summary.
-
-    Args:
-        result: Discovery pipeline result.
-    """
+    """Render a human-readable discovery summary."""
     console.print(f"\n[bold]Target:[/bold] {result.target.url}")
     console.print(f"[bold]Elapsed:[/bold] {result.elapsed_ms:.0f} ms\n")
 
@@ -163,33 +160,8 @@ def discover_command(
 
 
 def _serialize_fingerprint_result(result: FingerprintAnalysisResult) -> dict[str, Any]:
-    """Convert a fingerprint analysis result to JSON.
-
-    Args:
-        result: Combined discovery and detection output.
-
-    Returns:
-        JSON-compatible dictionary without raw JavaScript content.
-    """
-    payload = result.model_dump(mode="json")
-    return payload
-
-
-def _render_fingerprint_result(
-    result: FingerprintAnalysisResult,
-    *,
-    compact: bool = False,
-    group_by_category: bool = False,
-    verbose: bool = False,
-) -> None:
-    """Render a human-readable fingerprint analysis summary."""
-    render_fingerprint_result(
-        result,
-        console=console,
-        compact=compact,
-        group_by_category=group_by_category,
-        verbose=verbose,
-    )
+    """Convert a fingerprint analysis result to JSON."""
+    return result.model_dump(mode="json")
 
 
 @app.command("fingerprint")
@@ -197,8 +169,16 @@ def fingerprint_command(
     url: Annotated[str, typer.Argument(help="Target website URL to fingerprint.")],
     json_output: Annotated[
         bool,
-        typer.Option("--json", help="Output results as JSON."),
+        typer.Option("--json", help="Output raw analysis results as JSON."),
     ] = False,
+    report_format: Annotated[
+        OutputFormat | None,
+        typer.Option("--format", help="Export report format."),
+    ] = None,
+    output: Annotated[
+        str | None,
+        typer.Option("--output", help="Write exported report to this file."),
+    ] = None,
     compact: Annotated[
         bool,
         typer.Option("--compact", help="Output compact one-line results."),
@@ -229,8 +209,32 @@ def fingerprint_command(
         console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
         return
 
-    _render_fingerprint_result(
-        result,
+    report_service = ReportService()
+    try:
+        if report_format is not None:
+            export_result = report_service.generate_and_export(
+                result.detection,
+                report_format.value,  # type: ignore[arg-type]
+                output_path=output,
+                scan_duration_ms=result.elapsed_ms,
+            )
+            if output is None:
+                console.print(export_result.content)
+            else:
+                console.print(f"[green]Report written to[/green] {export_result.output_path}")
+            return
+
+        report = report_service.generate_report(
+            result.detection,
+            scan_duration_ms=result.elapsed_ms,
+        )
+    except ReportError as exc:
+        console.print(f"[red]Report generation failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    render_report(
+        report,
+        console=console,
         compact=compact,
         group_by_category=group_by_category,
         verbose=verbose_output,

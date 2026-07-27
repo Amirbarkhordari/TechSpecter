@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Nothing yet.
 
+## [0.5.0] - 2026-07-27
+
+### Added
+- Reporting Engine (Phase 4) in `techspecter/reporting/`
+- `ReportEngine`, `ReportService`, and Pydantic report models
+- Exporters: JSON, Markdown, HTML, CSV, SARIF 2.1.0
+- Responsive HTML report template (`reporting/templates/report.html`)
+- Console renderer with statistics, grouping, and evidence output
+- CLI options: `--format`, `--output`
+- Reporting exceptions: `ExportError`, `TemplateError`, `InvalidReportError`
+- 18 new reporting tests
+
+### Changed
+- Default fingerprint console output now uses the reporting renderer
+- Legacy `--json` preserved for raw analysis output
+
 ## [0.4.0] - 2026-07-27
 
 ### Added
