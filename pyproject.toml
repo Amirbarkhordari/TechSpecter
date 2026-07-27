@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "techspecter"
-version = "0.2.0"
+version = "0.2.1"
 description = "Professional cross-platform Web Technology Fingerprinting and JavaScript Intelligence framework"
 readme = "README.md"
 license = "MIT"

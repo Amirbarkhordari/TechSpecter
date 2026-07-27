@@ -36,9 +36,9 @@ TechSpecter aims to become the go-to open-source toolkit for deep web applicatio
 
 ## Current Status
 
-**Phase 2 — JavaScript Discovery Engine** (current)
+**Phase 2 — JavaScript Discovery Engine** (current, v0.2.1)
 
-This release implements JavaScript resource discovery and download: URL validation, HTML parsing, script URL resolution, deduplication, async downloading, source map reference detection, and structured JSON/human-readable CLI output. No fingerprinting, content analysis, or security detection is implemented yet.
+This release implements JavaScript resource discovery and download: URL validation, HTML parsing, script URL resolution, deduplication, async downloading, source map reference detection, and structured JSON/human-readable CLI output. A stabilization pass in v0.2.1 hardened logging, validation errors, and source map propagation. No fingerprinting, content analysis, or security detection is implemented yet.
 
 ---
 

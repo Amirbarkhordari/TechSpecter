@@ -78,7 +78,7 @@ def test_discover_command_json_output(mock_run: AsyncMock) -> None:
 def test_discover_command_integration_with_mocked_http() -> None:
     """Verify discover command executes against mocked HTTP responses."""
     html = '<html><head><script src="/app.js"></script></head></html>'
-    respx.get("https://example.com").mock(
+    respx.get("https://example.com/").mock(
         return_value=httpx.Response(
             200,
             headers={"content-type": "text/html"},

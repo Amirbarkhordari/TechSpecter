@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 app = typer.Typer(
     name="techspecter",
-    help="Web Technology Fingerprinting and JavaScript Intelligence framework.",
+    help="TechSpecter — Web Technology Fingerprinting and JavaScript Intelligence framework.",
     no_args_is_help=True,
     add_completion=False,
 )

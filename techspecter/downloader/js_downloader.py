@@ -122,26 +122,22 @@ class JsDownloader:
         Returns:
             ``DownloadResult`` instance with response metadata.
         """
-        url = str(script.url)
+        resource_url = str(response.url)
         encoding = response.encoding or "utf-8"
         content_type = response.headers.get("content-type")
         content_length = len(response.content)
         source_map_url: str | None = None
 
-        if response.status_code < 400:
-            try:
-                body_text = response.text
-            except UnicodeDecodeError:
-                body_text = response.content.decode("utf-8", errors="replace")
-                encoding = "utf-8"
-            source_map_url = detect_source_map_url(body_text, base_url=url)
+        if response.status_code < 400 and response.content:
+            body_text = _decode_response_body(response)
+            source_map_url = detect_source_map_url(body_text, base_url=resource_url)
 
         success = response.status_code < 400
         error_message = None if success else f"HTTP {response.status_code}"
 
         logger.debug(
             "Downloaded JavaScript %s (%d bytes, %d ms)",
-            url,
+            resource_url,
             content_length,
             int(duration_ms),
         )
@@ -158,3 +154,19 @@ class JsDownloader:
             error_message=error_message,
             source_map_url=source_map_url,
         )
+
+
+def _decode_response_body(response: httpx.Response) -> str:
+    """Decode an HTTP response body as text.
+
+    Args:
+        response: HTTP response object.
+
+    Returns:
+        Decoded response body text.
+    """
+    encoding = response.encoding or "utf-8"
+    try:
+        return response.content.decode(encoding, errors="replace")
+    except LookupError:
+        return response.content.decode("utf-8", errors="replace")

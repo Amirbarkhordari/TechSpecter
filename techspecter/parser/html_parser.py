@@ -12,6 +12,7 @@ from techspecter.exceptions import ParserError, ValidationError
 from techspecter.models.discovery import InlineScript, ScriptResource
 from techspecter.parser.sourcemap import detect_source_map_url
 from techspecter.utils.url import resolve_url
+from techspecter.utils.validation import build_script_resource
 
 logger = logging.getLogger(__name__)
 
@@ -111,10 +112,7 @@ class HtmlScriptParser:
                 return inline_index
 
             external_scripts.append(
-                ScriptResource(
-                    url=absolute_url,  # type: ignore[arg-type]
-                    original_url=src_value,
-                )
+                build_script_resource(url=absolute_url, original_url=src_value)
             )
             return inline_index
 

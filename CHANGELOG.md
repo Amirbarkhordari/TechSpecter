@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Nothing yet.
 
+## [0.2.1] - 2026-07-27
+
+### Fixed
+- CLI help output now displays TechSpecter branding consistently
+- Source map references are preserved through the discovery pipeline and resolved to absolute URLs
+- Pydantic validation errors are converted to TechSpecter validation exceptions
+- Logging configuration no longer attaches duplicate handlers or writes to closed stdout streams during tests
+
+### Changed
+- HTTP client source map detection reads response bytes directly for reliable parsing
+- Third-party HTTP library log noise suppressed during normal operation
+
 ## [0.2.0] - 2026-07-27
 
 ### Added
@@ -40,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial test suite
 - Project documentation (README, CONTRIBUTING, LICENSE)
 
-[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Amirbarkhordari/TechSpecter/releases/tag/v0.1.0

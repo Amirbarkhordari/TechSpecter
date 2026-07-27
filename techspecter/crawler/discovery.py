@@ -11,11 +11,11 @@ from techspecter.config import Settings, get_settings
 from techspecter.downloader.html_downloader import HtmlDownloader
 from techspecter.downloader.http_client import AsyncHttpClient, HttpClientConfig
 from techspecter.downloader.js_downloader import JsDownloadConfig, JsDownloader
-from techspecter.exceptions import ValidationError
-from techspecter.models.discovery import DiscoveryResult, Target
+from techspecter.models.discovery import DiscoveryResult
 from techspecter.parser.html_parser import HtmlScriptParser
 from techspecter.utils.dedup import deduplicate_scripts
 from techspecter.utils.url import validate_url
+from techspecter.utils.validation import build_target
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class DiscoveryPipeline:
         started_perf = time.perf_counter()
 
         normalized_url = validate_url(target_url)
-        target = Target(url=normalized_url, original_url=target_url)  # type: ignore[arg-type]
+        target = build_target(url=normalized_url, original_url=target_url)
         logger.info("Starting JavaScript discovery for %s", normalized_url)
 
         client = self._http_client or AsyncHttpClient(

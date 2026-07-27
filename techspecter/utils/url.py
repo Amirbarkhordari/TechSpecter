@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Final
 from urllib.parse import urljoin, urlparse, urlunparse
 
-from techspecter.exceptions import ValidationError
+from techspecter.exceptions import InvalidTargetUrlError
 
 _ALLOWED_SCHEMES: Final[frozenset[str]] = frozenset({"http", "https"})
 
@@ -20,23 +20,23 @@ def validate_url(url: str) -> str:
         Normalized absolute URL with scheme and netloc.
 
     Raises:
-        ValidationError: If the URL is empty, malformed, or uses a disallowed scheme.
+        InvalidTargetUrlError: If the URL is empty, malformed, or uses a disallowed scheme.
     """
     stripped = url.strip()
     if not stripped:
         msg = "URL must not be empty."
-        raise ValidationError(msg)
+        raise InvalidTargetUrlError(msg)
 
     candidate = stripped if "://" in stripped else f"https://{stripped}"
     parsed = urlparse(candidate)
 
     if parsed.scheme not in _ALLOWED_SCHEMES:
         msg = f"Unsupported URL scheme '{parsed.scheme}'. Only HTTP and HTTPS are allowed."
-        raise ValidationError(msg)
+        raise InvalidTargetUrlError(msg)
 
     if not parsed.netloc:
         msg = f"Invalid URL '{url}': missing host."
-        raise ValidationError(msg)
+        raise InvalidTargetUrlError(msg)
 
     return normalize_url(urlunparse(parsed))
 
@@ -82,12 +82,12 @@ def resolve_url(base_url: str, reference: str) -> str:
         Normalized absolute URL.
 
     Raises:
-        ValidationError: If the resolved URL is invalid or uses a disallowed scheme.
+        InvalidTargetUrlError: If the resolved URL is invalid or uses a disallowed scheme.
     """
     stripped = reference.strip()
     if not stripped:
         msg = "Script URL reference must not be empty."
-        raise ValidationError(msg)
+        raise InvalidTargetUrlError(msg)
 
     if stripped.startswith("//"):
         base_scheme = urlparse(base_url).scheme or "https"
@@ -98,11 +98,11 @@ def resolve_url(base_url: str, reference: str) -> str:
 
     if parsed.scheme not in _ALLOWED_SCHEMES:
         msg = f"Unsupported script URL scheme '{parsed.scheme}' for reference '{reference}'."
-        raise ValidationError(msg)
+        raise InvalidTargetUrlError(msg)
 
     if not parsed.netloc:
         msg = f"Unable to resolve script URL '{reference}' against base '{base_url}'."
-        raise ValidationError(msg)
+        raise InvalidTargetUrlError(msg)
 
     return normalize_url(absolute)
 

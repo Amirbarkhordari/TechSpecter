@@ -15,6 +15,10 @@ class ValidationError(TechSpecterError):
     """Raised when input validation fails."""
 
 
+class InvalidTargetUrlError(ValidationError):
+    """Raised when a target URL fails validation."""
+
+
 class PluginError(TechSpecterError):
     """Raised when a plugin fails to load, register, or execute."""
 

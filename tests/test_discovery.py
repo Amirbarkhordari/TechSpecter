@@ -22,7 +22,7 @@ async def test_discovery_pipeline_end_to_end() -> None:
       </head>
     </html>
     """
-    respx.get("https://example.com").mock(
+    respx.get("https://example.com/").mock(
         return_value=httpx.Response(
             200,
             headers={"content-type": "text/html; charset=utf-8"},

@@ -67,6 +67,8 @@ class Plugin(ABC):
 
     def setup(self) -> None:
         """Optional hook invoked once before the plugin is first used."""
+        return None
 
     def teardown(self) -> None:
         """Optional hook invoked once when the plugin is unloaded."""
+        return None
