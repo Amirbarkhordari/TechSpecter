@@ -26,5 +26,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial test suite
 - Project documentation (README, CONTRIBUTING, LICENSE)
 
-[Unreleased]: https://github.com/techspecter/techspecter/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/techspecter/techspecter/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Amirbarkhordari/TechSpecter/releases/tag/v0.1.0

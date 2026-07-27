@@ -56,11 +56,11 @@ dev = [
 techspecter = "techspecter.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/techspecter/techspecter"
-Documentation = "https://github.com/techspecter/techspecter#readme"
-Repository = "https://github.com/techspecter/techspecter"
-Issues = "https://github.com/techspecter/techspecter/issues"
-Changelog = "https://github.com/techspecter/techspecter/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Amirbarkhordari/TechSpecter"
+Documentation = "https://github.com/Amirbarkhordari/TechSpecter#readme"
+Repository = "https://github.com/Amirbarkhordari/TechSpecter"
+Issues = "https://github.com/Amirbarkhordari/TechSpecter/issues"
+Changelog = "https://github.com/Amirbarkhordari/TechSpecter/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["techspecter"]

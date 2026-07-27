@@ -182,6 +182,6 @@ Be respectful, inclusive, and constructive in all project interactions. Harassme
 
 ## Questions?
 
-Open a [GitHub Discussion](https://github.com/techspecter/techspecter/discussions) or file an issue if you have questions about contributing.
+Open a [GitHub Discussion](https://github.com/Amirbarkhordari/TechSpecter/discussions) or file an issue if you have questions about contributing.
 
 Thank you for helping make TechSpecter better!

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Final
 
 DEFAULT_USER_AGENT: Final[str] = (
-    "TechSpecter/0.1.0 (+https://github.com/techspecter/techspecter)"
+    "TechSpecter/0.1.0 (+https://github.com/Amirbarkhordari/TechSpecter)"
 )
 ENV_PREFIX: Final[str] = "TECHSPECTER_"
 

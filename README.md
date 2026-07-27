@@ -1,6 +1,6 @@
 # TechSpecter
 
-[![CI](https://github.com/techspecter/techspecter/actions/workflows/ci.yml/badge.svg)](https://github.com/techspecter/techspecter/actions/workflows/ci.yml)
+[![CI](https://github.com/Amirbarkhordari/TechSpecter/actions/workflows/ci.yml/badge.svg)](https://github.com/Amirbarkhordari/TechSpecter/actions/workflows/ci.yml)
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -79,7 +79,7 @@ This release establishes the production-ready project foundation: package struct
 ### Install from source
 
 ```bash
-git clone https://github.com/techspecter/techspecter.git
+git clone https://github.com/Amirbarkhordari/TechSpecter.git
 cd techspecter
 pip install -e ".[dev]"
 ```
