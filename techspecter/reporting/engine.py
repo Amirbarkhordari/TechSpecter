@@ -7,10 +7,13 @@ from collections import defaultdict
 from datetime import UTC, datetime
 
 from techspecter import __version__
+from techspecter.analysis.models.finding import Finding, FindingCategory
+from techspecter.analysis.results.analysis_result import AnalysisResult
 from techspecter.fingerprinting.models import UNKNOWN_VERSION, DetectionResult, TechnologyMatch
 from techspecter.reporting.models import (
     Report,
     ReportEvidence,
+    ReportFinding,
     ReportMetadata,
     ReportStatistics,
     ReportSummary,
@@ -23,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class ReportEngine:
-    """Transform detection results into structured scan reports."""
+    """Transform detection and analysis results into structured scan reports."""
 
     def __init__(self, *, tool_name: str = "TechSpecter", tool_version: str | None = None) -> None:
         """Initialize the report engine.
@@ -68,11 +71,13 @@ class ReportEngine:
             scan_duration_ms=duration_ms,
             scripts_analyzed=detection.scripts_analyzed,
             technologies_detected=len(technologies),
+            findings_detected=len(technologies),
             categories_detected=statistics.category_count,
         )
         summary = ReportSummary(
             headline=_build_headline(len(technologies)),
             technologies_detected=len(technologies),
+            findings_detected=len(technologies),
             categories_detected=statistics.category_count,
         )
         return Report(
@@ -81,7 +86,87 @@ class ReportEngine:
             summary=summary,
             statistics=statistics,
             technologies=technologies,
+            findings=[],
             groups=groups,
+        )
+
+    def generate_from_analysis(
+        self,
+        analysis: AnalysisResult,
+        *,
+        scan_duration_ms: float | None = None,
+        scan_timestamp: datetime | None = None,
+    ) -> Report:
+        """Generate a report from a generic analysis result."""
+        if analysis.detection is not None:
+            report = self.generate(
+                analysis.detection,
+                scan_duration_ms=scan_duration_ms or analysis.elapsed_ms,
+                scan_timestamp=scan_timestamp or analysis.metadata.timestamp,
+            )
+        else:
+            report = self._empty_report(
+                target_url=analysis.target_url,
+                scan_duration_ms=scan_duration_ms or analysis.elapsed_ms,
+                scan_timestamp=scan_timestamp or analysis.metadata.timestamp,
+            )
+
+        findings = [_map_finding(finding) for finding in analysis.findings]
+        statistics = _calculate_analysis_statistics(analysis, report.technologies, findings)
+        metadata = report.metadata.model_copy(
+            update={
+                "findings_detected": len(findings),
+                "technologies_detected": len(report.technologies),
+                "categories_detected": len(
+                    {finding.category for finding in findings} or {group.category for group in report.groups}
+                ),
+            }
+        )
+        summary = report.summary.model_copy(
+            update={
+                "findings_detected": len(findings),
+                "headline": _build_analysis_headline(len(findings), len(report.technologies)),
+            }
+        )
+        return report.model_copy(
+            update={
+                "metadata": metadata,
+                "summary": summary,
+                "statistics": statistics,
+                "findings": findings,
+            }
+        )
+
+    def _empty_report(
+        self,
+        *,
+        target_url: str,
+        scan_duration_ms: float,
+        scan_timestamp: datetime | None = None,
+    ) -> Report:
+        """Build an empty report shell for non-fingerprint analysis."""
+        timestamp = scan_timestamp or datetime.now(UTC)
+        metadata = ReportMetadata(
+            tool_name=self._tool_name,
+            tool_version=self._tool_version,
+            scan_timestamp=timestamp,
+            target_url=target_url,
+            scan_duration_ms=scan_duration_ms,
+        )
+        summary = ReportSummary(
+            headline="No findings detected",
+            technologies_detected=0,
+            findings_detected=0,
+            categories_detected=0,
+        )
+        return Report(
+            metadata=metadata,
+            target=ReportTarget(url=target_url),
+            summary=summary,
+            statistics=ReportStatistics(),
+            technologies=[],
+            findings=[],
+            groups=[],
         )
 
 
@@ -155,6 +240,7 @@ def _calculate_statistics(
 
     return ReportStatistics(
         total_technologies=len(technologies),
+        total_findings=len(technologies),
         category_counts=dict(sorted(category_counts.items())),
         category_count=len(category_counts),
         average_confidence=round(sum(confidences) / len(confidences), 2),
@@ -163,6 +249,84 @@ def _calculate_statistics(
         unknown_versions=len(technologies) - known_versions,
         scripts_analyzed=detection.scripts_analyzed,
     )
+
+
+def _map_finding(finding: Finding) -> ReportFinding:
+    """Map a generic finding to a report finding entry."""
+    evidence = [
+        ReportEvidence(
+            matched_file=item.file,
+            matched_pattern=item.snippet,
+            matcher_type=finding.analyzer,
+            url=item.url,
+            line=item.line,
+            column=item.column,
+            snippet=item.snippet,
+            header=item.header,
+            cookie=item.cookie,
+            html_element=item.html_element,
+            javascript_location=item.javascript_location,
+            confidence=finding.confidence,
+            version=str(finding.metadata.get("version")) if finding.metadata.get("version") else None,
+        )
+        for item in finding.evidence
+    ]
+    return ReportFinding(
+        id=finding.id,
+        analyzer=finding.analyzer,
+        category=str(finding.category),
+        title=finding.title,
+        description=finding.description,
+        severity=finding.severity.value,
+        confidence=finding.confidence,
+        location=finding.location,
+        recommendation=finding.recommendation,
+        evidence=evidence,
+        metadata=dict(finding.metadata),
+    )
+
+
+def _calculate_analysis_statistics(
+    analysis: AnalysisResult,
+    technologies: list[ReportTechnology],
+    findings: list[ReportFinding],
+) -> ReportStatistics:
+    """Calculate report statistics from analysis output."""
+    base = _calculate_statistics(
+        analysis.detection or DetectionResult(target_url=analysis.target_url),
+        technologies,
+    )
+    severity_counts: dict[str, int] = defaultdict(int)
+    analyzer_counts: dict[str, int] = defaultdict(int)
+    category_counts: dict[str, int] = defaultdict(int)
+    confidences = [finding.confidence for finding in findings]
+
+    for finding in findings:
+        severity_counts[finding.severity] += 1
+        analyzer_counts[finding.analyzer] += 1
+        category_counts[finding.category] += 1
+
+    return base.model_copy(
+        update={
+            "total_findings": len(findings),
+            "severity_counts": dict(sorted(severity_counts.items())),
+            "analyzer_counts": dict(sorted(analyzer_counts.items())),
+            "category_counts": dict(sorted(category_counts.items())) or base.category_counts,
+            "category_count": len(category_counts) or base.category_count,
+            "average_confidence": round(sum(confidences) / len(confidences), 2) if confidences else base.average_confidence,
+            "highest_confidence": max(confidences) if confidences else base.highest_confidence,
+            "scripts_analyzed": analysis.statistics.scripts_analyzed or base.scripts_analyzed,
+        }
+    )
+
+
+def _build_analysis_headline(findings_count: int, technology_count: int) -> str:
+    """Build a summary headline for generic analysis reports."""
+    if findings_count == 0:
+        return "No findings detected"
+    if technology_count and findings_count == technology_count:
+        return _build_headline(technology_count)
+    return f"{findings_count} findings detected"
 
 
 def _build_headline(technology_count: int) -> str:

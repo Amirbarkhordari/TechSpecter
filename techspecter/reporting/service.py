@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from techspecter.analysis.results.analysis_result import AnalysisResult
 from techspecter.exceptions import ExportError
 from techspecter.fingerprinting.models import DetectionResult
 from techspecter.reporting.engine import ReportEngine
@@ -45,6 +46,15 @@ class ReportService:
     ) -> Report:
         """Generate a structured report from detection output."""
         return self._engine().generate(detection, scan_duration_ms=scan_duration_ms)
+
+    def generate_report_from_analysis(
+        self,
+        analysis: AnalysisResult,
+        *,
+        scan_duration_ms: float | None = None,
+    ) -> Report:
+        """Generate a structured report from generic analysis output."""
+        return self._engine().generate_from_analysis(analysis, scan_duration_ms=scan_duration_ms)
 
     def export_report(
         self,
@@ -91,6 +101,18 @@ class ReportService:
     ) -> ExportResult:
         """Generate a report and export it in one operation."""
         report = self.generate_report(detection, scan_duration_ms=scan_duration_ms)
+        return self.export_report(report, report_format, output_path=output_path)
+
+    def generate_and_export_from_analysis(
+        self,
+        analysis: AnalysisResult,
+        report_format: ReportFormat,
+        *,
+        output_path: Path | str | None = None,
+        scan_duration_ms: float | None = None,
+    ) -> ExportResult:
+        """Generate a report from analysis output and export it."""
+        report = self.generate_report_from_analysis(analysis, scan_duration_ms=scan_duration_ms)
         return self.export_report(report, report_format, output_path=output_path)
 
     def _engine(self) -> ReportEngine:

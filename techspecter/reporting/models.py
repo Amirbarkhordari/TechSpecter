@@ -19,13 +19,37 @@ class ReportTarget(TechSpecterModel):
 
 
 class ReportEvidence(TechSpecterModel):
-    """Evidence supporting a technology detection."""
+    """Evidence supporting a technology detection or generic finding."""
 
     matched_file: str | None = None
-    matched_pattern: str
-    matcher_type: str
-    version: str
+    matched_pattern: str | None = None
+    matcher_type: str | None = None
+    version: str | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=100.0)
+    url: str | None = None
+    line: int | None = Field(default=None, ge=1)
+    column: int | None = Field(default=None, ge=1)
+    snippet: str | None = None
+    header: str | None = None
+    cookie: str | None = None
+    html_element: str | None = None
+    javascript_location: str | None = None
+
+
+class ReportFinding(TechSpecterModel):
+    """Generic finding entry in a report."""
+
+    id: str
+    analyzer: str
+    category: str
+    title: str
+    description: str
+    severity: str
     confidence: float = Field(ge=0.0, le=100.0)
+    location: str | None = None
+    recommendation: str | None = None
+    evidence: list[ReportEvidence] = Field(default_factory=list)
+    metadata: dict[str, object] = Field(default_factory=dict)
 
 
 class ReportTechnology(TechSpecterModel):
@@ -53,8 +77,11 @@ class ReportStatistics(TechSpecterModel):
     """Aggregated statistics for a scan report."""
 
     total_technologies: int = 0
+    total_findings: int = 0
     category_counts: dict[str, int] = Field(default_factory=dict)
     category_count: int = 0
+    severity_counts: dict[str, int] = Field(default_factory=dict)
+    analyzer_counts: dict[str, int] = Field(default_factory=dict)
     average_confidence: float = 0.0
     highest_confidence: float = 0.0
     known_versions: int = 0
@@ -67,6 +94,7 @@ class ReportSummary(TechSpecterModel):
 
     headline: str
     technologies_detected: int = 0
+    findings_detected: int = 0
     categories_detected: int = 0
 
 
@@ -80,6 +108,7 @@ class ReportMetadata(TechSpecterModel):
     scan_duration_ms: float = 0.0
     scripts_analyzed: int = 0
     technologies_detected: int = 0
+    findings_detected: int = 0
     categories_detected: int = 0
 
 
@@ -91,6 +120,7 @@ class Report(TechSpecterModel):
     summary: ReportSummary
     statistics: ReportStatistics
     technologies: list[ReportTechnology] = Field(default_factory=list)
+    findings: list[ReportFinding] = Field(default_factory=list)
     groups: list[TechnologyGroup] = Field(default_factory=list)
 
 

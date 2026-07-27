@@ -67,6 +67,10 @@ class ReportError(TechSpecterError):
     """Raised when report generation or export fails."""
 
 
+class AnalysisError(TechSpecterError):
+    """Raised when passive analysis operations fail."""
+
+
 class ExportError(ReportError):
     """Raised when a report export operation fails."""
 

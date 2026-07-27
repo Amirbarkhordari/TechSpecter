@@ -4,13 +4,15 @@
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**TechSpecter** is a professional, cross-platform Web Technology Fingerprinting and JavaScript Intelligence framework. It is designed to help security researchers, penetration testers, and developers identify technologies, libraries, frameworks, vulnerabilities, and sensitive artifacts in modern web applications.
+**TechSpecter** is a professional, cross-platform **Passive Web Application Analysis Framework**. It discovers and analyzes publicly accessible web resources to identify technologies, metadata, and other observable artifacts — without performing active security testing or exploitation.
 
 ---
 
 ## Vision
 
-TechSpecter aims to become the go-to open-source toolkit for deep web application intelligence — combining accurate technology fingerprinting, JavaScript analysis, CVE correlation, secret discovery, and API endpoint mapping into a single, extensible platform that works seamlessly on **Windows** and **Linux**.
+TechSpecter aims to become the go-to open-source toolkit for **passive** web application intelligence — combining technology fingerprinting, HTTP observation, metadata extraction, and structured reporting into a single, extensible analysis platform that works seamlessly on **Windows** and **Linux**.
+
+TechSpecter analyzes only resources it downloads itself. It does **not** perform vulnerability scanning, penetration testing, brute force, port scanning, or any form of active exploitation.
 
 ---
 
@@ -18,6 +20,8 @@ TechSpecter aims to become the go-to open-source toolkit for deep web applicatio
 
 | Capability | Status |
 |---|---|
+| Generic analysis framework | ✅ Phase 4.5 |
+| Analyzer pipeline with finding aggregation | ✅ Phase 4.5 |
 | Modular plugin architecture | ✅ Phase 1 |
 | Cross-platform CLI | ✅ Phase 1 |
 | JavaScript discovery & download | ✅ Phase 2 |
@@ -31,17 +35,18 @@ TechSpecter aims to become the go-to open-source toolkit for deep web applicatio
 | Fingerprint validation tooling | ✅ Phase 3B |
 | Enhanced confidence scoring | ✅ Phase 3B |
 | Multi-format reporting engine | ✅ Phase 4 |
-| CVE intelligence | 🔜 Phase 5 |
-| Secret discovery | 🔜 Phase 5 |
-| API endpoint discovery | 🔜 Phase 5 |
+| HTTP / Header / Cookie analyzers | 🔜 Future |
+| Plugin SDK integration | 🔜 Phase 5 |
 
 ---
 
 ## Current Status
 
-**Phase 4 — Reporting Engine** (current, v0.5.0)
+**Phase 4.5 — Generic Analysis Framework** (current, v0.6.0)
 
-TechSpecter includes a production-grade reporting engine that transforms `DetectionResult` output into structured reports. Supported export formats include JSON, Markdown, HTML, CSV, and SARIF. The reporting layer is fully independent from the fingerprinting engine.
+TechSpecter now includes a generic passive analysis pipeline with standardized `Finding` models, an `Analyzer` abstraction, result aggregation, and plugin-ready analyzer registration. JavaScript technology fingerprinting runs as the first built-in analyzer. All existing CLI commands, fingerprinting behavior, and reports remain backward compatible.
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/DEVELOPER.md](docs/DEVELOPER.md) for details.
 
 ---
 
@@ -80,19 +85,24 @@ TechSpecter includes a production-grade reporting engine that transforms `Detect
 
 ### Phase 4 — Reporting Engine ✅
 - Dedicated `techspecter/reporting/` package
-- `ReportEngine` transforms `DetectionResult` into structured `Report` models
+- `ReportEngine`, `ReportService`, and Pydantic report models
 - Exporters: JSON, Markdown, HTML, CSV, SARIF
-- `ReportService` for generation, export, and file output
 - CLI: `--format`, `--output`, enhanced console rendering
 
-### Phase 5 — Security Intelligence
-- CVE correlation engine
-- Secret & credential discovery
-- API endpoint discovery
-- Rich reporting (JSON, HTML, SARIF)
-- Plugin marketplace
-- Custom signature authoring
-- Integration with security tooling (Burp, Nuclei, etc.)
+### Phase 4.5 — Generic Analysis Framework ✅
+- `techspecter/analysis/` package with analyzer pipeline
+- Standardized `Finding`, `Evidence`, `Severity`, and category models
+- `AnalysisService` public API (`run(target)` → `AnalysisResult`)
+- `TechnologyFingerprintAnalyzer` as first built-in analyzer
+- `ResultAggregator` for multi-analyzer finding merge
+- Generic findings in reports with full backward compatibility
+- Architecture and developer documentation
+
+### Phase 5 — Plugin SDK & Extended Analyzers
+- Plugin SDK integration with analyzer registration
+- HTTP, Header, Cookie, Metadata analyzers
+- Sensitive artifact and endpoint analyzers
+- Custom analyzer authoring via plugins
 
 ---
 
@@ -190,6 +200,52 @@ The `fingerprint` command chains discovery with technology detection:
 
 ---
 
+## Analysis Framework
+
+TechSpecter uses a generic passive analysis pipeline:
+
+```
+Target URL → Discovery → Download → Parse → Analysis Pipeline → Aggregation → Reporting
+```
+
+### Public API
+
+```python
+import asyncio
+from techspecter.analysis import AnalysisService
+
+async def main() -> None:
+    result = await AnalysisService().run("https://example.com")
+    print(result.statistics.total_findings)
+
+asyncio.run(main())
+```
+
+### Analyzer Model
+
+Each analyzer exposes metadata (`id`, `name`, `version`, `description`, `category`) and implements `execute(discovery) → findings`.
+
+Built-in analyzers:
+
+| Analyzer | ID |
+|---|---|
+| Technology Fingerprint Analyzer | `technology-fingerprint` |
+
+Future analyzers (HTTP, Headers, Cookies, Metadata, Endpoint, Sensitive Artifact) will register through the same `AnalyzerRegistry`.
+
+### Finding Model
+
+Every finding includes:
+
+- `id`, `analyzer`, `category`, `title`, `description`
+- `severity` (CRITICAL → INFO)
+- `confidence` (0–100)
+- `evidence`, `location`, `recommendation`, `metadata`
+
+See [docs/DEVELOPER.md](docs/DEVELOPER.md) for analyzer authoring guidance.
+
+---
+
 ## Fingerprint Architecture
 
 ### Repository Layout
@@ -282,18 +338,16 @@ assert report.is_valid
 
 ## Reporting Architecture
 
-The reporting engine is independent from fingerprinting. Detection produces a `DetectionResult`; reporting transforms it into exportable output.
+The reporting engine supports both legacy technology reports and generic findings.
 
 ```
-DetectionResult
+AnalysisResult / DetectionResult
         ↓
 ReportEngine
         ↓
-Report (metadata, statistics, technologies, evidence)
+Report (technologies + findings + statistics)
         ↓
 Exporter (json | markdown | html | csv | sarif)
-        ↓
-ExportResult / Console Renderer
 ```
 
 ### Supported Report Formats
@@ -330,45 +384,36 @@ service = ReportService(exporters={"json": MyExporter()})
 ```
 TechSpecter/
 ├── techspecter/           # Main Python package
+│   ├── analysis/          # Generic analysis framework (Phase 4.5)
 │   ├── core/              # Core interfaces & orchestration
 │   ├── crawler/           # Web crawling (Phase 2)
 │   ├── downloader/        # HTTP resource fetching (Phase 2)
 │   ├── parser/            # Content parsing (Phase 2)
 │   ├── fingerprinting/    # Fingerprinting engine (Phase 3A)
 │   ├── fingerprints/      # JSON fingerprint database (Phase 3A)
+│   ├── reporting/         # Reporting engine (Phase 4)
 │   ├── detector/          # Detection service facade
-│   ├── report/            # Report generation (Phase 4)
+│   ├── report/            # Backward-compatible reporting re-exports
 │   ├── models/            # Pydantic data models
 │   ├── utils/             # Shared utilities
 │   └── plugins/           # Plugin registry & discovery
 ├── tests/                 # Test suite
-├── docs/                  # Documentation
+├── docs/                  # Architecture & developer documentation
 └── .github/workflows/     # CI/CD pipelines
 ```
 
-### Plugin Architecture
+### Analysis Architecture
 
-TechSpecter uses a **plugin registry** pattern. Future modules (JavaScript Discovery, CVE Intelligence, Secret Discovery, etc.) implement the `Plugin` interface and register themselves without modifying core code:
+TechSpecter uses an **analyzer registry** pattern. Analyzers implement the `Analyzer` interface and register with `AnalyzerRegistry`. The `AnalysisPipeline` orchestrates discovery and analyzer execution:
 
 ```python
-from techspecter.core.interfaces import Plugin, PluginMetadata, ScanResult
-from techspecter.core.context import ScanContext
-from techspecter.plugins import registry
+from techspecter.analysis import AnalysisPipeline, TechnologyFingerprintAnalyzer
 
-class MyPlugin(Plugin):
-    @property
-    def metadata(self) -> PluginMetadata:
-        return PluginMetadata(
-            name="my-plugin",
-            version="1.0.0",
-            description="Custom analysis plugin",
-        )
-
-    def execute(self, context: ScanContext) -> ScanResult:
-        return ScanResult(plugin_name="my-plugin")
-
-registry.register(MyPlugin())
+pipeline = AnalysisPipeline(analyzers=[TechnologyFingerprintAnalyzer()])
+result = pipeline.analyze_discovery(discovery)
 ```
+
+Future plugins will register additional analyzers without modifying core code. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 

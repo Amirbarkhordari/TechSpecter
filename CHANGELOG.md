@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Nothing yet.
 
+## [0.6.0] - 2026-07-28
+
+### Added
+- Generic passive analysis framework in `techspecter/analysis/`
+- `Analyzer` base class and `AnalyzerRegistry` for extensible analysis modules
+- `TechnologyFingerprintAnalyzer` wrapping the existing fingerprint engine
+- Standardized `Finding`, `Evidence`, `Severity`, and category models
+- `AnalysisPipeline`, `AnalysisService`, and `AnalysisResult` public API
+- `ResultAggregator` for multi-analyzer finding merge and statistics
+- Generic `ReportFinding` support in reporting models and `ReportEngine.generate_from_analysis()`
+- Architecture documentation (`docs/ARCHITECTURE.md`) and developer guide (`docs/DEVELOPER.md`)
+- 22 new analysis framework tests
+
+### Changed
+- TechSpecter repositioned as a Passive Web Application Analysis Framework
+- Reports now support generic findings alongside legacy technology sections
+- README updated with analysis framework overview and revised roadmap
+
 ## [0.5.0] - 2026-07-27
 
 ### Added
@@ -113,8 +131,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial test suite
 - Project documentation (README, CONTRIBUTING, LICENSE)
 
-[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.4.0...HEAD
-[0.4.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.3.1...v0.4.0
+[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.4.0...v0.5.0
 [0.3.1]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.2.0...v0.2.1

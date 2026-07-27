@@ -1,0 +1,136 @@
+# TechSpecter Architecture
+
+TechSpecter is a **passive** Web Application Analysis Framework. It downloads and analyzes publicly accessible resources only. It does not perform active security testing, exploitation, or intrusive scanning.
+
+## High-Level Pipeline
+
+```
+Target URL
+    ↓
+Crawler / Discovery
+    ↓
+Downloader
+    ↓
+Parser
+    ↓
+Analysis Pipeline
+    ↓
+Result Aggregation
+    ↓
+Reporting
+```
+
+Each stage is isolated behind clear interfaces so new analyzers and exporters can be added without modifying the core.
+
+## Package Layout
+
+```
+techspecter/
+├── analysis/              # Generic analysis framework
+│   ├── analyzers/         # Analyzer abstractions and implementations
+│   ├── models/            # Finding, Evidence, Severity, Category
+│   ├── pipeline/          # AnalysisPipeline orchestration
+│   ├── results/           # AnalysisResult, ResultAggregator
+│   └── statistics/        # AnalysisStatistics
+├── crawler/               # Discovery orchestration
+├── downloader/            # HTTP resource fetching
+├── parser/                # HTML and source map parsing
+├── fingerprinting/        # JavaScript technology fingerprint engine
+├── fingerprints/          # JSON fingerprint database
+├── reporting/             # Report generation and export
+├── plugins/               # Plugin SDK (extensibility)
+└── models/                # Shared discovery models
+```
+
+## Analysis Framework
+
+### Analyzer
+
+Every analyzer implements the `Analyzer` base class:
+
+| Field / Method | Purpose |
+|---|---|
+| `metadata.id` | Unique analyzer identifier |
+| `metadata.name` | Human-readable name |
+| `metadata.version` | Analyzer version |
+| `metadata.description` | Capability description |
+| `metadata.category` | Analyzer category |
+| `execute(discovery)` | Run analysis and return findings |
+
+Analyzers are registered through `AnalyzerRegistry` and executed by `AnalysisPipeline`.
+
+### Finding
+
+All analyzers produce standardized `Finding` objects:
+
+- `id`, `analyzer`, `category`, `title`, `description`
+- `severity` (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFO`)
+- `confidence` (0–100)
+- `evidence`, `location`, `recommendation`, `metadata`
+
+### Evidence
+
+Findings include structured `Evidence` supporting multiple artifact types:
+
+- URL, file, line, column, snippet
+- Header, cookie, HTML element, JavaScript location
+
+### Result Aggregation
+
+`ResultAggregator` merges findings from all analyzers, deduplicates by finding ID (keeping the highest confidence), and calculates `AnalysisStatistics`.
+
+## Current Analyzers
+
+| Analyzer | ID | Description |
+|---|---|---|
+| Technology Fingerprint Analyzer | `technology-fingerprint` | Identifies JavaScript technologies from downloaded scripts |
+
+Future analyzers (HTTP, Headers, Cookies, Metadata, Endpoint, Sensitive Artifact) will plug into the same pipeline without core changes.
+
+## Backward Compatibility
+
+The fingerprinting engine remains unchanged. Existing APIs continue to work:
+
+- `FingerprintService.analyze_url()` — legacy fingerprint entry point
+- `DetectionResult` — fingerprint-specific result model
+- `ReportEngine.generate(detection)` — technology-centric reports
+
+The new framework wraps existing functionality:
+
+- `AnalysisService.run(target)` → `AnalysisResult`
+- `TechnologyFingerprintAnalyzer` converts `DetectionResult` → `Finding`
+- `ReportEngine.generate_from_analysis()` supports generic findings while preserving technology report sections
+
+## Plugin Readiness
+
+The architecture is designed for future plugin integration:
+
+- `AnalyzerRegistry` can accept externally registered analyzers
+- `AnalysisPipeline.register_analyzer()` adds analyzers at runtime
+- Plugin SDK (`techspecter/plugins/`) provides lifecycle, loading, and validation infrastructure
+
+Plugins are not required for the core analysis path today, but the registry and pipeline composition model is in place.
+
+## Reporting
+
+Reports support both legacy technology output and generic findings:
+
+```
+AnalysisResult / DetectionResult
+        ↓
+ReportEngine
+        ↓
+Report (technologies + findings + statistics)
+        ↓
+Exporter (json | markdown | html | csv | sarif)
+```
+
+Technology findings are mapped to both `ReportTechnology` (backward compatible) and `ReportFinding` (generic).
+
+## Design Principles
+
+- **Passive only** — analyze downloaded public resources
+- **SOLID** — single-responsibility analyzers, injectable dependencies
+- **Open/closed** — extend via analyzers and plugins, not core edits
+- **Backward compatible** — existing CLI commands and tests remain valid
+- **Typed** — Pydantic models and full type hints throughout
