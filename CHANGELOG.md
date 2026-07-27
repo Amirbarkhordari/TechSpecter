@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Nothing yet.
 
+## [0.4.0] - 2026-07-27
+
+### Added
+- Expanded fingerprint database with 64 technologies across 8 categories (Phase 3B)
+- `FingerprintValidator` for schema, duplicate, and regex validation
+- `PatternEvidence` model for structured detection evidence
+- Multi-source version extraction with highest-confidence selection
+- CLI options: `--compact`, `--group-by-category`, `--verbose-output`
+- Fingerprint catalog build tools in `tools/`
+- 16 new tests (validator, database, accuracy, performance)
+
+### Changed
+- Matcher enhancements: filename chunk/vendor heuristics, source map regex, bootstrap globals
+- Confidence scoring uses matcher-type multipliers and weak-detection filtering
+- Version patterns support optional `source` field for bundle/metadata extraction
+
 ## [0.3.1] - 2026-07-27
 
 ### Added
@@ -81,7 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial test suite
 - Project documentation (README, CONTRIBUTING, LICENSE)
 
-[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.2.0...v0.2.1

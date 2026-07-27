@@ -38,7 +38,11 @@
         "properties": {
           "pattern": {"type": "string", "minLength": 1},
           "weight": {"type": "number", "minimum": 0, "maximum": 100},
-          "flags": {"type": "string"}
+          "flags": {"type": "string"},
+          "source": {
+            "type": "string",
+            "enum": ["inline", "global", "metadata", "sourcemap", "minified", "bundle"]
+          }
         },
         "additionalProperties": true
       }

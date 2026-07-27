@@ -1,0 +1,32 @@
+{
+  "id": "lodash",
+  "name": "Lodash",
+  "category": "library",
+  "website": "https://lodash.com",
+  "description": "Modern JavaScript utility library",
+  "priority": 85,
+  "confidence": 78,
+  "tags": [
+    "javascript",
+    "library",
+    "utility"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "lodash",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "_.debounce",
+      "weight": 30
+    },
+    {
+      "matcher": "string",
+      "pattern": "lodash/core",
+      "weight": 20
+    }
+  ],
+  "version_patterns": []
+}

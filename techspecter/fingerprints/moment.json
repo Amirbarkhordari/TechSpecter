@@ -1,0 +1,32 @@
+{
+  "id": "moment",
+  "name": "Moment.js",
+  "category": "library",
+  "website": "https://momentjs.com",
+  "description": "Date manipulation library",
+  "priority": 80,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "library",
+    "date"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "moment",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "moment().format",
+      "weight": 30
+    },
+    {
+      "matcher": "global",
+      "pattern": "moment",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

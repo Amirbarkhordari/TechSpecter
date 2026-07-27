@@ -1,0 +1,32 @@
+{
+  "id": "leaflet",
+  "name": "Leaflet",
+  "category": "visualization",
+  "website": "https://leafletjs.com",
+  "description": "Mobile-friendly interactive maps",
+  "priority": 80,
+  "confidence": 78,
+  "tags": [
+    "javascript",
+    "visualization",
+    "maps"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "leaflet",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "L.map(",
+      "weight": 30
+    },
+    {
+      "matcher": "global",
+      "pattern": "L",
+      "weight": 20
+    }
+  ],
+  "version_patterns": []
+}

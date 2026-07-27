@@ -1,0 +1,39 @@
+{
+  "id": "preact",
+  "name": "Preact",
+  "category": "framework",
+  "website": "https://preactjs.com",
+  "description": "Fast 3kB React alternative",
+  "priority": 85,
+  "confidence": 80,
+  "tags": [
+    "javascript",
+    "ui",
+    "framework",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "preact",
+      "weight": 25
+    },
+    {
+      "matcher": "regex",
+      "pattern": "__PREACT__",
+      "weight": 35
+    },
+    {
+      "matcher": "global",
+      "pattern": "preact",
+      "weight": 30
+    }
+  ],
+  "version_patterns": [
+    {
+      "pattern": "preact@([0-9][0-9a-zA-Z.+-_]*)",
+      "weight": 20,
+      "source": "minified"
+    }
+  ]
+}

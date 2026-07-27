@@ -1,0 +1,27 @@
+{
+  "id": "quill",
+  "name": "Quill",
+  "category": "editor",
+  "website": "https://quilljs.com",
+  "description": "Rich text editor",
+  "priority": 78,
+  "confidence": 76,
+  "tags": [
+    "javascript",
+    "editor",
+    "wysiwyg"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "quill",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "Quill",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

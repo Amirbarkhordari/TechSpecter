@@ -10,6 +10,7 @@ from techspecter.fingerprinting.matchers.base import MatcherRegistry, build_defa
 from techspecter.fingerprinting.models import (
     Fingerprint,
     FingerprintPattern,
+    PatternEvidence,
     Technology,
     TechnologyMatch,
 )
@@ -64,13 +65,20 @@ class FingerprintEngine:
 
             version, version_pattern = self._version_extractor.extract_with_pattern(
                 fingerprint,
-                context.content,
+                context,
             )
             evidence = MatchEvidence(
                 matched_patterns=evidence.matched_patterns,
                 version_pattern=version_pattern,
             )
             confidence = self._confidence_scorer.score(fingerprint, evidence, version)
+            if not self._confidence_scorer.passes_threshold(confidence):
+                logger.debug(
+                    "Skipping weak detection for '%s' (confidence %.1f)",
+                    fingerprint.id,
+                    confidence,
+                )
+                continue
 
             technology = Technology(
                 id=fingerprint.id,
@@ -89,6 +97,15 @@ class FingerprintEngine:
                 ],
                 source_url=context.url,
                 filename=context.filename,
+                evidence=[
+                    PatternEvidence(
+                        matcher=pattern.matcher,
+                        pattern=pattern.pattern,
+                        weight=pattern.weight,
+                        detail=context.filename if pattern.matcher == "filename" else None,
+                    )
+                    for pattern in evidence.matched_patterns
+                ],
             )
             matches.append(match)
             logger.info(

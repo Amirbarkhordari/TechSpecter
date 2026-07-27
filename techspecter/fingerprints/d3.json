@@ -1,0 +1,37 @@
+{
+  "id": "d3",
+  "name": "D3.js",
+  "category": "visualization",
+  "website": "https://d3js.org",
+  "description": "Data-driven documents library",
+  "priority": 85,
+  "confidence": 80,
+  "tags": [
+    "javascript",
+    "visualization",
+    "chart"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "d3.min",
+      "weight": 20
+    },
+    {
+      "matcher": "filename",
+      "pattern": "/d3/",
+      "weight": 15
+    },
+    {
+      "matcher": "string",
+      "pattern": "d3.select",
+      "weight": 40
+    },
+    {
+      "matcher": "global",
+      "pattern": "d3",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

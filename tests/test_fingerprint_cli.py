@@ -25,6 +25,55 @@ def test_fingerprint_command_help() -> None:
     assert result.exit_code == 0
     assert "Discover JavaScript resources and identify technologies" in result.stdout
     assert "--json" in result.stdout
+    assert "--compact" in result.stdout
+
+
+@patch("techspecter.cli.FingerprintService.analyze_url", new_callable=AsyncMock)
+def test_fingerprint_command_compact_output(mock_analyze: AsyncMock) -> None:
+    """Verify fingerprint command supports compact output."""
+    mock_analyze.return_value = FingerprintAnalysisResult(
+        target_url="https://example.com",
+        detection=DetectionResult(
+            target_url="https://example.com",
+            matches=[
+                TechnologyMatch(
+                    technology=Technology(id="react", name="React", category="framework"),
+                    version="18.2.0",
+                    confidence=92.5,
+                )
+            ],
+            scripts_analyzed=1,
+            elapsed_ms=25.0,
+        ),
+        elapsed_ms=125.0,
+    )
+    result = runner.invoke(app, ["fingerprint", "https://example.com", "--compact"])
+    assert result.exit_code == 0
+    assert "React 18.2.0" in result.stdout
+
+
+@patch("techspecter.cli.FingerprintService.analyze_url", new_callable=AsyncMock)
+def test_fingerprint_command_grouped_output(mock_analyze: AsyncMock) -> None:
+    """Verify fingerprint command supports category grouping."""
+    mock_analyze.return_value = FingerprintAnalysisResult(
+        target_url="https://example.com",
+        detection=DetectionResult(
+            target_url="https://example.com",
+            matches=[
+                TechnologyMatch(
+                    technology=Technology(id="react", name="React", category="framework"),
+                    version="18.2.0",
+                    confidence=92.5,
+                )
+            ],
+            scripts_analyzed=1,
+            elapsed_ms=25.0,
+        ),
+        elapsed_ms=125.0,
+    )
+    result = runner.invoke(app, ["fingerprint", "https://example.com", "--group-by-category"])
+    assert result.exit_code == 0
+    assert "framework" in result.stdout
 
 
 @patch("techspecter.cli.FingerprintService.analyze_url", new_callable=AsyncMock)

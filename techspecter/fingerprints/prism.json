@@ -1,0 +1,27 @@
+{
+  "id": "prism",
+  "name": "Prism.js",
+  "category": "syntax-highlighting",
+  "website": "https://prismjs.com",
+  "description": "Lightweight syntax highlighter",
+  "priority": 75,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "syntax",
+    "highlighting"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "prism",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "Prism",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

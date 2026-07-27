@@ -1,0 +1,32 @@
+{
+  "id": "hammerjs",
+  "name": "Hammer.js",
+  "category": "library",
+  "website": "https://hammerjs.github.io",
+  "description": "Touch gesture library",
+  "priority": 70,
+  "confidence": 72,
+  "tags": [
+    "javascript",
+    "library",
+    "gesture"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "hammer",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "Hammer",
+      "weight": 30
+    },
+    {
+      "matcher": "string",
+      "pattern": "Hammer.Manager",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

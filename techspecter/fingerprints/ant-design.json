@@ -1,0 +1,33 @@
+{
+  "id": "ant-design",
+  "name": "Ant Design",
+  "category": "css-framework",
+  "website": "https://ant.design",
+  "description": "Enterprise UI design language and React library",
+  "priority": 85,
+  "confidence": 80,
+  "tags": [
+    "css",
+    "ui",
+    "frontend",
+    "react"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "antd",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "antd/lib",
+      "weight": 30
+    },
+    {
+      "matcher": "string",
+      "pattern": "ant-design",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

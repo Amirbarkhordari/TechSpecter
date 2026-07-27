@@ -1,0 +1,27 @@
+{
+  "id": "foundation",
+  "name": "Foundation",
+  "category": "css-framework",
+  "website": "https://get.foundation",
+  "description": "Responsive front-end framework",
+  "priority": 70,
+  "confidence": 72,
+  "tags": [
+    "css",
+    "ui",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "foundation",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "Foundation",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

@@ -1,0 +1,33 @@
+{
+  "id": "gatsby",
+  "name": "Gatsby",
+  "category": "meta-framework",
+  "website": "https://www.gatsbyjs.com",
+  "description": "React-based static site generator",
+  "priority": 85,
+  "confidence": 80,
+  "tags": [
+    "javascript",
+    "ssr",
+    "react",
+    "framework"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "gatsby",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "___loader",
+      "weight": 30
+    },
+    {
+      "matcher": "string",
+      "pattern": "gatsby-browser",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

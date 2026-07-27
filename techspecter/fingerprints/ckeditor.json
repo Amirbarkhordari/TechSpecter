@@ -1,0 +1,27 @@
+{
+  "id": "ckeditor",
+  "name": "CKEditor",
+  "category": "editor",
+  "website": "https://ckeditor.com",
+  "description": "WYSIWYG rich text editor",
+  "priority": 80,
+  "confidence": 78,
+  "tags": [
+    "javascript",
+    "editor",
+    "wysiwyg"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "ckeditor",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "CKEDITOR",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

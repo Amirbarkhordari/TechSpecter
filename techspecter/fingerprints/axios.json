@@ -1,0 +1,32 @@
+{
+  "id": "axios",
+  "name": "Axios",
+  "category": "library",
+  "website": "https://axios-http.com",
+  "description": "Promise based HTTP client",
+  "priority": 85,
+  "confidence": 80,
+  "tags": [
+    "javascript",
+    "library",
+    "http"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "axios",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "axios.create",
+      "weight": 35
+    },
+    {
+      "matcher": "global",
+      "pattern": "axios",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

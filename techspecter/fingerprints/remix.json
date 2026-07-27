@@ -1,0 +1,33 @@
+{
+  "id": "remix",
+  "name": "Remix",
+  "category": "meta-framework",
+  "website": "https://remix.run",
+  "description": "Full stack React framework",
+  "priority": 90,
+  "confidence": 82,
+  "tags": [
+    "javascript",
+    "ssr",
+    "react",
+    "framework"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "remix",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "@remix-run/react",
+      "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "__remixContext",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

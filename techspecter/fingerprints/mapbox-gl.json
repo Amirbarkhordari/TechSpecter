@@ -1,0 +1,27 @@
+{
+  "id": "mapbox-gl",
+  "name": "Mapbox GL JS",
+  "category": "visualization",
+  "website": "https://docs.mapbox.com/mapbox-gl-js",
+  "description": "Interactive vector maps",
+  "priority": 78,
+  "confidence": 76,
+  "tags": [
+    "javascript",
+    "visualization",
+    "maps"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "mapbox-gl",
+      "weight": 30
+    },
+    {
+      "matcher": "global",
+      "pattern": "mapboxgl",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

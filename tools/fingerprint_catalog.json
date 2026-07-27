@@ -1,0 +1,2034 @@
+{
+  "fingerprints": [
+    {
+      "id": "react",
+      "name": "React",
+      "category": "framework",
+      "website": "https://react.dev",
+      "description": "JavaScript library for building user interfaces",
+      "priority": 100,
+      "confidence": 85,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "react",
+          "weight": 20
+        },
+        {
+          "matcher": "regex",
+          "pattern": "__REACT_",
+          "weight": 35
+        },
+        {
+          "matcher": "string",
+          "pattern": "React.createElement",
+          "weight": 40
+        },
+        {
+          "matcher": "global",
+          "pattern": "React",
+          "weight": 30
+        }
+      ],
+      "version_patterns": [
+        {
+          "pattern": "React\\.version\\s*=\\s*[\"\\']([0-9][0-9a-zA-Z.+-_]*)[\"\\']",
+          "weight": 25,
+          "source": "global"
+        }
+      ]
+    },
+    {
+      "id": "reactdom",
+      "name": "ReactDOM",
+      "category": "framework",
+      "website": "https://react.dev",
+      "description": "React package for DOM rendering",
+      "priority": 95,
+      "confidence": 82,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "react-dom",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "ReactDOM.createRoot",
+          "weight": 40
+        },
+        {
+          "matcher": "global",
+          "pattern": "ReactDOM",
+          "weight": 30
+        }
+      ],
+      "version_patterns": [
+        {
+          "pattern": "ReactDOM\\.version\\s*=\\s*[\"\\']([0-9][0-9a-zA-Z.+-_]*)[\"\\']",
+          "weight": 25,
+          "source": "global"
+        }
+      ]
+    },
+    {
+      "id": "preact",
+      "name": "Preact",
+      "category": "framework",
+      "website": "https://preactjs.com",
+      "description": "Fast 3kB React alternative",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "preact",
+          "weight": 25
+        },
+        {
+          "matcher": "regex",
+          "pattern": "__PREACT__",
+          "weight": 35
+        },
+        {
+          "matcher": "global",
+          "pattern": "preact",
+          "weight": 30
+        }
+      ],
+      "version_patterns": [
+        {
+          "pattern": "preact@([0-9][0-9a-zA-Z.+-_]*)",
+          "weight": 20,
+          "source": "minified"
+        }
+      ]
+    },
+    {
+      "id": "vue",
+      "name": "Vue.js",
+      "category": "framework",
+      "website": "https://vuejs.org",
+      "description": "Progressive JavaScript framework",
+      "priority": 95,
+      "confidence": 85,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "vue",
+          "weight": 20
+        },
+        {
+          "matcher": "string",
+          "pattern": "Vue.createApp",
+          "weight": 40
+        },
+        {
+          "matcher": "global",
+          "pattern": "Vue",
+          "weight": 30
+        }
+      ],
+      "version_patterns": [
+        {
+          "pattern": "Vue\\.version\\s*=\\s*[\"\\']([0-9][0-9a-zA-Z.+-_]*)[\"\\']",
+          "weight": 25,
+          "source": "global"
+        }
+      ]
+    },
+    {
+      "id": "nuxt",
+      "name": "Nuxt",
+      "category": "meta-framework",
+      "website": "https://nuxt.com",
+      "description": "Vue-based meta framework for SSR",
+      "priority": 95,
+      "confidence": 85,
+      "tags": [
+        "javascript",
+        "ssr",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "nuxt",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "__NUXT__",
+          "weight": 45
+        },
+        {
+          "matcher": "regex",
+          "pattern": "/_nuxt/",
+          "weight": 30
+        },
+        {
+          "matcher": "global",
+          "pattern": "__NUXT__",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "angular",
+      "name": "Angular",
+      "category": "framework",
+      "website": "https://angular.dev",
+      "description": "Platform for building web applications",
+      "priority": 95,
+      "confidence": 85,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "angular",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "@angular/core",
+          "weight": 35
+        },
+        {
+          "matcher": "global",
+          "pattern": "ng",
+          "weight": 25
+        },
+        {
+          "matcher": "regex",
+          "pattern": "angular\\.module",
+          "weight": 30
+        }
+      ],
+      "version_patterns": [
+        {
+          "pattern": "@angular/core@([0-9]+(?:\\.[0-9]+){1,3})",
+          "weight": 20,
+          "source": "bundle"
+        }
+      ]
+    },
+    {
+      "id": "svelte",
+      "name": "Svelte",
+      "category": "framework",
+      "website": "https://svelte.dev",
+      "description": "Compiler-based UI framework",
+      "priority": 90,
+      "confidence": 82,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "svelte",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "SvelteComponent",
+          "weight": 35
+        },
+        {
+          "matcher": "regex",
+          "pattern": "svelte/internal",
+          "weight": 30
+        }
+      ],
+      "version_patterns": [
+        {
+          "pattern": "svelte@([0-9][0-9a-zA-Z.+-_]*)",
+          "weight": 20,
+          "source": "minified"
+        }
+      ]
+    },
+    {
+      "id": "solidjs",
+      "name": "SolidJS",
+      "category": "framework",
+      "website": "https://www.solidjs.com",
+      "description": "Reactive UI library",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "solid",
+          "weight": 20
+        },
+        {
+          "matcher": "string",
+          "pattern": "solid-js",
+          "weight": 30
+        },
+        {
+          "matcher": "string",
+          "pattern": "createSignal",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "ember",
+      "name": "Ember.js",
+      "category": "framework",
+      "website": "https://emberjs.com",
+      "description": "Ambitious web application framework",
+      "priority": 80,
+      "confidence": 78,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "ember",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "Ember.Application",
+          "weight": 35
+        },
+        {
+          "matcher": "global",
+          "pattern": "Ember",
+          "weight": 30
+        }
+      ],
+      "version_patterns": [
+        {
+          "pattern": "Ember\\.VERSION\\s*=\\s*[\"\\']([0-9][0-9a-zA-Z.+-_]*)[\"\\']",
+          "weight": 25,
+          "source": "global"
+        }
+      ]
+    },
+    {
+      "id": "backbone",
+      "name": "Backbone.js",
+      "category": "framework",
+      "website": "https://backbonejs.org",
+      "description": "Lightweight MVC framework",
+      "priority": 75,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "backbone",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "Backbone.Model",
+          "weight": 35
+        },
+        {
+          "matcher": "global",
+          "pattern": "Backbone",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "inferno",
+      "name": "Inferno",
+      "category": "framework",
+      "website": "https://infernojs.org",
+      "description": "Fast React-like library",
+      "priority": 75,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "inferno",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "inferno/createElement",
+          "weight": 35
+        },
+        {
+          "matcher": "global",
+          "pattern": "Inferno",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "astro",
+      "name": "Astro",
+      "category": "meta-framework",
+      "website": "https://astro.build",
+      "description": "Content-focused web framework",
+      "priority": 90,
+      "confidence": 82,
+      "tags": [
+        "javascript",
+        "ssr",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "astro",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "astro-island",
+          "weight": 35
+        },
+        {
+          "matcher": "regex",
+          "pattern": "/_astro/",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "qwik",
+      "name": "Qwik",
+      "category": "framework",
+      "website": "https://qwik.builder.io",
+      "description": "Resumable web framework",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "qwik",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "@builder.io/qwik",
+          "weight": 35
+        },
+        {
+          "matcher": "string",
+          "pattern": "useVisibleTask$",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "alpine",
+      "name": "Alpine.js",
+      "category": "framework",
+      "website": "https://alpinejs.dev",
+      "description": "Minimal reactive framework",
+      "priority": 80,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "alpine",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "x-data",
+          "weight": 30
+        },
+        {
+          "matcher": "global",
+          "pattern": "Alpine",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "stimulus",
+      "name": "Stimulus",
+      "category": "framework",
+      "website": "https://stimulus.hotwired.dev",
+      "description": "Modest JavaScript framework",
+      "priority": 75,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "stimulus",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "@hotwired/stimulus",
+          "weight": 35
+        },
+        {
+          "matcher": "string",
+          "pattern": "data-controller",
+          "weight": 25
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "lit",
+      "name": "Lit",
+      "category": "framework",
+      "website": "https://lit.dev",
+      "description": "Web components library",
+      "priority": 80,
+      "confidence": 78,
+      "tags": [
+        "javascript",
+        "ui",
+        "framework",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "lit",
+          "weight": 20
+        },
+        {
+          "matcher": "string",
+          "pattern": "lit-element",
+          "weight": 35
+        },
+        {
+          "matcher": "string",
+          "pattern": "LitElement",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "bootstrap",
+      "name": "Bootstrap",
+      "category": "css-framework",
+      "website": "https://getbootstrap.com",
+      "description": "Popular CSS framework",
+      "priority": 80,
+      "confidence": 75,
+      "tags": [
+        "css",
+        "ui",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "bootstrap",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "Bootstrap",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "bootstrap",
+          "weight": 20
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "tailwindcss",
+      "name": "Tailwind CSS",
+      "category": "css-framework",
+      "website": "https://tailwindcss.com",
+      "description": "Utility-first CSS framework",
+      "priority": 85,
+      "confidence": 78,
+      "tags": [
+        "css",
+        "ui",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "tailwind",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "tailwindcss",
+          "weight": 35
+        },
+        {
+          "matcher": "regex",
+          "pattern": "@tailwind ",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "bulma",
+      "name": "Bulma",
+      "category": "css-framework",
+      "website": "https://bulma.io",
+      "description": "Modern CSS framework",
+      "priority": 70,
+      "confidence": 72,
+      "tags": [
+        "css",
+        "ui",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "bulma",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "bulma.min.css",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "foundation",
+      "name": "Foundation",
+      "category": "css-framework",
+      "website": "https://get.foundation",
+      "description": "Responsive front-end framework",
+      "priority": 70,
+      "confidence": 72,
+      "tags": [
+        "css",
+        "ui",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "foundation",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "Foundation",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "semantic-ui",
+      "name": "Semantic UI",
+      "category": "css-framework",
+      "website": "https://semantic-ui.com",
+      "description": "UI component framework",
+      "priority": 65,
+      "confidence": 70,
+      "tags": [
+        "css",
+        "ui",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "semantic",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "semantic",
+          "weight": 25
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "material-ui",
+      "name": "Material UI",
+      "category": "css-framework",
+      "website": "https://mui.com",
+      "description": "React component library implementing Material Design",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "css",
+        "ui",
+        "frontend",
+        "react"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "mui",
+          "weight": 20
+        },
+        {
+          "matcher": "string",
+          "pattern": "@mui/material",
+          "weight": 40
+        },
+        {
+          "matcher": "string",
+          "pattern": "MuiThemeProvider",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "ant-design",
+      "name": "Ant Design",
+      "category": "css-framework",
+      "website": "https://ant.design",
+      "description": "Enterprise UI design language and React library",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "css",
+        "ui",
+        "frontend",
+        "react"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "antd",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "antd/lib",
+          "weight": 30
+        },
+        {
+          "matcher": "string",
+          "pattern": "ant-design",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "chakra-ui",
+      "name": "Chakra UI",
+      "category": "css-framework",
+      "website": "https://chakra-ui.com",
+      "description": "Accessible React component library",
+      "priority": 80,
+      "confidence": 78,
+      "tags": [
+        "css",
+        "ui",
+        "frontend",
+        "react"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "chakra",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "@chakra-ui/react",
+          "weight": 40
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "uikit",
+      "name": "UIKit",
+      "category": "css-framework",
+      "website": "https://getuikit.com",
+      "description": "Lightweight front-end framework",
+      "priority": 70,
+      "confidence": 72,
+      "tags": [
+        "css",
+        "ui",
+        "frontend"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "uikit",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "UIkit",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "jquery",
+      "name": "jQuery",
+      "category": "library",
+      "website": "https://jquery.com",
+      "description": "Fast, small JavaScript library",
+      "priority": 90,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "library",
+        "dom"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "jquery",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "jQuery.fn.jquery",
+          "weight": 35
+        },
+        {
+          "matcher": "global",
+          "pattern": "jQuery",
+          "weight": 30
+        }
+      ],
+      "version_patterns": [
+        {
+          "pattern": "jQuery\\.fn\\.jquery\\s*=\\s*[\"\\']([0-9][0-9a-zA-Z.+-_]*)[\"\\']",
+          "weight": 25,
+          "source": "global"
+        }
+      ]
+    },
+    {
+      "id": "lodash",
+      "name": "Lodash",
+      "category": "library",
+      "website": "https://lodash.com",
+      "description": "Modern JavaScript utility library",
+      "priority": 85,
+      "confidence": 78,
+      "tags": [
+        "javascript",
+        "library",
+        "utility"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "lodash",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "_.debounce",
+          "weight": 30
+        },
+        {
+          "matcher": "string",
+          "pattern": "lodash/core",
+          "weight": 20
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "underscore",
+      "name": "Underscore.js",
+      "category": "library",
+      "website": "https://underscorejs.org",
+      "description": "Utility-belt library for JavaScript",
+      "priority": 75,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "library",
+        "utility"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "underscore",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "_.each",
+          "weight": 25
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "axios",
+      "name": "Axios",
+      "category": "library",
+      "website": "https://axios-http.com",
+      "description": "Promise based HTTP client",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "library",
+        "http"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "axios",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "axios.create",
+          "weight": 35
+        },
+        {
+          "matcher": "global",
+          "pattern": "axios",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "moment",
+      "name": "Moment.js",
+      "category": "library",
+      "website": "https://momentjs.com",
+      "description": "Date manipulation library",
+      "priority": 80,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "library",
+        "date"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "moment",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "moment().format",
+          "weight": 30
+        },
+        {
+          "matcher": "global",
+          "pattern": "moment",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "dayjs",
+      "name": "Day.js",
+      "category": "library",
+      "website": "https://day.js.org",
+      "description": "Minimalist date library",
+      "priority": 80,
+      "confidence": 78,
+      "tags": [
+        "javascript",
+        "library",
+        "date"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "dayjs",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "dayjs.extend",
+          "weight": 30
+        },
+        {
+          "matcher": "global",
+          "pattern": "dayjs",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "rxjs",
+      "name": "RxJS",
+      "category": "library",
+      "website": "https://rxjs.dev",
+      "description": "Reactive extensions for JavaScript",
+      "priority": 85,
+      "confidence": 78,
+      "tags": [
+        "javascript",
+        "library",
+        "reactive"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "rxjs",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "rxjs/operators",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "corejs",
+      "name": "core-js",
+      "category": "library",
+      "website": "https://github.com/zloirock/core-js",
+      "description": "Modular standard library for JavaScript",
+      "priority": 80,
+      "confidence": 76,
+      "tags": [
+        "javascript",
+        "library",
+        "polyfill"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "core-js",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "core-js/modules",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "zonejs",
+      "name": "Zone.js",
+      "category": "library",
+      "website": "https://github.com/angular/angular/tree/main/packages/zone.js",
+      "description": "Execution context patch for Angular",
+      "priority": 75,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "library",
+        "angular"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "zone",
+          "weight": 20
+        },
+        {
+          "matcher": "string",
+          "pattern": "Zone.__symbol__",
+          "weight": 35
+        },
+        {
+          "matcher": "global",
+          "pattern": "Zone",
+          "weight": 25
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "hammerjs",
+      "name": "Hammer.js",
+      "category": "library",
+      "website": "https://hammerjs.github.io",
+      "description": "Touch gesture library",
+      "priority": 70,
+      "confidence": 72,
+      "tags": [
+        "javascript",
+        "library",
+        "gesture"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "hammer",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "Hammer",
+          "weight": 30
+        },
+        {
+          "matcher": "string",
+          "pattern": "Hammer.Manager",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "chartjs",
+      "name": "Chart.js",
+      "category": "visualization",
+      "website": "https://www.chartjs.org",
+      "description": "Simple HTML5 charts",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "visualization",
+        "chart"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "chart.js",
+          "weight": 25
+        },
+        {
+          "matcher": "filename",
+          "pattern": "chart.min",
+          "weight": 20
+        },
+        {
+          "matcher": "string",
+          "pattern": "Chart.register",
+          "weight": 35
+        },
+        {
+          "matcher": "global",
+          "pattern": "Chart",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "d3",
+      "name": "D3.js",
+      "category": "visualization",
+      "website": "https://d3js.org",
+      "description": "Data-driven documents library",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "visualization",
+        "chart"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "d3.min",
+          "weight": 20
+        },
+        {
+          "matcher": "filename",
+          "pattern": "/d3/",
+          "weight": 15
+        },
+        {
+          "matcher": "string",
+          "pattern": "d3.select",
+          "weight": 40
+        },
+        {
+          "matcher": "global",
+          "pattern": "d3",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "highcharts",
+      "name": "Highcharts",
+      "category": "visualization",
+      "website": "https://www.highcharts.com",
+      "description": "Interactive charting library",
+      "priority": 80,
+      "confidence": 78,
+      "tags": [
+        "javascript",
+        "visualization",
+        "chart"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "highcharts",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "Highcharts",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "apexcharts",
+      "name": "ApexCharts",
+      "category": "visualization",
+      "website": "https://apexcharts.com",
+      "description": "Modern charting library",
+      "priority": 78,
+      "confidence": 76,
+      "tags": [
+        "javascript",
+        "visualization",
+        "chart"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "apexcharts",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "ApexCharts",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "echarts",
+      "name": "ECharts",
+      "category": "visualization",
+      "website": "https://echarts.apache.org",
+      "description": "Powerful charting library",
+      "priority": 80,
+      "confidence": 78,
+      "tags": [
+        "javascript",
+        "visualization",
+        "chart"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "echarts",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "echarts",
+          "weight": 35
+        },
+        {
+          "matcher": "string",
+          "pattern": "echarts.init",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "threejs",
+      "name": "Three.js",
+      "category": "visualization",
+      "website": "https://threejs.org",
+      "description": "3D JavaScript library",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "visualization",
+        "3d"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "three",
+          "weight": 20
+        },
+        {
+          "matcher": "string",
+          "pattern": "THREE.WebGLRenderer",
+          "weight": 40
+        },
+        {
+          "matcher": "global",
+          "pattern": "THREE",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "pixijs",
+      "name": "PixiJS",
+      "category": "visualization",
+      "website": "https://pixijs.com",
+      "description": "2D WebGL renderer",
+      "priority": 78,
+      "confidence": 76,
+      "tags": [
+        "javascript",
+        "visualization",
+        "2d"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "pixi",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "PIXI",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "leaflet",
+      "name": "Leaflet",
+      "category": "visualization",
+      "website": "https://leafletjs.com",
+      "description": "Mobile-friendly interactive maps",
+      "priority": 80,
+      "confidence": 78,
+      "tags": [
+        "javascript",
+        "visualization",
+        "maps"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "leaflet",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "L.map(",
+          "weight": 30
+        },
+        {
+          "matcher": "global",
+          "pattern": "L",
+          "weight": 20
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "openlayers",
+      "name": "OpenLayers",
+      "category": "visualization",
+      "website": "https://openlayers.org",
+      "description": "High-performance map library",
+      "priority": 75,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "visualization",
+        "maps"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "openlayers",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "ol/Map",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "mapbox-gl",
+      "name": "Mapbox GL JS",
+      "category": "visualization",
+      "website": "https://docs.mapbox.com/mapbox-gl-js",
+      "description": "Interactive vector maps",
+      "priority": 78,
+      "confidence": 76,
+      "tags": [
+        "javascript",
+        "visualization",
+        "maps"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "mapbox-gl",
+          "weight": 30
+        },
+        {
+          "matcher": "global",
+          "pattern": "mapboxgl",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "monaco",
+      "name": "Monaco Editor",
+      "category": "editor",
+      "website": "https://microsoft.github.io/monaco-editor",
+      "description": "Browser-based code editor",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "editor"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "monaco",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "monaco-editor",
+          "weight": 40
+        },
+        {
+          "matcher": "global",
+          "pattern": "monaco",
+          "weight": 25
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "ace",
+      "name": "Ace Editor",
+      "category": "editor",
+      "website": "https://ace.c9.io",
+      "description": "Embeddable code editor",
+      "priority": 80,
+      "confidence": 78,
+      "tags": [
+        "javascript",
+        "editor"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "ace.js",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "ace.edit",
+          "weight": 35
+        },
+        {
+          "matcher": "global",
+          "pattern": "ace",
+          "weight": 25
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "codemirror",
+      "name": "CodeMirror",
+      "category": "editor",
+      "website": "https://codemirror.net",
+      "description": "Versatile text editor",
+      "priority": 80,
+      "confidence": 78,
+      "tags": [
+        "javascript",
+        "editor"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "codemirror",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "CodeMirror.fromTextArea",
+          "weight": 35
+        },
+        {
+          "matcher": "global",
+          "pattern": "CodeMirror",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "tinymce",
+      "name": "TinyMCE",
+      "category": "editor",
+      "website": "https://www.tiny.cloud",
+      "description": "Rich text editor",
+      "priority": 80,
+      "confidence": 78,
+      "tags": [
+        "javascript",
+        "editor",
+        "wysiwyg"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "tinymce",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "tinymce",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "ckeditor",
+      "name": "CKEditor",
+      "category": "editor",
+      "website": "https://ckeditor.com",
+      "description": "WYSIWYG rich text editor",
+      "priority": 80,
+      "confidence": 78,
+      "tags": [
+        "javascript",
+        "editor",
+        "wysiwyg"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "ckeditor",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "CKEDITOR",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "quill",
+      "name": "Quill",
+      "category": "editor",
+      "website": "https://quilljs.com",
+      "description": "Rich text editor",
+      "priority": 78,
+      "confidence": 76,
+      "tags": [
+        "javascript",
+        "editor",
+        "wysiwyg"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "quill",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "Quill",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "prism",
+      "name": "Prism.js",
+      "category": "syntax-highlighting",
+      "website": "https://prismjs.com",
+      "description": "Lightweight syntax highlighter",
+      "priority": 75,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "syntax",
+        "highlighting"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "prism",
+          "weight": 25
+        },
+        {
+          "matcher": "global",
+          "pattern": "Prism",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "highlightjs",
+      "name": "Highlight.js",
+      "category": "syntax-highlighting",
+      "website": "https://highlightjs.org",
+      "description": "Syntax highlighting library",
+      "priority": 75,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "syntax",
+        "highlighting"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "highlight",
+          "weight": 20
+        },
+        {
+          "matcher": "global",
+          "pattern": "hljs",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "webpack",
+      "name": "webpack",
+      "category": "build-tool",
+      "website": "https://webpack.js.org",
+      "description": "Static module bundler",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "build",
+        "bundler"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "webpack",
+          "weight": 20
+        },
+        {
+          "matcher": "string",
+          "pattern": "__webpack_require__",
+          "weight": 40
+        },
+        {
+          "matcher": "global",
+          "pattern": "webpackBootstrap",
+          "weight": 30
+        },
+        {
+          "matcher": "filename",
+          "pattern": "chunk",
+          "weight": 15
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "vite",
+      "name": "Vite",
+      "category": "build-tool",
+      "website": "https://vitejs.dev",
+      "description": "Next generation frontend tooling",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "build",
+        "bundler"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "vite",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "import.meta.hot",
+          "weight": 30
+        },
+        {
+          "matcher": "global",
+          "pattern": "viteBootstrap",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "parcel",
+      "name": "Parcel",
+      "category": "build-tool",
+      "website": "https://parceljs.org",
+      "description": "Zero configuration build tool",
+      "priority": 75,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "build",
+        "bundler"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "parcel",
+          "weight": 25
+        },
+        {
+          "matcher": "regex",
+          "pattern": "parcelRequire",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "rollup",
+      "name": "Rollup",
+      "category": "build-tool",
+      "website": "https://rollupjs.org",
+      "description": "ES module bundler",
+      "priority": 75,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "build",
+        "bundler"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "rollup",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "rollupPlugin",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "snowpack",
+      "name": "Snowpack",
+      "category": "build-tool",
+      "website": "https://www.snowpack.dev",
+      "description": "Frontend build tool",
+      "priority": 70,
+      "confidence": 72,
+      "tags": [
+        "javascript",
+        "build",
+        "bundler"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "snowpack",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "__snowpack__",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "turbopack",
+      "name": "Turbopack",
+      "category": "build-tool",
+      "website": "https://turbo.build/pack",
+      "description": "Rust-based bundler",
+      "priority": 75,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "build",
+        "bundler"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "turbopack",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "TURBOPACK",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "esbuild",
+      "name": "esbuild",
+      "category": "build-tool",
+      "website": "https://esbuild.github.io",
+      "description": "Extremely fast JavaScript bundler",
+      "priority": 78,
+      "confidence": 76,
+      "tags": [
+        "javascript",
+        "build",
+        "bundler"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "esbuild",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "esbuild-wasm",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "swc",
+      "name": "SWC",
+      "category": "build-tool",
+      "website": "https://swc.rs",
+      "description": "Rust-based JavaScript compiler",
+      "priority": 75,
+      "confidence": 75,
+      "tags": [
+        "javascript",
+        "build",
+        "compiler"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "swc",
+          "weight": 20
+        },
+        {
+          "matcher": "string",
+          "pattern": "@swc/core",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "nextjs",
+      "name": "Next.js",
+      "category": "meta-framework",
+      "website": "https://nextjs.org",
+      "description": "React framework for production",
+      "priority": 100,
+      "confidence": 85,
+      "tags": [
+        "javascript",
+        "ssr",
+        "react",
+        "framework"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "next",
+          "weight": 20
+        },
+        {
+          "matcher": "string",
+          "pattern": "__NEXT_DATA__",
+          "weight": 45
+        },
+        {
+          "matcher": "regex",
+          "pattern": "/_next/static/",
+          "weight": 30
+        },
+        {
+          "matcher": "global",
+          "pattern": "__NEXT_DATA__",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "remix",
+      "name": "Remix",
+      "category": "meta-framework",
+      "website": "https://remix.run",
+      "description": "Full stack React framework",
+      "priority": 90,
+      "confidence": 82,
+      "tags": [
+        "javascript",
+        "ssr",
+        "react",
+        "framework"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "remix",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "@remix-run/react",
+          "weight": 35
+        },
+        {
+          "matcher": "string",
+          "pattern": "__remixContext",
+          "weight": 35
+        }
+      ],
+      "version_patterns": []
+    },
+    {
+      "id": "gatsby",
+      "name": "Gatsby",
+      "category": "meta-framework",
+      "website": "https://www.gatsbyjs.com",
+      "description": "React-based static site generator",
+      "priority": 85,
+      "confidence": 80,
+      "tags": [
+        "javascript",
+        "ssr",
+        "react",
+        "framework"
+      ],
+      "patterns": [
+        {
+          "matcher": "filename",
+          "pattern": "gatsby",
+          "weight": 25
+        },
+        {
+          "matcher": "string",
+          "pattern": "___loader",
+          "weight": 30
+        },
+        {
+          "matcher": "string",
+          "pattern": "gatsby-browser",
+          "weight": 30
+        }
+      ],
+      "version_patterns": []
+    }
+  ]
+}

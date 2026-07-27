@@ -3,17 +3,35 @@
   "name": "webpack",
   "category": "build-tool",
   "website": "https://webpack.js.org",
-  "description": "Static module bundler for modern JavaScript applications",
+  "description": "Static module bundler",
   "priority": 85,
   "confidence": 80,
-  "tags": ["javascript", "build-tool", "bundler"],
-  "patterns": [
-    {"matcher": "filename", "pattern": "webpack", "weight": 25},
-    {"matcher": "string", "pattern": "__webpack_require__", "weight": 40},
-    {"matcher": "string", "pattern": "webpackJsonp", "weight": 30},
-    {"matcher": "regex", "pattern": "webpackBootstrap", "weight": 25}
+  "tags": [
+    "javascript",
+    "build",
+    "bundler"
   ],
-  "version_patterns": [
-    {"pattern": "webpack/([0-9][0-9a-zA-Z.+-_]*)", "weight": 20}
-  ]
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "webpack",
+      "weight": 20
+    },
+    {
+      "matcher": "string",
+      "pattern": "__webpack_require__",
+      "weight": 40
+    },
+    {
+      "matcher": "global",
+      "pattern": "webpackBootstrap",
+      "weight": 30
+    },
+    {
+      "matcher": "filename",
+      "pattern": "chunk",
+      "weight": 15
+    }
+  ],
+  "version_patterns": []
 }

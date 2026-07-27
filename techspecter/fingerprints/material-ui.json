@@ -1,0 +1,33 @@
+{
+  "id": "material-ui",
+  "name": "Material UI",
+  "category": "css-framework",
+  "website": "https://mui.com",
+  "description": "React component library implementing Material Design",
+  "priority": 85,
+  "confidence": 80,
+  "tags": [
+    "css",
+    "ui",
+    "frontend",
+    "react"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "mui",
+      "weight": 20
+    },
+    {
+      "matcher": "string",
+      "pattern": "@mui/material",
+      "weight": 40
+    },
+    {
+      "matcher": "string",
+      "pattern": "MuiThemeProvider",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

@@ -1,0 +1,27 @@
+{
+  "id": "tinymce",
+  "name": "TinyMCE",
+  "category": "editor",
+  "website": "https://www.tiny.cloud",
+  "description": "Rich text editor",
+  "priority": 80,
+  "confidence": 78,
+  "tags": [
+    "javascript",
+    "editor",
+    "wysiwyg"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "tinymce",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "tinymce",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

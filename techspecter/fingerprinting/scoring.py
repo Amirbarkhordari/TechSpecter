@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from techspecter.fingerprinting.models import (
     UNKNOWN_VERSION,
@@ -10,6 +10,14 @@ from techspecter.fingerprinting.models import (
     FingerprintPattern,
     VersionPattern,
 )
+
+MATCHER_MULTIPLIERS: dict[str, float] = {
+    "global": 1.25,
+    "regex": 1.15,
+    "string": 1.0,
+    "sourcemap": 0.95,
+    "filename": 0.85,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,30 +28,46 @@ class MatchEvidence:
     version_pattern: VersionPattern | None = None
 
 
+@dataclass(slots=True)
 class ConfidenceScorer:
     """Calculate normalized confidence scores for technology matches."""
 
+    min_confidence: float = 20.0
+    matcher_multipliers: dict[str, float] = field(default_factory=lambda: dict(MATCHER_MULTIPLIERS))
+
     def score(self, fingerprint: Fingerprint, evidence: MatchEvidence, version: str) -> float:
-        """Calculate a normalized confidence score from 0 to 100.
-
-        Args:
-            fingerprint: Technology fingerprint definition.
-            evidence: Matched pattern evidence.
-            version: Extracted version string.
-
-        Returns:
-            Normalized confidence score.
-        """
-        earned = sum(pattern.weight for pattern in evidence.matched_patterns)
-        max_possible = sum(pattern.weight for pattern in fingerprint.patterns)
+        """Calculate a normalized confidence score from 0 to 100."""
+        earned = sum(self._weighted_pattern_score(pattern) for pattern in evidence.matched_patterns)
+        max_possible = sum(
+            self._weighted_pattern_score(pattern) for pattern in fingerprint.patterns
+        )
 
         if evidence.version_pattern is not None and version != UNKNOWN_VERSION:
-            earned += evidence.version_pattern.weight
-            max_possible += sum(item.weight for item in fingerprint.version_patterns)
+            earned += evidence.version_pattern.weight * 1.2
+            max_possible += sum(item.weight for item in fingerprint.version_patterns) * 1.2
 
         if max_possible <= 0:
             return min(100.0, fingerprint.confidence)
 
         normalized = (earned / max_possible) * 100.0
         blended = (normalized + fingerprint.confidence) / 2.0
-        return round(min(100.0, max(0.0, blended)), 2)
+        adjusted = self._apply_match_quality_rules(blended, evidence)
+        return round(min(100.0, max(0.0, adjusted)), 2)
+
+    def passes_threshold(self, confidence: float) -> bool:
+        """Return whether a confidence score meets the minimum threshold."""
+        return confidence >= self.min_confidence
+
+    def _weighted_pattern_score(self, pattern: FingerprintPattern) -> float:
+        """Apply matcher-type multiplier to a pattern weight."""
+        multiplier = self.matcher_multipliers.get(pattern.matcher, 1.0)
+        return pattern.weight * multiplier
+
+    def _apply_match_quality_rules(self, score: float, evidence: MatchEvidence) -> float:
+        """Adjust score based on match quality heuristics."""
+        matchers = {pattern.matcher for pattern in evidence.matched_patterns}
+        if len(evidence.matched_patterns) == 1 and matchers == {"filename"}:
+            return score * 0.75
+        if len(evidence.matched_patterns) >= 2:
+            return min(100.0, score * 1.05)
+        return score

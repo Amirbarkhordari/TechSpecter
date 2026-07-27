@@ -1,0 +1,27 @@
+{
+  "id": "snowpack",
+  "name": "Snowpack",
+  "category": "build-tool",
+  "website": "https://www.snowpack.dev",
+  "description": "Frontend build tool",
+  "priority": 70,
+  "confidence": 72,
+  "tags": [
+    "javascript",
+    "build",
+    "bundler"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "snowpack",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "__snowpack__",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

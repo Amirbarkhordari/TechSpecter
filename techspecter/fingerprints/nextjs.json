@@ -1,19 +1,38 @@
 {
   "id": "nextjs",
   "name": "Next.js",
-  "category": "framework",
+  "category": "meta-framework",
   "website": "https://nextjs.org",
-  "description": "React framework for production-grade web applications",
+  "description": "React framework for production",
   "priority": 100,
   "confidence": 85,
-  "tags": ["javascript", "framework", "react", "ssr"],
-  "patterns": [
-    {"matcher": "filename", "pattern": "_next", "weight": 30},
-    {"matcher": "string", "pattern": "__NEXT_DATA__", "weight": 40},
-    {"matcher": "regex", "pattern": "next/dist", "weight": 30},
-    {"matcher": "string", "pattern": "self.__next_f", "weight": 25}
+  "tags": [
+    "javascript",
+    "ssr",
+    "react",
+    "framework"
   ],
-  "version_patterns": [
-    {"pattern": "next@([0-9][0-9a-zA-Z.+-_]*)", "weight": 20}
-  ]
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "next",
+      "weight": 20
+    },
+    {
+      "matcher": "string",
+      "pattern": "__NEXT_DATA__",
+      "weight": 45
+    },
+    {
+      "matcher": "regex",
+      "pattern": "/_next/static/",
+      "weight": 30
+    },
+    {
+      "matcher": "global",
+      "pattern": "__NEXT_DATA__",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
 }

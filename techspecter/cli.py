@@ -15,6 +15,7 @@ from techspecter import __version__
 from techspecter.config import get_settings
 from techspecter.crawler.discovery import DiscoveryPipeline
 from techspecter.exceptions import TechSpecterError, ValidationError
+from techspecter.fingerprinting.display import render_fingerprint_result
 from techspecter.fingerprinting.models import FingerprintAnalysisResult
 from techspecter.fingerprinting.service import FingerprintService
 from techspecter.models.discovery import DiscoveryResult
@@ -174,38 +175,21 @@ def _serialize_fingerprint_result(result: FingerprintAnalysisResult) -> dict[str
     return payload
 
 
-def _render_fingerprint_result(result: FingerprintAnalysisResult) -> None:
-    """Render a human-readable fingerprint analysis summary.
-
-    Args:
-        result: Combined discovery and detection output.
-    """
-    console.print(f"\n[bold]Target:[/bold] {result.target_url}")
-    console.print(f"[bold]Elapsed:[/bold] {result.elapsed_ms:.0f} ms")
-    console.print(
-        f"[bold]Scripts analyzed:[/bold] {result.detection.scripts_analyzed}\n"
+def _render_fingerprint_result(
+    result: FingerprintAnalysisResult,
+    *,
+    compact: bool = False,
+    group_by_category: bool = False,
+    verbose: bool = False,
+) -> None:
+    """Render a human-readable fingerprint analysis summary."""
+    render_fingerprint_result(
+        result,
+        console=console,
+        compact=compact,
+        group_by_category=group_by_category,
+        verbose=verbose,
     )
-
-    if not result.detection.matches:
-        console.print("[yellow]No JavaScript technologies detected.[/yellow]")
-        return
-
-    table = Table(title="Detected Technologies")
-    table.add_column("Technology")
-    table.add_column("Category")
-    table.add_column("Version")
-    table.add_column("Confidence")
-    table.add_column("Source")
-    for match in result.detection.matches:
-        source = match.filename or match.source_url or "-"
-        table.add_row(
-            match.technology.name,
-            match.technology.category,
-            match.version,
-            f"{match.confidence:.1f}",
-            source,
-        )
-    console.print(table)
 
 
 @app.command("fingerprint")
@@ -214,6 +198,18 @@ def fingerprint_command(
     json_output: Annotated[
         bool,
         typer.Option("--json", help="Output results as JSON."),
+    ] = False,
+    compact: Annotated[
+        bool,
+        typer.Option("--compact", help="Output compact one-line results."),
+    ] = False,
+    group_by_category: Annotated[
+        bool,
+        typer.Option("--group-by-category", help="Group results by technology category."),
+    ] = False,
+    verbose_output: Annotated[
+        bool,
+        typer.Option("--verbose-output", help="Include matched pattern evidence in output."),
     ] = False,
 ) -> None:
     """Discover JavaScript resources and identify technologies."""
@@ -233,7 +229,12 @@ def fingerprint_command(
         console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
         return
 
-    _render_fingerprint_result(result)
+    _render_fingerprint_result(
+        result,
+        compact=compact,
+        group_by_category=group_by_category,
+        verbose=verbose_output,
+    )
 
 
 def main() -> None:

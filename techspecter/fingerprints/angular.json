@@ -2,19 +2,43 @@
   "id": "angular",
   "name": "Angular",
   "category": "framework",
-  "website": "https://angular.io",
-  "description": "Platform for building mobile and desktop web applications",
+  "website": "https://angular.dev",
+  "description": "Platform for building web applications",
   "priority": 95,
   "confidence": 85,
-  "tags": ["javascript", "framework", "frontend"],
+  "tags": [
+    "javascript",
+    "ui",
+    "framework",
+    "frontend"
+  ],
   "patterns": [
-    {"matcher": "filename", "pattern": "angular", "weight": 25},
-    {"matcher": "string", "pattern": "ng.version", "weight": 30},
-    {"matcher": "string", "pattern": "@angular/core", "weight": 35},
-    {"matcher": "global", "pattern": "angular", "weight": 25}
+    {
+      "matcher": "filename",
+      "pattern": "angular",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "@angular/core",
+      "weight": 35
+    },
+    {
+      "matcher": "global",
+      "pattern": "ng",
+      "weight": 25
+    },
+    {
+      "matcher": "regex",
+      "pattern": "angular\\.module",
+      "weight": 30
+    }
   ],
   "version_patterns": [
-    {"pattern": "ng\\.version\\s*=\\s*\\{\\s*full:\\s*[\"']([0-9][0-9a-zA-Z.+-_]*)[\"']", "weight": 25},
-    {"pattern": "Angular\\s+v?([0-9][0-9a-zA-Z.+-_]*)", "weight": 15}
+    {
+      "pattern": "@angular/core@([0-9]+(?:\\.[0-9]+){1,3})",
+      "weight": 20,
+      "source": "bundle"
+    }
   ]
 }

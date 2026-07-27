@@ -1,0 +1,27 @@
+{
+  "id": "underscore",
+  "name": "Underscore.js",
+  "category": "library",
+  "website": "https://underscorejs.org",
+  "description": "Utility-belt library for JavaScript",
+  "priority": 75,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "library",
+    "utility"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "underscore",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "_.each",
+      "weight": 25
+    }
+  ],
+  "version_patterns": []
+}

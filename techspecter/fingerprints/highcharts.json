@@ -1,0 +1,27 @@
+{
+  "id": "highcharts",
+  "name": "Highcharts",
+  "category": "visualization",
+  "website": "https://www.highcharts.com",
+  "description": "Interactive charting library",
+  "priority": 80,
+  "confidence": 78,
+  "tags": [
+    "javascript",
+    "visualization",
+    "chart"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "highcharts",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "Highcharts",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

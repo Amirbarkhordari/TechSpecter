@@ -1,0 +1,27 @@
+{
+  "id": "parcel",
+  "name": "Parcel",
+  "category": "build-tool",
+  "website": "https://parceljs.org",
+  "description": "Zero configuration build tool",
+  "priority": 75,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "build",
+    "bundler"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "parcel",
+      "weight": 25
+    },
+    {
+      "matcher": "regex",
+      "pattern": "parcelRequire",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

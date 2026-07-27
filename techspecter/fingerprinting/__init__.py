@@ -10,6 +10,7 @@ from techspecter.fingerprinting.models import (
     FingerprintAnalysisResult,
     FingerprintPattern,
     Pattern,
+    PatternEvidence,
     Technology,
     TechnologyMatch,
     VersionPattern,
@@ -17,6 +18,11 @@ from techspecter.fingerprinting.models import (
 from techspecter.fingerprinting.pipeline import FingerprintPipeline
 from techspecter.fingerprinting.scoring import ConfidenceScorer, MatchEvidence
 from techspecter.fingerprinting.service import FingerprintService
+from techspecter.fingerprinting.validator import (
+    FingerprintValidationReport,
+    FingerprintValidator,
+    validate_fingerprints_or_raise,
+)
 
 __all__ = [
     "ConfidenceScorer",
@@ -27,8 +33,11 @@ __all__ = [
     "FingerprintPattern",
     "FingerprintPipeline",
     "FingerprintService",
+    "FingerprintValidationReport",
+    "FingerprintValidator",
     "MatchEvidence",
     "Pattern",
+    "PatternEvidence",
     "SignatureLoader",
     "Technology",
     "TechnologyMatch",
@@ -36,4 +45,5 @@ __all__ = [
     "VersionExtractor",
     "VersionPattern",
     "resolve_signatures_directory",
+    "validate_fingerprints_or_raise",
 ]

@@ -1,0 +1,31 @@
+{
+  "id": "monaco",
+  "name": "Monaco Editor",
+  "category": "editor",
+  "website": "https://microsoft.github.io/monaco-editor",
+  "description": "Browser-based code editor",
+  "priority": 85,
+  "confidence": 80,
+  "tags": [
+    "javascript",
+    "editor"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "monaco",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "monaco-editor",
+      "weight": 40
+    },
+    {
+      "matcher": "global",
+      "pattern": "monaco",
+      "weight": 25
+    }
+  ],
+  "version_patterns": []
+}

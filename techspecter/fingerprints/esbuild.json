@@ -1,0 +1,27 @@
+{
+  "id": "esbuild",
+  "name": "esbuild",
+  "category": "build-tool",
+  "website": "https://esbuild.github.io",
+  "description": "Extremely fast JavaScript bundler",
+  "priority": 78,
+  "confidence": 76,
+  "tags": [
+    "javascript",
+    "build",
+    "bundler"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "esbuild",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "esbuild-wasm",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

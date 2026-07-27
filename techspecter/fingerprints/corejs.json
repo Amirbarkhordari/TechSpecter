@@ -1,0 +1,27 @@
+{
+  "id": "corejs",
+  "name": "core-js",
+  "category": "library",
+  "website": "https://github.com/zloirock/core-js",
+  "description": "Modular standard library for JavaScript",
+  "priority": 80,
+  "confidence": 76,
+  "tags": [
+    "javascript",
+    "library",
+    "polyfill"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "core-js",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "core-js/modules",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

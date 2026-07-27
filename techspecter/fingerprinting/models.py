@@ -9,6 +9,7 @@ from pydantic import ConfigDict, Field
 from techspecter.models.base import TechSpecterModel
 
 MatcherType = Literal["string", "regex", "filename", "sourcemap", "global"]
+VersionSource = Literal["inline", "global", "metadata", "sourcemap", "minified", "bundle"]
 UNKNOWN_VERSION = "Unknown"
 
 
@@ -34,6 +35,7 @@ class VersionPattern(TechSpecterModel):
     pattern: str
     weight: float = Field(default=15.0, ge=0.0, le=100.0)
     flags: str | None = None
+    source: VersionSource | None = None
 
 
 class Fingerprint(TechSpecterModel):
@@ -64,6 +66,15 @@ class Technology(TechSpecterModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class PatternEvidence(TechSpecterModel):
+    """Structured evidence for a matched fingerprint pattern."""
+
+    matcher: str
+    pattern: str
+    weight: float = Field(ge=0.0, le=100.0)
+    detail: str | None = None
+
+
 class TechnologyMatch(TechSpecterModel):
     """A detected technology match for a JavaScript resource."""
 
@@ -73,6 +84,7 @@ class TechnologyMatch(TechSpecterModel):
     matched_patterns: list[str] = Field(default_factory=list)
     source_url: str | None = None
     filename: str | None = None
+    evidence: list[PatternEvidence] = Field(default_factory=list)
 
 
 class DetectionResult(TechSpecterModel):

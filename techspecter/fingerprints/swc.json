@@ -1,0 +1,27 @@
+{
+  "id": "swc",
+  "name": "SWC",
+  "category": "build-tool",
+  "website": "https://swc.rs",
+  "description": "Rust-based JavaScript compiler",
+  "priority": 75,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "build",
+    "compiler"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "swc",
+      "weight": 20
+    },
+    {
+      "matcher": "string",
+      "pattern": "@swc/core",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

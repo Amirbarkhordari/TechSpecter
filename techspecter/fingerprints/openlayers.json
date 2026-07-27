@@ -1,0 +1,27 @@
+{
+  "id": "openlayers",
+  "name": "OpenLayers",
+  "category": "visualization",
+  "website": "https://openlayers.org",
+  "description": "High-performance map library",
+  "priority": 75,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "visualization",
+    "maps"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "openlayers",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "ol/Map",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

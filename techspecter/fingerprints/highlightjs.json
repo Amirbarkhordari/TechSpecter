@@ -1,0 +1,27 @@
+{
+  "id": "highlightjs",
+  "name": "Highlight.js",
+  "category": "syntax-highlighting",
+  "website": "https://highlightjs.org",
+  "description": "Syntax highlighting library",
+  "priority": 75,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "syntax",
+    "highlighting"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "highlight",
+      "weight": 20
+    },
+    {
+      "matcher": "global",
+      "pattern": "hljs",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

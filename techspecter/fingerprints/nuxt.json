@@ -1,19 +1,38 @@
 {
   "id": "nuxt",
   "name": "Nuxt",
-  "category": "framework",
+  "category": "meta-framework",
   "website": "https://nuxt.com",
-  "description": "Intuitive Vue framework for building universal applications",
+  "description": "Vue-based meta framework for SSR",
   "priority": 95,
   "confidence": 85,
-  "tags": ["javascript", "framework", "vue", "ssr"],
-  "patterns": [
-    {"matcher": "filename", "pattern": "nuxt", "weight": 25},
-    {"matcher": "string", "pattern": "__NUXT__", "weight": 40},
-    {"matcher": "string", "pattern": "window.__NUXT__", "weight": 35},
-    {"matcher": "regex", "pattern": "_nuxt/", "weight": 20}
+  "tags": [
+    "javascript",
+    "ssr",
+    "framework",
+    "frontend"
   ],
-  "version_patterns": [
-    {"pattern": "nuxt@([0-9][0-9a-zA-Z.+-_]*)", "weight": 20}
-  ]
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "nuxt",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "__NUXT__",
+      "weight": 45
+    },
+    {
+      "matcher": "regex",
+      "pattern": "/_nuxt/",
+      "weight": 30
+    },
+    {
+      "matcher": "global",
+      "pattern": "__NUXT__",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
 }

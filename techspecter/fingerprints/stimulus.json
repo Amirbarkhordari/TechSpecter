@@ -1,0 +1,33 @@
+{
+  "id": "stimulus",
+  "name": "Stimulus",
+  "category": "framework",
+  "website": "https://stimulus.hotwired.dev",
+  "description": "Modest JavaScript framework",
+  "priority": 75,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "ui",
+    "framework",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "stimulus",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "@hotwired/stimulus",
+      "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "data-controller",
+      "weight": 25
+    }
+  ],
+  "version_patterns": []
+}

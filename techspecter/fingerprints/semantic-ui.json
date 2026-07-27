@@ -1,0 +1,27 @@
+{
+  "id": "semantic-ui",
+  "name": "Semantic UI",
+  "category": "css-framework",
+  "website": "https://semantic-ui.com",
+  "description": "UI component framework",
+  "priority": 65,
+  "confidence": 70,
+  "tags": [
+    "css",
+    "ui",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "semantic",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "semantic",
+      "weight": 25
+    }
+  ],
+  "version_patterns": []
+}

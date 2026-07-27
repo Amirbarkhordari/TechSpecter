@@ -1,0 +1,28 @@
+{
+  "id": "chakra-ui",
+  "name": "Chakra UI",
+  "category": "css-framework",
+  "website": "https://chakra-ui.com",
+  "description": "Accessible React component library",
+  "priority": 80,
+  "confidence": 78,
+  "tags": [
+    "css",
+    "ui",
+    "frontend",
+    "react"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "chakra",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "@chakra-ui/react",
+      "weight": 40
+    }
+  ],
+  "version_patterns": []
+}

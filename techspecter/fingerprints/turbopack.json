@@ -1,0 +1,27 @@
+{
+  "id": "turbopack",
+  "name": "Turbopack",
+  "category": "build-tool",
+  "website": "https://turbo.build/pack",
+  "description": "Rust-based bundler",
+  "priority": 75,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "build",
+    "bundler"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "turbopack",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "TURBOPACK",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

@@ -1,0 +1,33 @@
+{
+  "id": "solidjs",
+  "name": "SolidJS",
+  "category": "framework",
+  "website": "https://www.solidjs.com",
+  "description": "Reactive UI library",
+  "priority": 85,
+  "confidence": 80,
+  "tags": [
+    "javascript",
+    "ui",
+    "framework",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "solid",
+      "weight": 20
+    },
+    {
+      "matcher": "string",
+      "pattern": "solid-js",
+      "weight": 30
+    },
+    {
+      "matcher": "string",
+      "pattern": "createSignal",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

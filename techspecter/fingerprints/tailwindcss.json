@@ -1,0 +1,32 @@
+{
+  "id": "tailwindcss",
+  "name": "Tailwind CSS",
+  "category": "css-framework",
+  "website": "https://tailwindcss.com",
+  "description": "Utility-first CSS framework",
+  "priority": 85,
+  "confidence": 78,
+  "tags": [
+    "css",
+    "ui",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "tailwind",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "tailwindcss",
+      "weight": 35
+    },
+    {
+      "matcher": "regex",
+      "pattern": "@tailwind ",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

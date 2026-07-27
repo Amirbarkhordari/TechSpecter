@@ -1,0 +1,27 @@
+{
+  "id": "rxjs",
+  "name": "RxJS",
+  "category": "library",
+  "website": "https://rxjs.dev",
+  "description": "Reactive extensions for JavaScript",
+  "priority": 85,
+  "confidence": 78,
+  "tags": [
+    "javascript",
+    "library",
+    "reactive"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "rxjs",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "rxjs/operators",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

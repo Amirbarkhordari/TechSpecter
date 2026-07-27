@@ -1,0 +1,32 @@
+{
+  "id": "threejs",
+  "name": "Three.js",
+  "category": "visualization",
+  "website": "https://threejs.org",
+  "description": "3D JavaScript library",
+  "priority": 85,
+  "confidence": 80,
+  "tags": [
+    "javascript",
+    "visualization",
+    "3d"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "three",
+      "weight": 20
+    },
+    {
+      "matcher": "string",
+      "pattern": "THREE.WebGLRenderer",
+      "weight": 40
+    },
+    {
+      "matcher": "global",
+      "pattern": "THREE",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

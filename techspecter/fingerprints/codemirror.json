@@ -1,0 +1,31 @@
+{
+  "id": "codemirror",
+  "name": "CodeMirror",
+  "category": "editor",
+  "website": "https://codemirror.net",
+  "description": "Versatile text editor",
+  "priority": 80,
+  "confidence": 78,
+  "tags": [
+    "javascript",
+    "editor"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "codemirror",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "CodeMirror.fromTextArea",
+      "weight": 35
+    },
+    {
+      "matcher": "global",
+      "pattern": "CodeMirror",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

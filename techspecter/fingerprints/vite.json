@@ -3,17 +3,30 @@
   "name": "Vite",
   "category": "build-tool",
   "website": "https://vitejs.dev",
-  "description": "Next generation frontend build tool",
+  "description": "Next generation frontend tooling",
   "priority": 85,
   "confidence": 80,
-  "tags": ["javascript", "build-tool", "frontend"],
-  "patterns": [
-    {"matcher": "filename", "pattern": "vite", "weight": 25},
-    {"matcher": "string", "pattern": "__vite__", "weight": 35},
-    {"matcher": "string", "pattern": "import.meta.hot", "weight": 30},
-    {"matcher": "regex", "pattern": "/@vite/", "weight": 25}
+  "tags": [
+    "javascript",
+    "build",
+    "bundler"
   ],
-  "version_patterns": [
-    {"pattern": "vite@([0-9][0-9a-zA-Z.+-_]*)", "weight": 20}
-  ]
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "vite",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "import.meta.hot",
+      "weight": 30
+    },
+    {
+      "matcher": "global",
+      "pattern": "viteBootstrap",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
 }

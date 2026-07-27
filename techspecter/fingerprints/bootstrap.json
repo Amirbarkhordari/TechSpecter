@@ -1,19 +1,32 @@
 {
   "id": "bootstrap",
   "name": "Bootstrap",
-  "category": "library",
+  "category": "css-framework",
   "website": "https://getbootstrap.com",
-  "description": "Popular CSS and JavaScript framework for responsive web design",
+  "description": "Popular CSS framework",
   "priority": 80,
   "confidence": 75,
-  "tags": ["javascript", "css", "ui", "library"],
-  "patterns": [
-    {"matcher": "filename", "pattern": "bootstrap", "weight": 30},
-    {"matcher": "string", "pattern": "Bootstrap's JavaScript", "weight": 25},
-    {"matcher": "string", "pattern": "data-bs-toggle", "weight": 20},
-    {"matcher": "global", "pattern": "bootstrap", "weight": 25}
+  "tags": [
+    "css",
+    "ui",
+    "frontend"
   ],
-  "version_patterns": [
-    {"pattern": "Bootstrap v([0-9][0-9a-zA-Z.+-_]*)", "weight": 20}
-  ]
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "bootstrap",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "Bootstrap",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "bootstrap",
+      "weight": 20
+    }
+  ],
+  "version_patterns": []
 }

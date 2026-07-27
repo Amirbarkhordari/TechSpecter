@@ -1,0 +1,32 @@
+{
+  "id": "dayjs",
+  "name": "Day.js",
+  "category": "library",
+  "website": "https://day.js.org",
+  "description": "Minimalist date library",
+  "priority": 80,
+  "confidence": 78,
+  "tags": [
+    "javascript",
+    "library",
+    "date"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "dayjs",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "dayjs.extend",
+      "weight": 30
+    },
+    {
+      "matcher": "global",
+      "pattern": "dayjs",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

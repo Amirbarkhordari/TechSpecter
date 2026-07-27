@@ -1,0 +1,27 @@
+{
+  "id": "uikit",
+  "name": "UIKit",
+  "category": "css-framework",
+  "website": "https://getuikit.com",
+  "description": "Lightweight front-end framework",
+  "priority": 70,
+  "confidence": 72,
+  "tags": [
+    "css",
+    "ui",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "uikit",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "UIkit",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

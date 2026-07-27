@@ -1,0 +1,33 @@
+{
+  "id": "backbone",
+  "name": "Backbone.js",
+  "category": "framework",
+  "website": "https://backbonejs.org",
+  "description": "Lightweight MVC framework",
+  "priority": 75,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "ui",
+    "framework",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "backbone",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "Backbone.Model",
+      "weight": 35
+    },
+    {
+      "matcher": "global",
+      "pattern": "Backbone",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

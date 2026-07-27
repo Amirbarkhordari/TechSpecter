@@ -1,0 +1,32 @@
+{
+  "id": "echarts",
+  "name": "ECharts",
+  "category": "visualization",
+  "website": "https://echarts.apache.org",
+  "description": "Powerful charting library",
+  "priority": 80,
+  "confidence": 78,
+  "tags": [
+    "javascript",
+    "visualization",
+    "chart"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "echarts",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "echarts",
+      "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "echarts.init",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

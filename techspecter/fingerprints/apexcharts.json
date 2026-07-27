@@ -1,0 +1,27 @@
+{
+  "id": "apexcharts",
+  "name": "ApexCharts",
+  "category": "visualization",
+  "website": "https://apexcharts.com",
+  "description": "Modern charting library",
+  "priority": 78,
+  "confidence": 76,
+  "tags": [
+    "javascript",
+    "visualization",
+    "chart"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "apexcharts",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "ApexCharts",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

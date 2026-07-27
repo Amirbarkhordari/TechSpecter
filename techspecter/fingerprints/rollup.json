@@ -1,0 +1,27 @@
+{
+  "id": "rollup",
+  "name": "Rollup",
+  "category": "build-tool",
+  "website": "https://rollupjs.org",
+  "description": "ES module bundler",
+  "priority": 75,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "build",
+    "bundler"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "rollup",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "rollupPlugin",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

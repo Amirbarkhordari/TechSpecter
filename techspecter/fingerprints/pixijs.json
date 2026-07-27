@@ -1,0 +1,27 @@
+{
+  "id": "pixijs",
+  "name": "PixiJS",
+  "category": "visualization",
+  "website": "https://pixijs.com",
+  "description": "2D WebGL renderer",
+  "priority": 78,
+  "confidence": 76,
+  "tags": [
+    "javascript",
+    "visualization",
+    "2d"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "pixi",
+      "weight": 25
+    },
+    {
+      "matcher": "global",
+      "pattern": "PIXI",
+      "weight": 35
+    }
+  ],
+  "version_patterns": []
+}

@@ -1,0 +1,33 @@
+{
+  "id": "lit",
+  "name": "Lit",
+  "category": "framework",
+  "website": "https://lit.dev",
+  "description": "Web components library",
+  "priority": 80,
+  "confidence": 78,
+  "tags": [
+    "javascript",
+    "ui",
+    "framework",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "lit",
+      "weight": 20
+    },
+    {
+      "matcher": "string",
+      "pattern": "lit-element",
+      "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "LitElement",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

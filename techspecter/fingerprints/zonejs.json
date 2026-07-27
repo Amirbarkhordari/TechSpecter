@@ -1,0 +1,32 @@
+{
+  "id": "zonejs",
+  "name": "Zone.js",
+  "category": "library",
+  "website": "https://github.com/angular/angular/tree/main/packages/zone.js",
+  "description": "Execution context patch for Angular",
+  "priority": 75,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "library",
+    "angular"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "zone",
+      "weight": 20
+    },
+    {
+      "matcher": "string",
+      "pattern": "Zone.__symbol__",
+      "weight": 35
+    },
+    {
+      "matcher": "global",
+      "pattern": "Zone",
+      "weight": 25
+    }
+  ],
+  "version_patterns": []
+}

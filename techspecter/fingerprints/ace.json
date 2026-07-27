@@ -1,0 +1,31 @@
+{
+  "id": "ace",
+  "name": "Ace Editor",
+  "category": "editor",
+  "website": "https://ace.c9.io",
+  "description": "Embeddable code editor",
+  "priority": 80,
+  "confidence": 78,
+  "tags": [
+    "javascript",
+    "editor"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "ace.js",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "ace.edit",
+      "weight": 35
+    },
+    {
+      "matcher": "global",
+      "pattern": "ace",
+      "weight": 25
+    }
+  ],
+  "version_patterns": []
+}

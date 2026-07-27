@@ -1,0 +1,33 @@
+{
+  "id": "astro",
+  "name": "Astro",
+  "category": "meta-framework",
+  "website": "https://astro.build",
+  "description": "Content-focused web framework",
+  "priority": 90,
+  "confidence": 82,
+  "tags": [
+    "javascript",
+    "ssr",
+    "framework",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "astro",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "astro-island",
+      "weight": 35
+    },
+    {
+      "matcher": "regex",
+      "pattern": "/_astro/",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

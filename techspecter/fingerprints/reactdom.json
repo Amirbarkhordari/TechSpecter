@@ -1,0 +1,39 @@
+{
+  "id": "reactdom",
+  "name": "ReactDOM",
+  "category": "framework",
+  "website": "https://react.dev",
+  "description": "React package for DOM rendering",
+  "priority": 95,
+  "confidence": 82,
+  "tags": [
+    "javascript",
+    "ui",
+    "framework",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "react-dom",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "ReactDOM.createRoot",
+      "weight": 40
+    },
+    {
+      "matcher": "global",
+      "pattern": "ReactDOM",
+      "weight": 30
+    }
+  ],
+  "version_patterns": [
+    {
+      "pattern": "ReactDOM\\.version\\s*=\\s*[\"\\']([0-9][0-9a-zA-Z.+-_]*)[\"\\']",
+      "weight": 25,
+      "source": "global"
+    }
+  ]
+}

@@ -26,7 +26,7 @@ def test_signature_loader_loads_all_technologies() -> None:
     assert "react" in ids
     assert "vue" in ids
     assert "jquery" in ids
-    assert len(fingerprints) >= 10
+    assert len(fingerprints) >= 60
 
 
 def test_signature_loader_ignores_malformed_file(tmp_path: Path) -> None:

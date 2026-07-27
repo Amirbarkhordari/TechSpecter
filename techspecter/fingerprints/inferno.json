@@ -1,0 +1,33 @@
+{
+  "id": "inferno",
+  "name": "Inferno",
+  "category": "framework",
+  "website": "https://infernojs.org",
+  "description": "Fast React-like library",
+  "priority": 75,
+  "confidence": 75,
+  "tags": [
+    "javascript",
+    "ui",
+    "framework",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "inferno",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "inferno/createElement",
+      "weight": 35
+    },
+    {
+      "matcher": "global",
+      "pattern": "Inferno",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

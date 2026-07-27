@@ -1,0 +1,33 @@
+{
+  "id": "qwik",
+  "name": "Qwik",
+  "category": "framework",
+  "website": "https://qwik.builder.io",
+  "description": "Resumable web framework",
+  "priority": 85,
+  "confidence": 80,
+  "tags": [
+    "javascript",
+    "ui",
+    "framework",
+    "frontend"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "qwik",
+      "weight": 25
+    },
+    {
+      "matcher": "string",
+      "pattern": "@builder.io/qwik",
+      "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "useVisibleTask$",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

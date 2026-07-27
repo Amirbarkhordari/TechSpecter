@@ -1,0 +1,37 @@
+{
+  "id": "chartjs",
+  "name": "Chart.js",
+  "category": "visualization",
+  "website": "https://www.chartjs.org",
+  "description": "Simple HTML5 charts",
+  "priority": 85,
+  "confidence": 80,
+  "tags": [
+    "javascript",
+    "visualization",
+    "chart"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "chart.js",
+      "weight": 25
+    },
+    {
+      "matcher": "filename",
+      "pattern": "chart.min",
+      "weight": 20
+    },
+    {
+      "matcher": "string",
+      "pattern": "Chart.register",
+      "weight": 35
+    },
+    {
+      "matcher": "global",
+      "pattern": "Chart",
+      "weight": 30
+    }
+  ],
+  "version_patterns": []
+}

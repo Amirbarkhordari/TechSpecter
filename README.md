@@ -27,7 +27,9 @@ TechSpecter aims to become the go-to open-source toolkit for deep web applicatio
 | Source map reference detection | ✅ Phase 2 |
 | JavaScript technology fingerprinting | ✅ Phase 3 |
 | Version extraction | ✅ Phase 3 |
-| JSON fingerprint repository | ✅ Phase 3 |
+| Expanded fingerprint database (64 technologies) | ✅ Phase 3B |
+| Fingerprint validation tooling | ✅ Phase 3B |
+| Enhanced confidence scoring | ✅ Phase 3B |
 | CVE intelligence | 🔜 Phase 4 |
 | Secret discovery | 🔜 Phase 4 |
 | API endpoint discovery | 🔜 Phase 4 |
@@ -37,9 +39,9 @@ TechSpecter aims to become the go-to open-source toolkit for deep web applicatio
 
 ## Current Status
 
-**Phase 3A — JavaScript Fingerprinting Core Engine** (current, v0.3.1)
+**Phase 3B — Fingerprint Database & Detection Expansion** (current, v0.4.0)
 
-TechSpecter discovers JavaScript resources, downloads them, and identifies technologies using an extensible JSON fingerprint database. The core engine lives in `techspecter/fingerprinting/`; fingerprint definitions live in `techspecter/fingerprints/`. Supported capabilities include multi-matcher detection, version extraction, confidence scoring, and CLI-driven analysis with JSON output.
+TechSpecter ships with **64 technology fingerprints** across frameworks, CSS libraries, JavaScript utilities, visualization tools, editors, bundlers, and meta-frameworks. Detection accuracy improvements include multi-source version extraction, matcher-type confidence weighting, structured evidence output, and fingerprint validation tooling.
 
 ---
 
@@ -68,9 +70,13 @@ TechSpecter discovers JavaScript resources, downloads them, and identifies techn
 - Version extraction and confidence scoring
 - `techspecter fingerprint` CLI command
 
-### Phase 3B — Fingerprint Expansion 🔜
-- Expanded fingerprint database
-- Detection optimization and advanced heuristics
+### Phase 3B — Fingerprint Database & Detection Expansion ✅
+- Expanded fingerprint database (64 technologies)
+- `FingerprintValidator` for schema and quality checks
+- Multi-source version extraction with highest-confidence selection
+- Matcher-type confidence weighting and weak-detection filtering
+- Structured `PatternEvidence` in detection results
+- CLI: `--compact`, `--group-by-category`, `--verbose-output`
 
 ### Phase 4 — Security Intelligence
 - CVE correlation engine
@@ -154,7 +160,9 @@ The `discover` command:
 ```bash
 techspecter fingerprint https://example.com
 techspecter fingerprint example.com --json
-techspecter fingerprint https://example.com --verbose
+techspecter fingerprint https://example.com --compact
+techspecter fingerprint https://example.com --group-by-category
+techspecter fingerprint https://example.com --verbose-output
 ```
 
 The `fingerprint` command chains discovery with technology detection:
@@ -204,7 +212,7 @@ Each fingerprint supports:
 | `website` | Official website |
 | `description` | Short description |
 | `patterns` | Detection patterns with matcher type and weight |
-| `version_patterns` | Regex patterns with capture groups for versions |
+| `version_patterns` | Regex patterns with capture groups; optional `source` (`inline`, `global`, `metadata`, `sourcemap`, `minified`, `bundle`) |
 | `priority` | Match sorting priority |
 | `confidence` | Base confidence score |
 | `tags` | Optional classification tags |
@@ -246,6 +254,15 @@ DetectionResult
 3. Run `techspecter fingerprint <url>` — no code changes required
 
 Environment variable `TECHSPECTER_SIGNATURES_DIR` can point to a custom fingerprints directory.
+
+Validate the bundled database:
+
+```python
+from techspecter.fingerprinting import FingerprintValidator
+
+report = FingerprintValidator().validate_all()
+assert report.is_valid
+```
 
 ---
 
