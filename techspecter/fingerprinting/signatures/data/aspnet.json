@@ -1,0 +1,36 @@
+{
+  "id": "aspnet",
+  "name": "ASP.NET",
+  "category": "framework",
+  "priority": 85,
+  "minimum_score": 45.0,
+  "aliases": ["asp.net", "aspnetcore"],
+  "required_rules": [
+    {
+      "id": "aspnet-required",
+      "matcher": "regex",
+      "pattern": "x-aspnet|x-powered-by.*asp\\.net|__viewstate|blazor",
+      "target": "content",
+      "weight": 1.0
+    }
+  ],
+  "positive_rules": [
+    {
+      "id": "aspnet-header",
+      "matcher": "contains",
+      "pattern": "asp.net",
+      "target": "header",
+      "weight": 90.0
+    },
+    {
+      "id": "aspnet-viewstate",
+      "matcher": "contains",
+      "pattern": "__viewstate",
+      "target": "html",
+      "weight": 85.0
+    }
+  ],
+  "optional_rules": [],
+  "negative_rules": [],
+  "version_extractors": []
+}

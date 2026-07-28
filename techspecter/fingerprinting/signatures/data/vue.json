@@ -1,0 +1,47 @@
+{
+  "id": "vue",
+  "name": "Vue.js",
+  "category": "framework",
+  "priority": 100,
+  "minimum_score": 45.0,
+  "aliases": ["vuejs"],
+  "required_rules": [
+    {
+      "id": "vue-required",
+      "matcher": "regex",
+      "pattern": "vue\\.createapp|\\bcreateapp\\(|@vue/|vue\\.runtime",
+      "target": "content",
+      "weight": 1.0,
+      "description": "Vue runtime API"
+    }
+  ],
+  "positive_rules": [
+    {
+      "id": "vue-createApp",
+      "matcher": "contains",
+      "pattern": "vue.createapp",
+      "target": "runtime",
+      "weight": 90.0,
+      "description": "Vue.createApp runtime"
+    },
+    {
+      "id": "vue-package",
+      "matcher": "contains",
+      "pattern": "@vue/",
+      "target": "package",
+      "weight": 95.0,
+      "description": "Vue package reference"
+    }
+  ],
+  "optional_rules": [],
+  "negative_rules": [],
+  "version_extractors": [
+    {
+      "id": "vue-version",
+      "pattern": "vue[^0-9]*([0-9]+\\.[0-9]+\\.[0-9]+)",
+      "source": "banner",
+      "weight": 85.0,
+      "enabled": true
+    }
+  ]
+}

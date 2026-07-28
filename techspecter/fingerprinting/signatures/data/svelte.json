@@ -1,0 +1,35 @@
+{
+  "id": "svelte",
+  "name": "Svelte",
+  "category": "framework",
+  "priority": 95,
+  "minimum_score": 45.0,
+  "required_rules": [
+    {
+      "id": "svelte-required",
+      "matcher": "regex",
+      "pattern": "sveltecomponent|svelte/internal|\\.svelte",
+      "target": "content",
+      "weight": 1.0
+    }
+  ],
+  "positive_rules": [
+    {
+      "id": "svelte-runtime",
+      "matcher": "contains",
+      "pattern": "sveltecomponent",
+      "target": "runtime",
+      "weight": 90.0
+    },
+    {
+      "id": "svelte-package",
+      "matcher": "contains",
+      "pattern": "svelte",
+      "target": "package",
+      "weight": 85.0
+    }
+  ],
+  "optional_rules": [],
+  "negative_rules": [],
+  "version_extractors": []
+}

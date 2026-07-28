@@ -1,0 +1,72 @@
+{
+  "id": "angular",
+  "name": "Angular",
+  "category": "framework",
+  "priority": 100,
+  "minimum_score": 50.0,
+  "required_rules": [
+    {
+      "id": "angular-required",
+      "matcher": "regex",
+      "pattern": "ɵɵdefinecomponent|@angular/core|ng-version|angular\\.module",
+      "target": "content",
+      "weight": 1.0,
+      "description": "Angular runtime marker"
+    }
+  ],
+  "positive_rules": [
+    {
+      "id": "angular-ivy",
+      "matcher": "contains",
+      "pattern": "ɵɵdefinecomponent",
+      "target": "runtime",
+      "weight": 95.0,
+      "description": "Angular Ivy runtime"
+    },
+    {
+      "id": "angular-core",
+      "matcher": "contains",
+      "pattern": "@angular/core",
+      "target": "package",
+      "weight": 95.0,
+      "description": "Angular core package"
+    },
+    {
+      "id": "angular-ng-version",
+      "matcher": "contains",
+      "pattern": "ng-version",
+      "target": "metadata",
+      "weight": 90.0,
+      "description": "ng-version metadata"
+    }
+  ],
+  "optional_rules": [
+    {
+      "id": "angular-zone",
+      "matcher": "contains",
+      "pattern": "zone.js",
+      "target": "runtime",
+      "weight": 20.0,
+      "description": "zone.js (weak alone)"
+    }
+  ],
+  "negative_rules": [
+    {
+      "id": "angular-negative-zone-only",
+      "matcher": "contains",
+      "pattern": "zone.js",
+      "target": "runtime",
+      "weight": 1.0,
+      "description": "zone.js without Angular runtime"
+    }
+  ],
+  "version_extractors": [
+    {
+      "id": "angular-version",
+      "pattern": "@angular/core@([0-9]+\\.[0-9]+\\.[0-9]+)",
+      "source": "package",
+      "weight": 95.0,
+      "enabled": true
+    }
+  ]
+}

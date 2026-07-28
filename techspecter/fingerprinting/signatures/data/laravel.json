@@ -1,0 +1,35 @@
+{
+  "id": "laravel",
+  "name": "Laravel",
+  "category": "framework",
+  "priority": 85,
+  "minimum_score": 45.0,
+  "required_rules": [
+    {
+      "id": "laravel-required",
+      "matcher": "regex",
+      "pattern": "laravel_session|x-powered-by.*laravel|laravel\\.com",
+      "target": "content",
+      "weight": 1.0
+    }
+  ],
+  "positive_rules": [
+    {
+      "id": "laravel-header",
+      "matcher": "contains",
+      "pattern": "laravel",
+      "target": "header",
+      "weight": 90.0
+    },
+    {
+      "id": "laravel-cookie",
+      "matcher": "contains",
+      "pattern": "laravel_session",
+      "target": "header",
+      "weight": 85.0
+    }
+  ],
+  "optional_rules": [],
+  "negative_rules": [],
+  "version_extractors": []
+}

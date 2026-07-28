@@ -22,18 +22,19 @@ class SignatureRule(TechSpecterModel):
 
 
 class VersionExtractorSpec(TechSpecterModel):
-    """Placeholder for future version extraction configuration."""
+    """Version extraction configuration for evidence-based resolution."""
 
     model_config = TechSpecterModel.model_config | {"frozen": True}
 
     id: str
     pattern: str
     source: str = "content"
-    enabled: bool = False
+    weight: float = Field(default=1.0, ge=0.0)
+    enabled: bool = True
 
 
 class TechnologySignature(TechSpecterModel):
-    """Evidence-based technology signature schema (Phase 1 infrastructure only)."""
+    """Evidence-based technology signature for explainable detection."""
 
     model_config = TechSpecterModel.model_config | {"frozen": True}
 
@@ -42,6 +43,10 @@ class TechnologySignature(TechSpecterModel):
     category: str
     priority: int = Field(default=0, ge=0)
     description: str | None = None
+    minimum_score: float = Field(default=40.0, ge=0.0, le=100.0)
+    aliases: tuple[str, ...] = Field(default_factory=tuple)
+    dependencies: tuple[str, ...] = Field(default_factory=tuple)
+    conflicts_with: tuple[str, ...] = Field(default_factory=tuple)
     positive_rules: tuple[SignatureRule, ...] = Field(default_factory=tuple)
     negative_rules: tuple[SignatureRule, ...] = Field(default_factory=tuple)
     required_rules: tuple[SignatureRule, ...] = Field(default_factory=tuple)

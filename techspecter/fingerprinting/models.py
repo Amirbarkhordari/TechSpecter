@@ -85,6 +85,14 @@ class TechnologyMatch(TechSpecterModel):
     source_url: str | None = None
     filename: str | None = None
     evidence: list[PatternEvidence] = Field(default_factory=list)
+    detection_reason: str | None = None
+    version_source: str | None = None
+    version_reason: str | None = None
+    supporting_evidence_ids: list[str] = Field(default_factory=list)
+    evidence_count: int = 0
+    matched_resources: list[str] = Field(default_factory=list)
+    rejected_version_candidates: list[str] = Field(default_factory=list)
+    confidence_breakdown: dict[str, float] = Field(default_factory=dict)
 
 
 class DetectionResult(TechSpecterModel):

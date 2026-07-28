@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 
+from techspecter.fingerprinting.detection.models import ExplainableDetectionResult
+from techspecter.fingerprinting.detection.pipeline import EvidenceDetectionPipeline
 from techspecter.fingerprinting.evidence.models import EvidenceCollection
 from techspecter.fingerprinting.models import DetectionResult
 from techspecter.fingerprinting.pipeline.detection_pipeline import FingerprintPipeline
@@ -14,17 +16,21 @@ logger = logging.getLogger(__name__)
 
 
 class FingerprintCompatibilityLayer:
-    """Bridge legacy detection with the new evidence collection pipeline."""
+    """Bridge legacy detection with evidence collection and explainable detection."""
 
     def __init__(
         self,
         *,
         detection_pipeline: FingerprintPipeline | None = None,
         evidence_pipeline: EvidencePipeline | None = None,
+        evidence_detection_pipeline: EvidenceDetectionPipeline | None = None,
     ) -> None:
         """Initialize compatibility layer with injectable pipelines."""
         self._detection_pipeline = detection_pipeline or FingerprintPipeline()
         self._evidence_pipeline = evidence_pipeline or EvidencePipeline()
+        self._evidence_detection_pipeline = (
+            evidence_detection_pipeline or EvidenceDetectionPipeline()
+        )
 
     def detect(self, discovery: DiscoveryResult) -> DetectionResult:
         """Run legacy technology detection unchanged."""
@@ -34,10 +40,23 @@ class FingerprintCompatibilityLayer:
         """Run the evidence-only pipeline."""
         return self._evidence_pipeline.collect(discovery)
 
-    def analyze(self, discovery: DiscoveryResult) -> tuple[DetectionResult, EvidenceCollection]:
-        """Run detection and evidence collection without breaking legacy behavior."""
-        detection = self.detect(discovery)
+    def detect_from_evidence(self, collection: EvidenceCollection) -> ExplainableDetectionResult:
+        """Run explainable evidence-based detection."""
+        return self._evidence_detection_pipeline.detect(collection)
+
+    def analyze(
+        self,
+        discovery: DiscoveryResult,
+        *,
+        use_evidence_detection: bool = True,
+    ) -> tuple[DetectionResult, EvidenceCollection]:
+        """Run detection and evidence collection."""
         evidence = self.collect_evidence(discovery)
+        if use_evidence_detection:
+            explainable = self.detect_from_evidence(evidence)
+            detection = explainable.detection
+        else:
+            detection = self.detect(discovery)
         logger.debug(
             "Compatibility layer produced %d detections and %d evidence items for %s",
             len(detection.matches),
@@ -45,3 +64,8 @@ class FingerprintCompatibilityLayer:
             detection.target_url,
         )
         return detection, evidence
+
+    def analyze_explainable(self, discovery: DiscoveryResult) -> ExplainableDetectionResult:
+        """Collect evidence and run explainable detection."""
+        evidence = self.collect_evidence(discovery)
+        return self.detect_from_evidence(evidence)

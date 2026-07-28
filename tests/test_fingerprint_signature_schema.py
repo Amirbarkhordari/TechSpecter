@@ -27,3 +27,4 @@ def test_technology_signature_schema_fields() -> None:
     assert signature.id == "example"
     assert len(signature.positive_rules) == 1
     assert signature.version_extractors[0].enabled is False
+    assert signature.minimum_score == 40.0

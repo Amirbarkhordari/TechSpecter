@@ -1,0 +1,37 @@
+{
+  "id": "nuxt",
+  "name": "Nuxt",
+  "category": "meta-framework",
+  "priority": 105,
+  "minimum_score": 50.0,
+  "dependencies": ["vue"],
+  "required_rules": [
+    {
+      "id": "nuxt-required",
+      "matcher": "regex",
+      "pattern": "__nuxt__|nuxt\\.config|__nuxt_manifest__",
+      "target": "content",
+      "weight": 1.0
+    }
+  ],
+  "positive_rules": [
+    {
+      "id": "nuxt-runtime",
+      "matcher": "contains",
+      "pattern": "__nuxt__",
+      "target": "runtime",
+      "weight": 95.0,
+      "description": "Nuxt runtime data"
+    },
+    {
+      "id": "nuxt-manifest",
+      "matcher": "contains",
+      "pattern": "__nuxt_manifest__",
+      "target": "manifest",
+      "weight": 90.0
+    }
+  ],
+  "optional_rules": [],
+  "negative_rules": [],
+  "version_extractors": []
+}

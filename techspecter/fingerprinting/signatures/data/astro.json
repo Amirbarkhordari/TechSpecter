@@ -1,0 +1,35 @@
+{
+  "id": "astro",
+  "name": "Astro",
+  "category": "meta-framework",
+  "priority": 95,
+  "minimum_score": 45.0,
+  "required_rules": [
+    {
+      "id": "astro-required",
+      "matcher": "regex",
+      "pattern": "\\bastro\\b|astro\\/|data-astro",
+      "target": "content",
+      "weight": 1.0
+    }
+  ],
+  "positive_rules": [
+    {
+      "id": "astro-runtime",
+      "matcher": "contains",
+      "pattern": "astro",
+      "target": "runtime",
+      "weight": 85.0
+    },
+    {
+      "id": "astro-data",
+      "matcher": "contains",
+      "pattern": "data-astro",
+      "target": "html",
+      "weight": 80.0
+    }
+  ],
+  "optional_rules": [],
+  "negative_rules": [],
+  "version_extractors": []
+}

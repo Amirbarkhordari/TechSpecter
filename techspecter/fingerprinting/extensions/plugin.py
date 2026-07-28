@@ -6,6 +6,12 @@ from abc import ABC, abstractmethod
 from typing import Protocol
 
 from techspecter.fingerprinting.analyzers.base import EvidenceCollector
+from techspecter.fingerprinting.detection.plugins import (
+    DetectionConfidencePlugin,
+    DetectionRulePlugin,
+    DetectionValidatorPlugin,
+    DetectionVersionPlugin,
+)
 from techspecter.fingerprinting.evidence.models import Evidence, EvidenceCollection
 
 
@@ -17,7 +23,7 @@ class EvidenceProvider(Protocol):
 
 
 class FingerprintPluginExtension(ABC):
-    """Extension point for future fingerprint plugin integration."""
+    """Extension point for fingerprint plugin integration."""
 
     @abstractmethod
     def register_collectors(self, registry: object) -> None:
@@ -26,6 +32,28 @@ class FingerprintPluginExtension(ABC):
     @abstractmethod
     def register_analyzers(self, registry: object) -> None:
         """Register custom fingerprint analyzers."""
+
+
+class DetectionPluginExtension(ABC):
+    """Optional extension point for detection plugins."""
+
+    @abstractmethod
+    def register_detection_plugins(self, registry: object) -> None:
+        """Register custom detection plugins (rules, confidence, version resolvers)."""
+
+
+__all__ = [
+    "CollectorPlugin",
+    "DetectionConfidencePlugin",
+    "DetectionPluginExtension",
+    "DetectionRulePlugin",
+    "DetectionValidatorPlugin",
+    "DetectionVersionPlugin",
+    "EvidenceProvider",
+    "EvidenceProviderPlugin",
+    "FingerprintPluginExtension",
+    "merge_collections",
+]
 
 
 class CollectorPlugin(ABC):
