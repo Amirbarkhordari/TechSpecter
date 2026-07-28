@@ -46,7 +46,7 @@ def test_fingerprint_command_help_lists_report_formats() -> None:
     assert "--output" in result.stdout
 
 
-@patch("techspecter.cli.FingerprintService.analyze_url", new_callable=AsyncMock)
+@patch("techspecter.cli.UnifiedDetectionService.analyze_url", new_callable=AsyncMock)
 def test_fingerprint_command_exports_markdown(mock_analyze: AsyncMock) -> None:
     """Verify --format markdown prints a Markdown report."""
     mock_analyze.return_value = _analysis_result()
@@ -55,7 +55,7 @@ def test_fingerprint_command_exports_markdown(mock_analyze: AsyncMock) -> None:
     assert "# TechSpecter Scan Report" in result.stdout
 
 
-@patch("techspecter.cli.FingerprintService.analyze_url", new_callable=AsyncMock)
+@patch("techspecter.cli.UnifiedDetectionService.analyze_url", new_callable=AsyncMock)
 def test_fingerprint_command_writes_html_output(mock_analyze: AsyncMock, tmp_path: Path) -> None:
     """Verify --format html --output writes an HTML file."""
     mock_analyze.return_value = _analysis_result()
@@ -76,7 +76,7 @@ def test_fingerprint_command_writes_html_output(mock_analyze: AsyncMock, tmp_pat
     assert "Report written to" in result.stdout
 
 
-@patch("techspecter.cli.FingerprintService.analyze_url", new_callable=AsyncMock)
+@patch("techspecter.cli.UnifiedDetectionService.analyze_url", new_callable=AsyncMock)
 def test_fingerprint_command_legacy_json_still_works(mock_analyze: AsyncMock) -> None:
     """Verify legacy --json output remains available."""
     mock_analyze.return_value = _analysis_result()

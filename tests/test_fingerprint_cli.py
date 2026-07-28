@@ -28,7 +28,7 @@ def test_fingerprint_command_help() -> None:
     assert "--compact" in result.stdout
 
 
-@patch("techspecter.cli.FingerprintService.analyze_url", new_callable=AsyncMock)
+@patch("techspecter.cli.UnifiedDetectionService.analyze_url", new_callable=AsyncMock)
 def test_fingerprint_command_compact_output(mock_analyze: AsyncMock) -> None:
     """Verify fingerprint command supports compact output."""
     mock_analyze.return_value = FingerprintAnalysisResult(
@@ -52,7 +52,7 @@ def test_fingerprint_command_compact_output(mock_analyze: AsyncMock) -> None:
     assert "React 18.2.0" in result.stdout
 
 
-@patch("techspecter.cli.FingerprintService.analyze_url", new_callable=AsyncMock)
+@patch("techspecter.cli.UnifiedDetectionService.analyze_url", new_callable=AsyncMock)
 def test_fingerprint_command_grouped_output(mock_analyze: AsyncMock) -> None:
     """Verify fingerprint command supports category grouping."""
     mock_analyze.return_value = FingerprintAnalysisResult(
@@ -76,7 +76,7 @@ def test_fingerprint_command_grouped_output(mock_analyze: AsyncMock) -> None:
     assert "framework" in result.stdout
 
 
-@patch("techspecter.cli.FingerprintService.analyze_url", new_callable=AsyncMock)
+@patch("techspecter.cli.UnifiedDetectionService.analyze_url", new_callable=AsyncMock)
 def test_fingerprint_command_renders_summary(mock_analyze: AsyncMock) -> None:
     """Verify fingerprint command renders detected technologies."""
     mock_analyze.return_value = FingerprintAnalysisResult(
@@ -107,7 +107,7 @@ def test_fingerprint_command_renders_summary(mock_analyze: AsyncMock) -> None:
     assert "18.2.0" in result.stdout
 
 
-@patch("techspecter.cli.FingerprintService.analyze_url", new_callable=AsyncMock)
+@patch("techspecter.cli.UnifiedDetectionService.analyze_url", new_callable=AsyncMock)
 def test_fingerprint_command_json_output(mock_analyze: AsyncMock) -> None:
     """Verify fingerprint command supports JSON output."""
     mock_analyze.return_value = FingerprintAnalysisResult(

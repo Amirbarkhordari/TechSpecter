@@ -164,6 +164,28 @@ class AnalyzersConfig(TechSpecterModel):
     rule_directories: list[str] = Field(default_factory=list)
 
 
+class ProviderEntryConfig(TechSpecterModel):
+    """Per-provider settings in root configuration."""
+
+    enabled: bool = True
+    timeout_seconds: int = Field(default=120, ge=1)
+
+
+class ProvidersConfig(TechSpecterModel):
+    """Unified passive detection provider configuration."""
+
+    techspecter: ProviderEntryConfig = Field(default_factory=ProviderEntryConfig)
+    wappalyzer: ProviderEntryConfig = Field(default_factory=ProviderEntryConfig)
+    retirejs: ProviderEntryConfig = Field(default_factory=ProviderEntryConfig)
+
+    def is_provider_enabled(self, provider_id: str) -> bool:
+        """Return whether a provider is enabled."""
+        entry = getattr(self, provider_id, None)
+        if entry is None:
+            return False
+        return bool(entry.enabled)
+
+
 class HttpAnalysisConfig(TechSpecterModel):
     """Passive HTTP analysis configuration."""
 
@@ -342,4 +364,5 @@ class TechSpecterConfig(TechSpecterModel):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     plugins: PluginsConfig = Field(default_factory=PluginsConfig)
+    providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
     analyzers: AnalyzersConfig = Field(default_factory=AnalyzersConfig)

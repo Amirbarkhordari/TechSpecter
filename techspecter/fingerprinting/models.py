@@ -75,6 +75,18 @@ class PatternEvidence(TechSpecterModel):
     detail: str | None = None
 
 
+class SecurityFinding(TechSpecterModel):
+    """Passive security intelligence (e.g. from Retire.js). No exploitation."""
+
+    library: str
+    installed_version: str
+    severity: str | None = None
+    cve_ids: list[str] = Field(default_factory=list)
+    references: list[str] = Field(default_factory=list)
+    description: str | None = None
+    source_file: str | None = None
+
+
 class TechnologyMatch(TechSpecterModel):
     """A detected technology match for a JavaScript resource."""
 
@@ -95,6 +107,10 @@ class TechnologyMatch(TechSpecterModel):
     rejected_version_candidates: list[str] = Field(default_factory=list)
     evidence_sources: list[str] = Field(default_factory=list)
     confidence_breakdown: dict[str, float] = Field(default_factory=dict)
+    providers: list[str] = Field(default_factory=list)
+    detection_methods: list[str] = Field(default_factory=list)
+    provider_metadata: dict[str, object] = Field(default_factory=dict)
+    security_findings: list[SecurityFinding] = Field(default_factory=list)
 
 
 class DetectionResult(TechSpecterModel):

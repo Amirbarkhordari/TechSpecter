@@ -10,6 +10,7 @@ from techspecter import __version__
 from techspecter.analysis.models.finding import Finding
 from techspecter.analysis.results.analysis_result import AnalysisResult
 from techspecter.fingerprinting.models import UNKNOWN_VERSION, DetectionResult, TechnologyMatch
+from techspecter.providers.summaries import summary_group_for_category
 from techspecter.reporting.artifact_sections import build_artifact_report_sections
 from techspecter.reporting.http_sections import build_http_report_sections
 from techspecter.reporting.metadata_sections import build_metadata_report_sections
@@ -18,6 +19,7 @@ from techspecter.reporting.models import (
     ReportEvidence,
     ReportFinding,
     ReportMetadata,
+    ReportSection,
     ReportStatistics,
     ReportSummary,
     ReportTarget,
@@ -63,6 +65,8 @@ class ReportEngine:
         technologies = [_map_technology(match) for match in detection.matches]
         technologies.sort(key=lambda item: (-item.confidence, item.name.lower()))
         groups = _group_by_category(technologies)
+        summary_sections = _build_category_summary_sections(technologies)
+        security_sections = _build_security_sections(detection)
         statistics = _calculate_statistics(detection, technologies)
         timestamp = scan_timestamp or datetime.now(UTC)
         duration_ms = scan_duration_ms if scan_duration_ms is not None else detection.elapsed_ms
@@ -92,6 +96,7 @@ class ReportEngine:
             technologies=technologies,
             findings=[],
             groups=groups,
+            sections=[*summary_sections, *security_sections],
         )
 
     def generate_from_analysis(
@@ -219,9 +224,79 @@ def _map_technology(match: TechnologyMatch) -> ReportTechnology:
         evidence=evidence,
         version_source=match.version_source,
         version_confidence=match.version_confidence,
-        evidence_count=match.evidence_count,
+        evidence_count=match.evidence_count or len(match.matched_patterns),
         detection_reason=match.detection_reason,
+        detected_by=list(match.providers),
+        detection_methods=list(match.detection_methods),
+        summary_group=summary_group_for_category(match.technology.category),
+        security_findings_count=len(match.security_findings),
     )
+
+
+def _build_category_summary_sections(
+    technologies: list[ReportTechnology],
+) -> list[ReportSection]:
+    """Build high-level category summary sections."""
+    grouped: dict[str, list[str]] = defaultdict(list)
+    for tech in technologies:
+        label = tech.summary_group or tech.category
+        grouped[label].append(tech.name)
+
+    sections: list[ReportSection] = []
+    for label in sorted(grouped):
+        names = grouped[label]
+        sections.append(
+            ReportSection(
+                id=f"summary-{label.lower().replace(' ', '-')}",
+                title=f"{label} ({len(names)})",
+                summary=", ".join(sorted(names)[:20]) + ("…" if len(names) > 20 else ""),
+                metadata={"technologies": names, "count": len(names)},
+            ),
+        )
+    return sections
+
+
+def _build_security_sections(detection: DetectionResult) -> list[ReportSection]:
+    """Build passive security intelligence sections from Retire.js findings."""
+    findings: list[ReportFinding] = []
+    for match in detection.matches:
+        for item in match.security_findings:
+            findings.append(
+                ReportFinding(
+                    id=f"retirejs-{match.technology.id}-{item.library}",
+                    analyzer="retirejs",
+                    category="security",
+                    title=f"Vulnerable JavaScript library: {item.library}",
+                    description=(
+                        f"Passive Retire.js intelligence detected {item.library} "
+                        f"{item.installed_version} with known vulnerability references."
+                    ),
+                    severity=(item.severity or "info").lower(),
+                    confidence=match.confidence,
+                    location=item.source_file,
+                    recommendation=(
+                        "Review library version and upgrade if applicable "
+                        "(passive finding only)."
+                    ),
+                    evidence=[],
+                    metadata={
+                        "cve_ids": item.cve_ids,
+                        "references": item.references,
+                        "library": item.library,
+                        "installed_version": item.installed_version,
+                    },
+                ),
+            )
+    if not findings:
+        return []
+    return [
+        ReportSection(
+            id="passive-security-intelligence",
+            title="Passive Security Intelligence",
+            summary=f"{len(findings)} vulnerable JavaScript library observation(s)",
+            findings=findings,
+        ),
+    ]
 
 
 def _group_by_category(technologies: list[ReportTechnology]) -> list[TechnologyGroup]:

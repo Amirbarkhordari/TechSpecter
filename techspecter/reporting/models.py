@@ -68,6 +68,10 @@ class ReportTechnology(TechSpecterModel):
     version_confidence: float | None = Field(default=None, ge=0.0, le=100.0)
     evidence_count: int = 0
     detection_reason: str | None = None
+    detected_by: list[str] = Field(default_factory=list)
+    detection_methods: list[str] = Field(default_factory=list)
+    summary_group: str | None = None
+    security_findings_count: int = 0
 
 
 class TechnologyGroup(TechSpecterModel):

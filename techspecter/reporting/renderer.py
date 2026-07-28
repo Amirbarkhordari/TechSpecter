@@ -99,23 +99,25 @@ def _render_table(
     table.add_column("Category")
     table.add_column("Version")
     table.add_column("Confidence")
+    table.add_column("Detected By")
     table.add_column("Evidence")
-    table.add_column("Source")
     if verbose:
         table.add_column("Details")
 
     for technology in technologies:
-        source = technology.source_file or "-"
+        detected_by = ", ".join(technology.detected_by) if technology.detected_by else "-"
         row = [
             technology.name,
             technology.category,
             technology.version,
             f"{technology.confidence:.1f}",
+            detected_by,
             str(technology.evidence_count or len(technology.evidence)),
-            source,
         ]
         if verbose:
             details = technology.detection_reason or "-"
+            if technology.detection_methods:
+                details = f"{details} | methods: {', '.join(technology.detection_methods)}"
             if technology.version_source:
                 version_conf = (
                     f"{technology.version_confidence:.0f}%"

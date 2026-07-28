@@ -33,9 +33,9 @@ from techspecter.configuration.manager import (
 from techspecter.crawler.discovery import DiscoveryPipeline
 from techspecter.exceptions import ReportError, TechSpecterError, ValidationError
 from techspecter.fingerprinting.models import FingerprintAnalysisResult
-from techspecter.fingerprinting.service import FingerprintService
 from techspecter.models.discovery import DiscoveryResult
 from techspecter.plugins.cli import plugins_app
+from techspecter.providers.service import UnifiedDetectionService
 from techspecter.reporting.renderer import render_report
 from techspecter.reporting.service import ReportService
 from techspecter.utils.errors import format_user_error
@@ -563,6 +563,20 @@ def fingerprint_command(
             help="Import an existing Wappalyzer JSON report for comparison.",
         ),
     ] = None,
+    provider: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--provider",
+            help="Enable specific detection providers (techspecter, wappalyzer, retirejs, all).",
+        ),
+    ] = None,
+    disable_provider: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--disable-provider",
+            help="Disable specific detection providers.",
+        ),
+    ] = None,
     min_confidence: Annotated[
         float | None,
         typer.Option(
@@ -587,6 +601,10 @@ def fingerprint_command(
         enable_analyzer = []
     if disable_analyzer is None:
         disable_analyzer = []
+    if provider is None:
+        provider = []
+    if disable_provider is None:
+        disable_provider = []
     manager = get_configuration_manager()
     normalized_confidence = min_confidence
 
@@ -614,8 +632,14 @@ def fingerprint_command(
         raise typer.Exit(code=1)
 
     try:
-        service = FingerprintService()
-        result = asyncio.run(service.analyze_url(url))
+        unified_service = UnifiedDetectionService(providers_config=active_config.providers)
+        result = asyncio.run(
+            unified_service.analyze_url(
+                url,
+                selected_providers=provider or None,
+                disabled_providers=disable_provider or None,
+            ),
+        )
     except ValidationError as exc:
         _handle_analysis_error(exc, label="Validation error", url=url)
     except TechSpecterError as exc:
