@@ -6,6 +6,7 @@ import logging
 import time
 
 from techspecter.fingerprinting.context import MatchContext
+from techspecter.fingerprinting.detection.merger import TechnologyMerger
 from techspecter.fingerprinting.engine import FingerprintEngine
 from techspecter.fingerprinting.loader import SignatureLoader
 from techspecter.fingerprinting.models import DetectionResult, TechnologyMatch
@@ -22,15 +23,18 @@ class FingerprintPipeline:
         engine: FingerprintEngine | None = None,
         *,
         signature_loader: SignatureLoader | None = None,
+        merger: TechnologyMerger | None = None,
     ) -> None:
         """Initialize the fingerprint pipeline.
 
         Args:
             engine: Optional preconfigured fingerprint engine.
             signature_loader: Optional signature loader for dependency injection.
+            merger: Optional technology merger for duplicate suppression.
         """
         self._signature_loader = signature_loader or SignatureLoader()
         self._engine = engine or FingerprintEngine(self._signature_loader.load_all())
+        self._merger = merger or TechnologyMerger()
 
     def detect_context(self, context: MatchContext) -> list[TechnologyMatch]:
         """Detect technologies in a single JavaScript resource context.
@@ -55,19 +59,14 @@ class FingerprintPipeline:
         started = time.perf_counter()
         target_url = str(discovery.target.url)
         contexts = list(_iter_analysis_contexts(discovery))
-        aggregated: dict[str, TechnologyMatch] = {}
+        all_matches: list[TechnologyMatch] = []
 
         for context in contexts:
-            for match in self._engine.detect(context):
-                existing = aggregated.get(match.technology.id)
-                if existing is None or match.confidence > existing.confidence:
-                    aggregated[match.technology.id] = match
+            all_matches.extend(self._engine.detect(context))
+
+        matches = self._merger.merge_matches(all_matches)
 
         elapsed_ms = (time.perf_counter() - started) * 1000
-        matches = sorted(
-            aggregated.values(),
-            key=lambda item: (-item.confidence, item.technology.name.lower()),
-        )
         logger.info(
             "Fingerprint detection complete for %s: %d technologies from %d scripts (%.0f ms)",
             target_url,

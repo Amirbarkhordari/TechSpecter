@@ -64,6 +64,10 @@ class ReportTechnology(TechSpecterModel):
     website: str | None = None
     description: str | None = None
     evidence: list[ReportEvidence] = Field(default_factory=list)
+    version_source: str | None = None
+    version_confidence: float | None = Field(default=None, ge=0.0, le=100.0)
+    evidence_count: int = 0
+    detection_reason: str | None = None
 
 
 class TechnologyGroup(TechSpecterModel):

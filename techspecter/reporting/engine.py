@@ -217,6 +217,10 @@ def _map_technology(match: TechnologyMatch) -> ReportTechnology:
         website=match.technology.website,
         description=match.technology.description,
         evidence=evidence,
+        version_source=match.version_source,
+        version_confidence=match.version_confidence,
+        evidence_count=match.evidence_count,
+        detection_reason=match.detection_reason,
     )
 
 

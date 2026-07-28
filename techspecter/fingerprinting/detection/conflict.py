@@ -67,13 +67,46 @@ class ConflictResolver:
                 accepted.append(dependency)
 
     def _dedupe_versions(self, matches: list[TechnologyMatch]) -> list[TechnologyMatch]:
-        """Keep highest-confidence version when duplicate technology IDs exist."""
+        """Keep highest-confidence detection when duplicate technology IDs exist."""
         best: dict[str, TechnologyMatch] = {}
         for match in matches:
             existing = best.get(match.technology.id)
-            if existing is None or match.confidence > existing.confidence:
+            if existing is None:
                 best[match.technology.id] = match
+                continue
+            if match.confidence > existing.confidence:
+                best[match.technology.id] = self._prefer_richer_match(existing, match)
+            else:
+                best[match.technology.id] = self._prefer_richer_match(match, existing)
         return sorted(best.values(), key=lambda item: (-item.confidence, item.technology.name))
+
+    def _prefer_richer_match(
+        self,
+        weaker: TechnologyMatch,
+        stronger: TechnologyMatch,
+    ) -> TechnologyMatch:
+        """Merge evidence from weaker match into stronger match."""
+        if weaker.technology.id != stronger.technology.id:
+            return stronger
+        return stronger.model_copy(
+            update={
+                "matched_patterns": sorted(
+                    set(stronger.matched_patterns) | set(weaker.matched_patterns),
+                ),
+                "supporting_evidence_ids": sorted(
+                    set(stronger.supporting_evidence_ids) | set(weaker.supporting_evidence_ids),
+                ),
+                "evidence_count": len(
+                    set(stronger.supporting_evidence_ids) | set(weaker.supporting_evidence_ids),
+                ),
+                "matched_resources": sorted(
+                    set(stronger.matched_resources) | set(weaker.matched_resources),
+                ),
+                "evidence_sources": sorted(
+                    set(stronger.evidence_sources) | set(weaker.evidence_sources),
+                ),
+            },
+        )
 
 
 def resolve_version_conflicts(

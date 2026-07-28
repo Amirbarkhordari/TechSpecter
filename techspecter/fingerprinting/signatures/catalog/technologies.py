@@ -43,7 +43,19 @@ def _definitions() -> list[SignatureBuilder]:
                 ),
                 package=(ind("pkg", "react", weight=85),),
             )
-            .versions(ver("react-ver", r"react[^0-9]*([0-9]+\.[0-9]+\.[0-9]+)", source="banner")),
+            .versions(
+                ver("react-ver", r"react[^0-9]*([0-9]+\.[0-9]+\.[0-9]+)", source="banner"),
+                ver(
+                    "react-runtime",
+                    r'React\.version\s*=\s*["\']([0-9]+\.[0-9]+\.[0-9]+)["\']',
+                    source="runtime",
+                ),
+                ver(
+                    "react-pkg",
+                    r"react(?:-dom)?@([0-9]+\.[0-9]+\.[0-9]+)",
+                    source="package",
+                ),
+            ),
             b(
                 id="preact",
                 name="Preact",

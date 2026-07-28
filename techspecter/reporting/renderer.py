@@ -99,9 +99,10 @@ def _render_table(
     table.add_column("Category")
     table.add_column("Version")
     table.add_column("Confidence")
+    table.add_column("Evidence")
     table.add_column("Source")
     if verbose:
-        table.add_column("Evidence")
+        table.add_column("Details")
 
     for technology in technologies:
         source = technology.source_file or "-"
@@ -110,14 +111,18 @@ def _render_table(
             technology.category,
             technology.version,
             f"{technology.confidence:.1f}",
+            str(technology.evidence_count or len(technology.evidence)),
             source,
         ]
         if verbose:
-            evidence = "; ".join(
-                f"{item.matcher_type}:{item.matched_pattern}" for item in technology.evidence[:5]
-            )
-            if len(technology.evidence) > 5:
-                evidence += "..."
-            row.append(evidence or "-")
+            details = technology.detection_reason or "-"
+            if technology.version_source:
+                version_conf = (
+                    f"{technology.version_confidence:.0f}%"
+                    if technology.version_confidence is not None
+                    else "?"
+                )
+                details = f"{details} | version from {technology.version_source} ({version_conf})"
+            row.append(details)
         table.add_row(*row)
     console.print(table)

@@ -66,6 +66,9 @@ class VersionResolution:
     source: str
     reason: str
     rejected_candidates: tuple[str, ...] = field(default_factory=tuple)
+    candidate_count: int = 0
+    evidence_ids: tuple[str, ...] = field(default_factory=tuple)
+    winning_candidate: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,14 +92,19 @@ def technology_match_from_evaluation(
     signature = evaluation.signature
     from techspecter.fingerprinting.models import Technology
 
-    evidence_ids = [match.evidence.id for match in evaluation.matched_rules]
+    evidence_ids = sorted(
+        {match.evidence.id for match in evaluation.matched_rules},
+    )
     resources = sorted(
-        {match.evidence.url or match.evidence.file or "" for match in evaluation.matched_rules}
+        {match.evidence.url or match.evidence.file or "" for match in evaluation.matched_rules},
     )
     resources = [item for item in resources if item]
     patterns = sorted({match.rule.pattern for match in evaluation.matched_rules})
     reasons = sorted(
-        {match.rule.description or match.rule.id for match in evaluation.matched_rules}
+        {match.rule.description or match.rule.id for match in evaluation.matched_rules},
+    )
+    evidence_sources = sorted(
+        {match.evidence.source.value for match in evaluation.matched_rules},
     )
 
     return TechnologyMatch(
@@ -118,9 +126,11 @@ def technology_match_from_evaluation(
         ),
         version_source=version.source,
         version_reason=version.reason,
+        version_confidence=version.confidence,
         supporting_evidence_ids=evidence_ids,
         evidence_count=len(evidence_ids),
         matched_resources=resources,
         rejected_version_candidates=list(version.rejected_candidates),
+        evidence_sources=evidence_sources,
         confidence_breakdown=dict(breakdown.components),
     )

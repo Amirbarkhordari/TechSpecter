@@ -7,16 +7,22 @@ import time
 from dataclasses import dataclass, field
 
 from techspecter.fingerprinting.detection.conflict import ConflictResolver
-from techspecter.fingerprinting.detection.explain import build_detection_result, build_matches
+from techspecter.fingerprinting.detection.explain import build_detection_result
 from techspecter.fingerprinting.detection.filters import FalsePositiveReducer
+from techspecter.fingerprinting.detection.merger import TechnologyMerger
 from techspecter.fingerprinting.detection.models import (
     ExplainableDetectionResult,
+    ScoringBreakdown,
     TechnologyEvaluation,
+    VersionResolution,
 )
 from techspecter.fingerprinting.detection.normalizer import normalize_evidence
 from techspecter.fingerprinting.detection.rules import RuleEvaluator
 from techspecter.fingerprinting.detection.scoring import ConfidenceEngine, ScoringEngine
-from techspecter.fingerprinting.detection.version_resolver import VersionResolutionEngine
+from techspecter.fingerprinting.detection.version_resolver import (
+    VersionResolutionEngine,
+    resolve_cross_file_versions,
+)
 from techspecter.fingerprinting.detection.weights import ScoringWeights
 from techspecter.fingerprinting.evidence.models import EvidenceCollection
 from techspecter.fingerprinting.signatures.registry import SignatureRegistry, signature_registry
@@ -36,6 +42,7 @@ class EvidenceDetectionPipeline:
     confidence_engine: ConfidenceEngine | None = None
     version_engine: VersionResolutionEngine | None = None
     conflict_resolver: ConflictResolver = field(default_factory=ConflictResolver)
+    merger: TechnologyMerger = field(default_factory=TechnologyMerger)
 
     def __post_init__(self) -> None:
         """Initialize dependent engines."""
@@ -64,27 +71,32 @@ class EvidenceDetectionPipeline:
         reducer = self.false_positive_reducer or FalsePositiveReducer(weights=self.weights)
         accepted = reducer.filter_evaluations(evaluations)
 
-        confidence_engine = self.confidence_engine or ConfidenceEngine(weights=self.weights)
-        scoring_map = {}
-        for evaluation in accepted:
-            breakdown = confidence_engine.calculate(evaluation)
-            scoring_map[evaluation.signature.id] = breakdown
-
         version_engine = self.version_engine or VersionResolutionEngine(weights=self.weights)
-        version_map = {}
+        version_map: dict[str, VersionResolution] = {}
         for evaluation in accepted:
             tech_id = evaluation.signature.id
-            if scoring_map.get(tech_id) is None or scoring_map[tech_id].final_confidence <= 0:
-                continue
             version_map[tech_id] = version_engine.resolve(
                 evaluation.signature,
                 evidence_items=collection.items,
                 matched_rules=evaluation.matched_rules,
             )
+        version_map = resolve_cross_file_versions(version_map)
 
-        matches = build_matches(accepted, scoring_map, version_map)
+        confidence_engine = self.confidence_engine or ConfidenceEngine(weights=self.weights)
+        scoring_map: dict[str, ScoringBreakdown] = {}
+        for evaluation in accepted:
+            tech_id = evaluation.signature.id
+            version = version_map.get(tech_id)
+            if version is None:
+                continue
+            breakdown = confidence_engine.calculate(evaluation, version=version)
+            scoring_map[tech_id] = breakdown
+
+        merged_evaluations = self.merger.merge_evaluations(accepted)
+        matches = self.merger.build_merged_matches(merged_evaluations, scoring_map, version_map)
         signature_lookup = {signature.id: signature for signature in signatures}
         final_matches = self.conflict_resolver.resolve(matches, signature_lookup)
+        final_matches = self.merger.merge_matches(final_matches)
 
         elapsed_ms = (time.perf_counter() - started) * 1000
         logger.info(

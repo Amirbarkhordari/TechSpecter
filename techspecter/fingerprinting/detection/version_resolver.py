@@ -1,28 +1,21 @@
-"""Version resolution engine."""
+"""Production-grade version resolution engine."""
 
 from __future__ import annotations
 
-import re
+from collections import Counter
 from dataclasses import dataclass, field
 
+from techspecter.fingerprinting.detection.models import RuleMatch, VersionResolution
+from techspecter.fingerprinting.detection.version.candidates import (
+    VersionCandidate,
+    VersionCandidateCollector,
+    normalize_version,
+)
+from techspecter.fingerprinting.detection.version.priorities import priority_for_source
 from techspecter.fingerprinting.detection.weights import ScoringWeights
-from techspecter.fingerprinting.evidence.models import Evidence, EvidenceType
+from techspecter.fingerprinting.evidence.models import Evidence
 from techspecter.fingerprinting.models import UNKNOWN_VERSION
 from techspecter.fingerprinting.signatures.models import TechnologySignature
-
-from .models import RuleMatch, VersionResolution
-
-_VERSION_RE = re.compile(r"^\d{1,4}(?:\.\d{1,4}){0,3}(?:[-+][\w.-]+)?$")
-_SOURCE_WEIGHTS = {
-    "package": 100.0,
-    "banner": 90.0,
-    "manifest": 85.0,
-    "metadata": 80.0,
-    "runtime": 75.0,
-    "content": 60.0,
-    "bundle": 55.0,
-    "regex": 40.0,
-}
 
 
 @dataclass(slots=True)
@@ -30,6 +23,7 @@ class VersionResolutionEngine:
     """Resolve version candidates collected during evidence analysis."""
 
     weights: ScoringWeights = field(default_factory=ScoringWeights)
+    collector: VersionCandidateCollector = field(default_factory=VersionCandidateCollector)
 
     def resolve(
         self,
@@ -39,95 +33,133 @@ class VersionResolutionEngine:
         matched_rules: tuple[RuleMatch, ...],
     ) -> VersionResolution:
         """Select the best supported version for a technology."""
-        candidates = self._collect_candidates(signature, evidence_items, matched_rules)
+        resources = frozenset(
+            filter(
+                None,
+                (*(match.evidence.url or match.evidence.file for match in matched_rules),),
+            ),
+        )
+        candidates = self.collector.collect(
+            signature,
+            evidence_items=evidence_items,
+            matched_resources=resources,
+        )
         if not candidates:
             return VersionResolution(
                 version=UNKNOWN_VERSION,
                 confidence=0.0,
                 source="none",
-                reason="No version candidates matched technology extractors",
+                reason="No version candidates matched technology context",
             )
 
-        ranked = sorted(candidates, key=lambda item: (-item[1], item[0]))
-        best_version, best_score, best_source = ranked[0]
-        rejected = tuple(sorted({item[0] for item in ranked[1:]}))
+        ranked = self._rank_candidates(candidates)
+        best = ranked[0]
+        rejected = tuple(
+            sorted({item.version for item in ranked[1:] if item.version != best.version}),
+        )
+        agreement = self._agreement_score(ranked, best.version)
+        confidence = self._version_confidence(best, agreement, rejected)
+
         return VersionResolution(
-            version=best_version,
-            confidence=min(100.0, best_score),
-            source=best_source,
-            reason=f"Selected highest-ranked version candidate from {best_source}",
+            version=best.version,
+            confidence=round(confidence, 1),
+            source=best.source,
+            reason=self._selection_reason(best, agreement, rejected),
             rejected_candidates=rejected,
+            candidate_count=len(candidates),
+            evidence_ids=tuple(
+                sorted({item.evidence_id for item in candidates if item.evidence_id}),
+            ),
+            winning_candidate=best.version,
         )
 
-    def _collect_candidates(
+    def _rank_candidates(self, candidates: tuple[VersionCandidate, ...]) -> list[VersionCandidate]:
+        """Rank candidates by priority, agreement, and specificity."""
+        version_counts = Counter(item.version for item in candidates)
+        scored: list[tuple[float, VersionCandidate]] = []
+        for candidate in candidates:
+            score = candidate.priority
+            score += min(15.0, (version_counts[candidate.version] - 1) * 5.0)
+            if candidate.extractor_id:
+                score += 2.0
+            if candidate.resource:
+                score += 1.0
+            scored.append((score, candidate))
+        scored.sort(key=lambda item: (-item[0], -priority_for_source(item[1].source)))
+        return [item[1] for item in scored]
+
+    def _agreement_score(
         self,
-        signature: TechnologySignature,
-        evidence_items: tuple[Evidence, ...],
-        matched_rules: tuple[RuleMatch, ...],
-    ) -> list[tuple[str, float, str]]:
-        """Collect and rank version candidates."""
-        candidates: list[tuple[str, float, str]] = []
-        seen: set[str] = set()
+        ranked: list[VersionCandidate],
+        winning_version: str,
+    ) -> int:
+        """Count independent sources agreeing on the winning version."""
+        sources: set[str] = set()
+        for candidate in ranked:
+            if candidate.version == winning_version:
+                sources.add(candidate.source)
+        return len(sources)
 
-        for item in evidence_items:
-            if item.evidence_type != EvidenceType.VERSION_CANDIDATE:
-                continue
-            value = (item.matched_value or "").strip()
-            if not value or not _VERSION_RE.match(value):
-                continue
-            if value in seen:
-                continue
-            if not self._candidate_supported(signature, value, item, matched_rules):
-                continue
-            seen.add(value)
-            source = str(item.metadata.get("origin", item.category or "content"))
-            weight = _SOURCE_WEIGHTS.get(source, 50.0)
-            candidates.append((value, weight, source))
-
-        for spec in signature.version_extractors:
-            if not spec.enabled:
-                continue
-            for item in evidence_items:
-                haystack = (item.matched_value or "") + " " + str(item.metadata)
-                match = re.search(spec.pattern, haystack, re.IGNORECASE)
-                if match is None:
-                    continue
-                version = match.group(1) if match.lastindex else match.group(0)
-                if not _VERSION_RE.match(version) or version in seen:
-                    continue
-                seen.add(version)
-                weight = spec.weight * _SOURCE_WEIGHTS.get(spec.source, 50.0) / 100.0
-                candidates.append((version, weight, spec.source))
-
-        return candidates
-
-    def _candidate_supported(
+    def _version_confidence(
         self,
-        signature: TechnologySignature,
-        version: str,
-        item: Evidence,
-        matched_rules: tuple[RuleMatch, ...],
-    ) -> bool:
-        """Return whether a version candidate is plausibly linked to the technology."""
-        if signature.version_extractors:
-            return any(
-                re.search(
-                    spec.pattern,
-                    (item.matched_value or "") + " " + str(item.metadata),
-                    re.IGNORECASE,
-                )
-                for spec in signature.version_extractors
-                if spec.enabled
+        best: VersionCandidate,
+        agreement: int,
+        rejected: tuple[str, ...],
+    ) -> float:
+        """Calculate version-specific confidence."""
+        base = min(95.0, best.priority * 0.85)
+        base += min(15.0, (agreement - 1) * 5.0)
+        if rejected:
+            base -= min(20.0, len(rejected) * 4.0)
+        return min(100.0, max(0.0, base))
+
+    def _selection_reason(
+        self,
+        best: VersionCandidate,
+        agreement: int,
+        rejected: tuple[str, ...],
+    ) -> str:
+        """Build human-readable version selection reason."""
+        parts = [f"Highest-ranked candidate from {best.source} (priority {best.priority:.0f})"]
+        if agreement > 1:
+            parts.append(f"{agreement} independent sources agree")
+        if rejected:
+            parts.append(f"rejected {len(rejected)} conflicting candidate(s)")
+        return "; ".join(parts)
+
+
+def resolve_cross_file_versions(
+    resolutions: dict[str, VersionResolution],
+) -> dict[str, VersionResolution]:
+    """Ensure version resolutions remain stable across merged detections."""
+    merged: dict[str, VersionResolution] = {}
+    for tech_id, resolution in resolutions.items():
+        if resolution.version == UNKNOWN_VERSION:
+            merged[tech_id] = resolution
+            continue
+        normalized = normalize_version(resolution.version)
+        if normalized is None:
+            merged[tech_id] = VersionResolution(
+                version=UNKNOWN_VERSION,
+                confidence=0.0,
+                source="none",
+                reason="Rejected invalid resolved version",
+                rejected_candidates=(resolution.version, *resolution.rejected_candidates),
+                candidate_count=resolution.candidate_count,
+                evidence_ids=resolution.evidence_ids,
             )
-        context = " ".join(
-            [
-                *(match.matched_text.lower() for match in matched_rules),
-                signature.id.lower(),
-                signature.name.lower(),
-            ],
-        )
-        return (
-            signature.id.lower() in context
-            or signature.name.lower() in context
-            or bool(matched_rules)
-        )
+            continue
+        if normalized != resolution.version:
+            merged[tech_id] = VersionResolution(
+                version=normalized,
+                confidence=resolution.confidence,
+                source=resolution.source,
+                reason=resolution.reason,
+                rejected_candidates=resolution.rejected_candidates,
+                candidate_count=resolution.candidate_count,
+                evidence_ids=resolution.evidence_ids,
+                winning_candidate=normalized,
+            )
+            continue
+        merged[tech_id] = resolution
+    return merged

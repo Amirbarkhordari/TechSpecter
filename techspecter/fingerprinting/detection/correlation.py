@@ -69,7 +69,27 @@ def correlation_bonus(
         return 0.0
     bonus = len(context.sources) * scoring.correlation_per_source
     bonus += max(0, len(context.resources) - 1) * scoring.correlation_per_resource
+    bonus += max(0, len(context.domains) - 1) * 2.0
+    bonus += max(0, len(context.evidence_types) - 2) * 1.5
     return min(scoring.max_correlation_bonus, bonus)
+
+
+def correlate_version_candidates(
+    *,
+    technology_id: str,
+    candidates: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Return conflicting version strings observed for a technology."""
+    if len(set(candidates)) <= 1:
+        return ()
+    counts: dict[str, int] = defaultdict(int)
+    for candidate in candidates:
+        counts[candidate] += 1
+    if not counts:
+        return ()
+    best_count = max(counts.values())
+    winners = {version for version, count in counts.items() if count == best_count}
+    return tuple(sorted(version for version in counts if version not in winners))
 
 
 def group_evidence_by_resource(

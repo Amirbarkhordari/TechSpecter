@@ -29,6 +29,9 @@ _MANIFEST = re.compile(
     r"routes-manifest|flight-manifest|vite\.manifest|__NUXT_MANIFEST__)",
     re.IGNORECASE,
 )
+_MANIFEST_VERSION = re.compile(
+    r'"(?:nextVersion|version|frameworkVersion)"\s*:\s*"([\d.]+(?:[-+][\w.-]+)?)"'
+)
 
 
 def extract_bundle_findings(resource: JavaScriptResource) -> tuple[ExtractionFinding, ...]:
@@ -100,6 +103,18 @@ def extract_bundle_findings(resource: JavaScriptResource) -> tuple[ExtractionFin
                 matched_value=match.group(1),
                 matched_pattern=_MANIFEST.pattern,
                 reason="Framework manifest reference observed",
+            ),
+        )
+
+    for match in _MANIFEST_VERSION.finditer(content):
+        findings.append(
+            ExtractionFinding(
+                category="manifest",
+                evidence_type=EvidenceType.VERSION_CANDIDATE.value,
+                matched_value=match.group(1),
+                matched_pattern=_MANIFEST_VERSION.pattern,
+                reason="Version extracted from manifest content",
+                metadata={"origin": "manifest"},
             ),
         )
 
