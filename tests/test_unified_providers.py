@@ -219,3 +219,127 @@ def test_provider_failure_does_not_block_merge() -> None:
     ]
     merged = ProviderMerger().merge(results, target_url="https://example.com")
     assert len(merged.matches) == 1
+
+
+def test_manager_continues_when_provider_raises() -> None:
+    """ProviderManager must never stop because one provider fails unexpectedly."""
+
+    class _ExplodingProvider:
+        provider_id = "wappalyzer"
+        display_name = "Wappalyzer"
+
+        def is_available(self) -> bool:
+            return True
+
+        def detect(self, target: ProviderTarget) -> ProviderDetectionResult:
+            raise RuntimeError("unexpected failure")
+
+    class _WorkingProvider:
+        provider_id = "techspecter"
+        display_name = "TechSpecter"
+
+        def is_available(self) -> bool:
+            return True
+
+        def detect(self, target: ProviderTarget) -> ProviderDetectionResult:
+            return ProviderDetectionResult(
+                provider="techspecter",
+                target_url=target.url,
+                matches=[_provider_match()],
+            )
+
+    manager = ProviderManager(
+        providers={
+            "techspecter": _WorkingProvider(),  # type: ignore[arg-type]
+            "wappalyzer": _ExplodingProvider(),  # type: ignore[arg-type]
+        },
+    )
+    results = manager.run_all(ProviderTarget(url="https://example.com"))
+    assert len(results) == 2
+    assert results[0].success is True
+    assert results[1].success is False
+    assert "unexpected failure" in (results[1].error or "")
+
+
+def test_wappalyzer_provider_uses_backend_abstraction() -> None:
+    """WappalyzerProvider should depend on WappalyzerBackend, not a concrete CLI."""
+
+    class _FakeBackend:
+        def is_available(self) -> bool:
+            return True
+
+        def detect(self, target_url: str, *, timeout_seconds: int) -> list[dict[str, object]]:
+            assert timeout_seconds == 45
+            return [
+                {
+                    "url": target_url,
+                    "technologies": [
+                        {"name": "React", "slug": "react", "version": "19.1.0"},
+                    ],
+                },
+            ]
+
+    from techspecter.providers.external import ExternalProviderPolicy
+    from techspecter.providers.wappalyzer_provider import WappalyzerProvider
+
+    provider = WappalyzerProvider(
+        backend=_FakeBackend(),  # type: ignore[arg-type]
+        policy=ExternalProviderPolicy(timeout_seconds=45),
+    )
+    result = provider.detect(ProviderTarget(url="https://example.com"))
+    assert result.success is True
+    assert result.matches[0].name == "React"
+
+
+def test_wappalyzer_provider_logs_unavailable_backend() -> None:
+    """Unavailable Wappalyzer backend should fail gracefully without raising."""
+
+    class _UnavailableBackend:
+        def is_available(self) -> bool:
+            return False
+
+        def detect(self, target_url: str, *, timeout_seconds: int) -> list[dict[str, str]]:
+            raise AssertionError("detect should not be called when unavailable")
+
+    from techspecter.providers.wappalyzer_provider import WappalyzerProvider
+
+    provider = WappalyzerProvider(backend=_UnavailableBackend())  # type: ignore[arg-type]
+    result = provider.detect(ProviderTarget(url="https://example.com"))
+    assert result.success is False
+    assert result.error
+
+
+def test_external_provider_runner_retries() -> None:
+    """External provider runner should retry failed operations per policy."""
+    from techspecter.providers.external import ExternalProviderPolicy, ExternalProviderRunner
+
+    attempts = {"count": 0}
+
+    def _flaky() -> str:
+        attempts["count"] += 1
+        if attempts["count"] < 2:
+            raise TimeoutError("temporary")
+        return "ok"
+
+    runner = ExternalProviderRunner(
+        provider_id="wappalyzer",
+        policy=ExternalProviderPolicy(retry_count=1, retry_delay_seconds=0),
+    )
+    assert runner.run(_flaky, target_url="https://example.com") == "ok"
+    assert attempts["count"] == 2
+
+
+def test_manager_injects_external_policy_from_config() -> None:
+    """Default providers should receive timeout and retry settings from config."""
+    from techspecter.configuration.models import ProviderEntryConfig
+    from techspecter.providers.wappalyzer_provider import WappalyzerProvider
+
+    config = ProvidersConfig(
+        wappalyzer=ProviderEntryConfig(timeout_seconds=99, retry_count=2, retry_delay_seconds=0.5),
+    )
+    manager = ProviderManager(config=config)
+    wappalyzer = manager.providers["wappalyzer"]
+    assert isinstance(wappalyzer, WappalyzerProvider)
+    assert wappalyzer.policy.timeout_seconds == 99
+    assert wappalyzer.policy.retry_count == 2
+    assert wappalyzer.policy.retry_delay_seconds == 0.5

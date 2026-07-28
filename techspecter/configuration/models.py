@@ -169,6 +169,8 @@ class ProviderEntryConfig(TechSpecterModel):
 
     enabled: bool = True
     timeout_seconds: int = Field(default=120, ge=1)
+    retry_count: int = Field(default=0, ge=0)
+    retry_delay_seconds: float = Field(default=1.0, ge=0.0)
 
 
 class ProvidersConfig(TechSpecterModel):
@@ -184,6 +186,13 @@ class ProvidersConfig(TechSpecterModel):
         if entry is None:
             return False
         return bool(entry.enabled)
+
+    def entry_for(self, provider_id: str) -> ProviderEntryConfig:
+        """Return configuration for a provider."""
+        entry = getattr(self, provider_id, None)
+        if not isinstance(entry, ProviderEntryConfig):
+            return ProviderEntryConfig()
+        return entry
 
 
 class HttpAnalysisConfig(TechSpecterModel):

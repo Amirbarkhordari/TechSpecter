@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 from techspecter.configuration.models import ProvidersConfig
 from techspecter.providers.base import DetectionProvider
+from techspecter.providers.external import ExternalProviderPolicy
 from techspecter.providers.models import ProviderDetectionResult, ProviderTarget
 from techspecter.providers.retirejs_provider import RetireJsProvider
 from techspecter.providers.techspecter_provider import TechSpecterProvider
@@ -15,6 +16,19 @@ from techspecter.providers.wappalyzer_provider import WappalyzerProvider
 logger = logging.getLogger(__name__)
 
 _ALL_PROVIDER_IDS: frozenset[str] = frozenset({"techspecter", "wappalyzer", "retirejs"})
+
+
+def _build_default_providers(config: ProvidersConfig) -> dict[str, DetectionProvider]:
+    """Register built-in providers with configured external policies."""
+    return {
+        "techspecter": TechSpecterProvider(),
+        "wappalyzer": WappalyzerProvider(
+            policy=ExternalProviderPolicy.from_config(config.wappalyzer),
+        ),
+        "retirejs": RetireJsProvider(
+            policy=ExternalProviderPolicy.from_config(config.retirejs),
+        ),
+    }
 
 
 @dataclass(slots=True)
@@ -27,11 +41,7 @@ class ProviderManager:
     def __post_init__(self) -> None:
         """Register default providers when none supplied."""
         if not self.providers:
-            self.providers = {
-                "techspecter": TechSpecterProvider(),
-                "wappalyzer": WappalyzerProvider(),
-                "retirejs": RetireJsProvider(),
-            }
+            self.providers = _build_default_providers(self.config)
 
     def enabled_provider_ids(
         self,
@@ -75,24 +85,36 @@ class ProviderManager:
         selected: list[str] | None = None,
         disabled: list[str] | None = None,
     ) -> list[ProviderDetectionResult]:
-        """Execute enabled providers independently."""
+        """Execute enabled providers independently; never stop on provider failure."""
         results: list[ProviderDetectionResult] = []
         for provider_id in self.enabled_provider_ids(selected=selected, disabled=disabled):
             provider = self.providers.get(provider_id)
             if provider is None:
-                logger.warning("Unknown provider requested: %s", provider_id)
-                continue
-            if provider_id != "techspecter" and not provider.is_available():
-                logger.info("Skipping unavailable provider: %s", provider_id)
-                results.append(
-                    ProviderDetectionResult(
-                        provider=provider_id,
-                        target_url=target.url,
-                        success=False,
-                        error=f"{provider.display_name} is not available",
-                    ),
+                logger.warning(
+                    "Unknown provider requested",
+                    extra={"provider_id": provider_id, "target_url": target.url},
                 )
                 continue
-            logger.info("Running provider: %s", provider_id)
-            results.append(provider.detect(target))
+            logger.info(
+                "Running provider",
+                extra={"provider_id": provider_id, "target_url": target.url},
+            )
+            try:
+                result = provider.detect(target)
+            except Exception as exc:
+                logger.exception(
+                    "Provider raised unexpected error; continuing with remaining providers",
+                    extra={
+                        "provider_id": provider_id,
+                        "target_url": target.url,
+                        "error": str(exc),
+                    },
+                )
+                result = ProviderDetectionResult(
+                    provider=provider_id,
+                    target_url=target.url,
+                    success=False,
+                    error=str(exc),
+                )
+            results.append(result)
         return results

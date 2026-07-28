@@ -22,9 +22,13 @@ Package layout:
 techspecter/providers/
   base.py                 # DetectionProvider protocol
   techspecter_provider.py # Wraps FingerprintPipeline
-  wappalyzer_provider.py  # Passive Wappalyzer CLI
-  retirejs_provider.py    # Passive Retire.js scanning
-  manager.py              # Executes enabled providers
+  wappalyzer_provider.py  # Passive Wappalyzer provider (backend-injected)
+  retirejs_provider.py    # Passive Retire.js provider (backend-injected)
+  external.py             # Timeout, retry, structured logging for externals
+  backends/
+    wappalyzer.py         # WappalyzerBackend protocol + CLI implementation
+    retirejs.py           # RetireJsBackend protocol + CLI implementation
+  manager.py              # Executes enabled providers (failure-isolated)
   normalizer.py           # Common ProviderMatch schema
   merger.py               # Merge + deduplicate
   version_resolver.py     # TechSpecter > Wappalyzer > Retire.js
@@ -32,6 +36,8 @@ techspecter/providers/
   service.py              # UnifiedDetectionService
   summaries.py            # Category summary groups
 ```
+
+External providers (Wappalyzer, Retire.js) are **optional dependencies**. Each depends on a backend protocol so the underlying implementation can be replaced without changing the provider interface. If a backend is unavailable, times out, or fails unexpectedly, the error is logged and remaining providers continue.
 
 ## Configuration
 
@@ -41,8 +47,14 @@ providers:
     enabled: true
   wappalyzer:
     enabled: true
+    timeout_seconds: 120
+    retry_count: 0
+    retry_delay_seconds: 1.0
   retirejs:
     enabled: true
+    timeout_seconds: 120
+    retry_count: 0
+    retry_delay_seconds: 1.0
 ```
 
 ## CLI
@@ -83,6 +95,14 @@ Evidence quality provides additional boost.
 
 Retire.js findings appear in report sections as **Passive Security Intelligence** with library, version, CVE references, and severity. No exploitation is performed.
 
+## Resilience and Optional Dependencies
+
+- Wappalyzer and Retire.js are optional; the pipeline continues when they are missing or fail.
+- `ProviderManager.run_all()` wraps every provider in exception handling and never stops early.
+- External providers use `ExternalProviderRunner` for configurable timeout, retry count, and retry delay.
+- Structured logging includes `provider_id`, `target_url`, attempt number, and error details.
+- Replace CLI backends by implementing `WappalyzerBackend` or `RetireJsBackend` and injecting them into the provider.
+
 ## Extensibility
 
 Add a new provider by:
@@ -91,4 +111,4 @@ Add a new provider by:
 2. Registering it in `ProviderManager`
 3. Adding configuration entry in `ProvidersConfig`
 
-No changes to the core fingerprint engine are required.
+For optional external tools, add a backend protocol under `techspecter/providers/backends/` and inject it into the provider. No changes to the core fingerprint engine are required.
