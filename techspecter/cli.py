@@ -24,6 +24,7 @@ from techspecter.analysis.http.analyzer_ids import CLI_FLAG_ANALYZER_MAP, HTTP_A
 from techspecter.analysis.metadata.analyzer_ids import CLI_FLAG_METADATA_MAP, METADATA_ANALYZER_IDS
 from techspecter.analysis.results.analysis_result import AnalysisResult
 from techspecter.analysis.service import AnalysisService
+from techspecter.benchmark.cli_handlers import run_benchmark
 from techspecter.configuration.manager import (
     ConfigurationManager,
     get_configuration_manager,
@@ -548,6 +549,20 @@ def fingerprint_command(
         bool,
         typer.Option("--verbose-output", help="Include matched pattern evidence in output."),
     ] = False,
+    compare_wappalyzer: Annotated[
+        bool,
+        typer.Option(
+            "--compare-wappalyzer",
+            help="After fingerprinting, compare results against Wappalyzer (optional benchmark).",
+        ),
+    ] = False,
+    wappalyzer_result: Annotated[
+        Path | None,
+        typer.Option(
+            "--wappalyzer-result",
+            help="Import an existing Wappalyzer JSON report for comparison.",
+        ),
+    ] = None,
     min_confidence: Annotated[
         float | None,
         typer.Option(
@@ -609,6 +624,14 @@ def fingerprint_command(
     if json_output:
         payload = _serialize_fingerprint_result(result)
         console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        if compare_wappalyzer:
+            console.print("\n[bold]Running Wappalyzer comparison benchmark…[/bold]")
+            run_benchmark(
+                url,
+                wappalyzer_result=wappalyzer_result,
+                console=console,
+                debug=active_config.logging.debug,
+            )
         return
 
     report_service = ReportService()
@@ -638,6 +661,14 @@ def fingerprint_command(
                 console.print(export_result.content)
             else:
                 console.print(f"[green]Report written to[/green] {export_result.output_path}")
+            if compare_wappalyzer:
+                console.print("\n[bold]Running Wappalyzer comparison benchmark…[/bold]")
+                run_benchmark(
+                    url,
+                    wappalyzer_result=wappalyzer_result,
+                    console=console,
+                    debug=active_config.logging.debug,
+                )
             return
 
         report = report_service.generate_report(
@@ -654,6 +685,51 @@ def fingerprint_command(
         compact=compact,
         group_by_category=group_by_category,
         verbose=verbose_output,
+    )
+
+    if compare_wappalyzer:
+        console.print("\n[bold]Running Wappalyzer comparison benchmark…[/bold]")
+        run_benchmark(
+            url,
+            wappalyzer_result=wappalyzer_result,
+            console=console,
+            debug=active_config.logging.debug,
+        )
+
+
+@app.command("benchmark")
+def benchmark_command(
+    url: Annotated[str, typer.Argument(help="Target website URL to benchmark.")],
+    wappalyzer_result: Annotated[
+        Path | None,
+        typer.Option(
+            "--wappalyzer-result",
+            help="Import an existing Wappalyzer JSON report instead of running CLI.",
+        ),
+    ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output benchmark report as JSON."),
+    ] = False,
+    report_format: Annotated[
+        str | None,
+        typer.Option("--format", help="Report format: json or markdown."),
+    ] = None,
+    output: Annotated[
+        str | None,
+        typer.Option("--output", help="Write benchmark report to this file."),
+    ] = None,
+) -> None:
+    """Compare TechSpecter fingerprint results against Wappalyzer."""
+    manager = get_configuration_manager()
+    run_benchmark(
+        url,
+        wappalyzer_result=wappalyzer_result,
+        json_output=json_output,
+        report_format=report_format,
+        output=output,
+        console=console,
+        debug=manager.config.logging.debug,
     )
 
 
