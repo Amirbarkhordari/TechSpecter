@@ -1,4 +1,4 @@
-"""Fingerprint detection pipeline."""
+"""Legacy fingerprint detection pipeline (backward compatible)."""
 
 from __future__ import annotations
 
@@ -84,14 +84,7 @@ class FingerprintPipeline:
 
 
 def _iter_analysis_contexts(discovery: DiscoveryResult) -> list[MatchContext]:
-    """Build analysis contexts from discovery results.
-
-    Args:
-        discovery: Completed discovery result.
-
-    Returns:
-        List of match contexts for analyzable JavaScript resources.
-    """
+    """Build analysis contexts from discovery results."""
     contexts: list[MatchContext] = []
 
     for download in discovery.downloads:
@@ -106,14 +99,7 @@ def _iter_analysis_contexts(discovery: DiscoveryResult) -> list[MatchContext]:
 
 
 def _context_from_download(download: DownloadResult) -> MatchContext | None:
-    """Create a match context from a download result.
-
-    Args:
-        download: External script download result.
-
-    Returns:
-        Match context, or ``None`` when the download is not analyzable.
-    """
+    """Create a match context from a download result."""
     if not download.download_success or not download.content:
         return None
     return MatchContext(
@@ -125,14 +111,7 @@ def _context_from_download(download: DownloadResult) -> MatchContext | None:
 
 
 def _context_from_inline(inline: InlineScript) -> MatchContext:
-    """Create a match context from an inline script block.
-
-    Args:
-        inline: Inline script metadata and content.
-
-    Returns:
-        Match context for the inline script.
-    """
+    """Create a match context from an inline script block."""
     return MatchContext(
         content=inline.content,
         filename=f"inline-script-{inline.index}.js",
