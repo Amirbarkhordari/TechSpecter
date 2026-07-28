@@ -39,6 +39,8 @@ techspecter/providers/
 
 External providers (Wappalyzer, Retire.js) are **optional dependencies**. Each depends on a backend protocol so the underlying implementation can be replaced without changing the provider interface. If a backend is unavailable, times out, or fails unexpectedly, the error is logged and remaining providers continue.
 
+Phase 5.5 stabilization details: [PROVIDER_STABILIZATION.md](PROVIDER_STABILIZATION.md)
+
 ## Configuration
 
 ```yaml

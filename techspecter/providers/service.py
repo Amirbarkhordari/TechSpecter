@@ -11,7 +11,13 @@ from techspecter.crawler.discovery import DiscoveryPipeline
 from techspecter.fingerprinting.models import FingerprintAnalysisResult
 from techspecter.providers.manager import ProviderManager
 from techspecter.providers.merger import ProviderMerger
-from techspecter.providers.models import ProviderTarget, UnifiedDetectionResult
+from techspecter.providers.models import (
+    MergeSummary,
+    ProviderDetectionResult,
+    ProviderHealthStatus,
+    ProviderTarget,
+    UnifiedDetectionResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,43 +51,61 @@ class UnifiedDetectionService:
             selected=selected_providers,
             disabled=disabled_providers,
         )
+        provider_health = manager.last_health_report
 
-        successful = [item for item in provider_results if item.success]
         failed = [item.provider for item in provider_results if not item.success]
         merged = self.merger.merge(
-            successful,
+            provider_results,
             target_url=target.url,
             scripts_analyzed=len(discovery.downloads) + len(discovery.inline_scripts),
             elapsed_ms=(time.perf_counter() - started) * 1000,
         )
+        merge_summary = self.merger.last_merge_summary
 
         if failed:
-            logger.info("Providers skipped or failed: %s", ", ".join(failed))
+            logger.info(
+                "Providers skipped or failed",
+                extra={"failed_providers": failed, "target_url": target.url},
+            )
+
+        unified = self.build_unified_result(
+            provider_results,
+            target_url=target.url,
+            provider_health=provider_health,
+            merge_summary=merge_summary,
+        )
 
         return FingerprintAnalysisResult(
             target_url=target.url,
             discovery_elapsed_ms=discovery_elapsed_ms,
             detection=merged,
             elapsed_ms=merged.elapsed_ms,
+            provider_diagnostics={
+                "provider_health": [item.model_dump() for item in unified.provider_health],
+                "failed_providers": unified.failed_providers,
+                "merge_summary": merge_summary.model_dump() if merge_summary else {},
+            },
         )
 
     def build_unified_result(
         self,
-        provider_results: list[object],
+        provider_results: list[ProviderDetectionResult],
         *,
         target_url: str,
         scripts_analyzed: int = 0,
+        provider_health: list[ProviderHealthStatus] | None = None,
+        merge_summary: MergeSummary | None = None,
     ) -> UnifiedDetectionResult:
         """Build unified metadata wrapper (for testing/extension)."""
-        from techspecter.providers.models import ProviderDetectionResult
-
-        typed = [item for item in provider_results if isinstance(item, ProviderDetectionResult)]
-        failed = [item.provider for item in typed if not item.success]
-        elapsed = sum(item.elapsed_ms for item in typed)
+        failed = [item.provider for item in provider_results if not item.success]
+        elapsed = sum(item.elapsed_ms for item in provider_results)
+        _ = scripts_analyzed
         return UnifiedDetectionResult(
             target_url=target_url,
-            provider_results=typed,
+            provider_results=provider_results,
             failed_providers=failed,
+            provider_health=list(provider_health or []),
+            merge_summary=merge_summary,
             elapsed_ms=elapsed,
         )
 

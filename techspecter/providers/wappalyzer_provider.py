@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 import logging
-import time
 from dataclasses import dataclass, field
+from typing import Any
 
 from techspecter.providers.backends.wappalyzer import CliWappalyzerBackend, WappalyzerBackend
 from techspecter.providers.base import BaseDetectionProvider
-from techspecter.providers.external import ExternalProviderPolicy, ExternalProviderRunner
-from techspecter.providers.models import ProviderDetectionResult, ProviderTarget
+from techspecter.providers.external import ExternalProviderPolicy
+from techspecter.providers.lifecycle import ExternalProviderLifecycle
+from techspecter.providers.models import (
+    ProviderDetectionResult,
+    ProviderHealthStatus,
+    ProviderTarget,
+)
 from techspecter.providers.normalizer import ProviderNormalizer
+from techspecter.providers.validation import ProviderOutputValidator
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +30,15 @@ class WappalyzerProvider(BaseDetectionProvider):
     backend: WappalyzerBackend = field(default_factory=CliWappalyzerBackend)
     normalizer: ProviderNormalizer = field(default_factory=ProviderNormalizer)
     policy: ExternalProviderPolicy = field(default_factory=ExternalProviderPolicy)
+    validator: ProviderOutputValidator = field(default_factory=ProviderOutputValidator)
+
+    def __post_init__(self) -> None:
+        self._lifecycle = ExternalProviderLifecycle(
+            provider_id=self.provider_id,
+            display_name=self.display_name,
+            policy=self.policy,
+            validator=self.validator,
+        )
 
     def is_available(self) -> bool:
         """Return whether the configured Wappalyzer backend is available."""
@@ -36,57 +51,34 @@ class WappalyzerProvider(BaseDetectionProvider):
             )
             return False
 
-    def detect(self, target: ProviderTarget) -> ProviderDetectionResult:
-        """Execute the Wappalyzer backend and normalize results."""
-        started = time.perf_counter()
-        if not self.is_available():
-            logger.info(
-                "Wappalyzer backend unavailable; skipping passive enrichment",
-                extra={"provider_id": self.provider_id, "target_url": target.url},
-            )
-            return self._failure_result(
-                target,
-                error="Wappalyzer backend is not available (optional dependency)",
-                elapsed_ms=(time.perf_counter() - started) * 1000,
-            )
+    def check_health(self) -> ProviderHealthStatus:
+        """Return Wappalyzer health with selected backend details."""
+        return self._lifecycle.check_health(
+            is_available=self.backend.is_available,
+            backend_id=self.backend.backend_id(),
+            backend_version=self.backend.backend_version,
+            unavailable_reason=self.backend.unavailable_reason(),
+        )
 
-        runner = ExternalProviderRunner(provider_id=self.provider_id, policy=self.policy)
-        try:
-            payload = runner.run(
-                lambda: self.backend.detect(
-                    target.url,
-                    timeout_seconds=self.policy.timeout_seconds,
-                ),
-                target_url=target.url,
-                operation_name="wappalyzer_detect",
-            )
-            elapsed_ms = (time.perf_counter() - started) * 1000
-            result = self.normalizer.from_wappalyzer(
+    def detect(self, target: ProviderTarget) -> ProviderDetectionResult:
+        """Execute the Wappalyzer backend lifecycle."""
+        health = self.check_health()
+
+        def _normalize(payload: Any, elapsed_ms: float) -> ProviderDetectionResult:
+            return self.normalizer.from_wappalyzer(
                 payload,
                 target_url=target.url,
                 elapsed_ms=elapsed_ms,
             )
-            logger.info(
-                "Wappalyzer provider detected %d technologies",
-                len(result.matches),
-                extra={
-                    "provider_id": self.provider_id,
-                    "target_url": target.url,
-                    "match_count": len(result.matches),
-                },
-            )
-            return result
-        except Exception as exc:
-            logger.warning(
-                "Wappalyzer provider failed; continuing with remaining providers",
-                extra={
-                    "provider_id": self.provider_id,
-                    "target_url": target.url,
-                    "error": str(exc),
-                },
-            )
-            return self._failure_result(
-                target,
-                error=str(exc),
-                elapsed_ms=(time.perf_counter() - started) * 1000,
-            )
+
+        return self._lifecycle.execute(
+            target,
+            health=health,
+            operation=lambda: self.backend.detect(
+                target.url,
+                timeout_seconds=self.policy.timeout_seconds,
+            ),
+            normalize=_normalize,
+            validate_raw=self.validator.validate_wappalyzer_payload,
+            operation_name="wappalyzer_detect",
+        )

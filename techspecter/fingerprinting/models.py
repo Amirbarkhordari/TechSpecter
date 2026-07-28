@@ -129,3 +129,4 @@ class FingerprintAnalysisResult(TechSpecterModel):
     discovery_elapsed_ms: float = 0.0
     detection: DetectionResult
     elapsed_ms: float = 0.0
+    provider_diagnostics: dict[str, object] = Field(default_factory=dict)

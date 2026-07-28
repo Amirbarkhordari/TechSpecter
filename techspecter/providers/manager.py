@@ -8,7 +8,12 @@ from dataclasses import dataclass, field
 from techspecter.configuration.models import ProvidersConfig
 from techspecter.providers.base import DetectionProvider
 from techspecter.providers.external import ExternalProviderPolicy
-from techspecter.providers.models import ProviderDetectionResult, ProviderTarget
+from techspecter.providers.health import format_health_report, log_health_report
+from techspecter.providers.models import (
+    ProviderDetectionResult,
+    ProviderHealthStatus,
+    ProviderTarget,
+)
 from techspecter.providers.retirejs_provider import RetireJsProvider
 from techspecter.providers.techspecter_provider import TechSpecterProvider
 from techspecter.providers.wappalyzer_provider import WappalyzerProvider
@@ -37,6 +42,7 @@ class ProviderManager:
 
     config: ProvidersConfig = field(default_factory=ProvidersConfig)
     providers: dict[str, DetectionProvider] = field(default_factory=dict)
+    _last_health_report: list[ProviderHealthStatus] = field(default_factory=list, init=False)
 
     def __post_init__(self) -> None:
         """Register default providers when none supplied."""
@@ -78,6 +84,29 @@ class ProviderManager:
             if provider_id not in disabled_set and self.config.is_provider_enabled(provider_id)
         ]
 
+    def check_health_all(
+        self,
+        *,
+        selected: list[str] | None = None,
+        disabled: list[str] | None = None,
+    ) -> list[ProviderHealthStatus]:
+        """Run health checks for enabled providers."""
+        statuses: list[ProviderHealthStatus] = []
+        for provider_id in self.enabled_provider_ids(selected=selected, disabled=disabled):
+            provider = self.providers.get(provider_id)
+            if provider is None:
+                continue
+            statuses.append(provider.check_health())
+        self._last_health_report = statuses
+        log_health_report(statuses)
+        logger.debug("Provider health report:\n%s", format_health_report(statuses))
+        return statuses
+
+    @property
+    def last_health_report(self) -> list[ProviderHealthStatus]:
+        """Return health statuses from the most recent check."""
+        return list(self._last_health_report)
+
     def run_all(
         self,
         target: ProviderTarget,
@@ -86,6 +115,7 @@ class ProviderManager:
         disabled: list[str] | None = None,
     ) -> list[ProviderDetectionResult]:
         """Execute enabled providers independently; never stop on provider failure."""
+        self.check_health_all(selected=selected, disabled=disabled)
         results: list[ProviderDetectionResult] = []
         for provider_id in self.enabled_provider_ids(selected=selected, disabled=disabled):
             provider = self.providers.get(provider_id)

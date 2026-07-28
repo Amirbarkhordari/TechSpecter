@@ -231,6 +231,15 @@ def test_manager_continues_when_provider_raises() -> None:
         def is_available(self) -> bool:
             return True
 
+        def check_health(self):
+            from techspecter.providers.models import ProviderHealthState, ProviderHealthStatus
+
+            return ProviderHealthStatus(
+                provider_id="wappalyzer",
+                display_name="Wappalyzer",
+                state=ProviderHealthState.AVAILABLE,
+            )
+
         def detect(self, target: ProviderTarget) -> ProviderDetectionResult:
             raise RuntimeError("unexpected failure")
 
@@ -240,6 +249,15 @@ def test_manager_continues_when_provider_raises() -> None:
 
         def is_available(self) -> bool:
             return True
+
+        def check_health(self):
+            from techspecter.providers.models import ProviderHealthState, ProviderHealthStatus
+
+            return ProviderHealthStatus(
+                provider_id="techspecter",
+                display_name="TechSpecter",
+                state=ProviderHealthState.AVAILABLE,
+            )
 
         def detect(self, target: ProviderTarget) -> ProviderDetectionResult:
             return ProviderDetectionResult(
@@ -267,6 +285,15 @@ def test_wappalyzer_provider_uses_backend_abstraction() -> None:
     class _FakeBackend:
         def is_available(self) -> bool:
             return True
+
+        def backend_id(self) -> str | None:
+            return "fake-backend"
+
+        def backend_version(self) -> str | None:
+            return None
+
+        def unavailable_reason(self) -> str:
+            return "CLI unavailable"
 
         def detect(self, target_url: str, *, timeout_seconds: int) -> list[dict[str, object]]:
             assert timeout_seconds == 45
@@ -297,6 +324,15 @@ def test_wappalyzer_provider_logs_unavailable_backend() -> None:
     class _UnavailableBackend:
         def is_available(self) -> bool:
             return False
+
+        def backend_id(self) -> str | None:
+            return None
+
+        def backend_version(self) -> str | None:
+            return None
+
+        def unavailable_reason(self) -> str:
+            return "CLI unavailable"
 
         def detect(self, target_url: str, *, timeout_seconds: int) -> list[dict[str, str]]:
             raise AssertionError("detect should not be called when unavailable")

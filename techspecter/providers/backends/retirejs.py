@@ -29,9 +29,20 @@ class RetireJsBackend(Protocol):
     ) -> list[dict[str, Any]]:
         """Scan in-memory JavaScript scripts."""
 
+    def backend_id(self) -> str:
+        """Return backend identifier."""
+
+    def backend_version(self) -> str | None:
+        """Return backend version when known."""
+
+    def unavailable_reason(self) -> str:
+        """Explain why the backend is unavailable."""
+
 
 class CliRetireJsBackend:
     """Retire.js CLI backend (optional dependency)."""
+
+    backend_id_value = "retirejs-cli"
 
     def __init__(self, executor: RetireJsExecutor | None = None) -> None:
         """Initialize with an injectable executor for testing."""
@@ -67,3 +78,12 @@ class CliRetireJsBackend:
             scripts,
             timeout_seconds=timeout_seconds,
         )
+
+    def backend_id(self) -> str:
+        return self.backend_id_value
+
+    def backend_version(self) -> str | None:
+        return None
+
+    def unavailable_reason(self) -> str:
+        return "Retire.js CLI unavailable"

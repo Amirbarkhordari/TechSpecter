@@ -5,14 +5,21 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from techspecter.benchmark.utils import normalize_category, normalize_technology_id
+from techspecter.benchmark.utils import normalize_category
 from techspecter.fingerprinting.models import (
     UNKNOWN_VERSION,
     DetectionResult,
     SecurityFinding,
     TechnologyMatch,
 )
-from techspecter.providers.models import ProviderDetectionResult, ProviderMatch
+from techspecter.providers.models import (
+    ProviderDetectionResult,
+    ProviderEvidenceItem,
+    ProviderMatch,
+)
+from techspecter.providers.naming import normalize_technology_identity, normalize_technology_name
+from techspecter.providers.validation import ProviderOutputValidator
+from techspecter.providers.version_metadata import ProviderVersionMetadataBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +29,23 @@ _JAVASCRIPT_LIBRARY = "javascript-libraries"
 class ProviderNormalizer:
     """Normalize provider-specific outputs into ProviderMatch records."""
 
+    def __init__(
+        self,
+        *,
+        validator: ProviderOutputValidator | None = None,
+        version_builder: ProviderVersionMetadataBuilder | None = None,
+    ) -> None:
+        """Initialize with injectable validation and version helpers."""
+        self._validator = validator or ProviderOutputValidator()
+        self._version_builder = version_builder or ProviderVersionMetadataBuilder(
+            validator=self._validator,
+        )
+
     def from_techspecter(self, detection: DetectionResult) -> ProviderDetectionResult:
         """Normalize TechSpecter DetectionResult."""
-        matches = [self._from_technology_match(match) for match in detection.matches]
+        matches = [
+            self._finalize_match(self._from_technology_match(match)) for match in detection.matches
+        ]
         return ProviderDetectionResult(
             provider="techspecter",
             target_url=detection.target_url,
@@ -43,20 +64,30 @@ class ProviderNormalizer:
         from techspecter.benchmark.normalizer import ResultNormalizer
 
         normalized = ResultNormalizer().normalize_wappalyzer(payload, target_url=target_url)
-        matches = [
-            ProviderMatch(
-                technology_id=tech.id,
-                name=tech.name,
+        matches = []
+        for tech in normalized.technologies:
+            tech_id, display_name = normalize_technology_identity(tech.name, fallback_id=tech.id)
+            match = ProviderMatch(
+                technology_id=tech_id,
+                name=display_name,
                 category=tech.category,
                 version=tech.version,
                 confidence=tech.confidence or 75.0,
                 evidence=list(tech.evidence),
+                evidence_items=[
+                    ProviderEvidenceItem(
+                        source="wappalyzer",
+                        category="wappalyzer",
+                        detail=item,
+                        detection_method="wappalyzer-cli",
+                    )
+                    for item in tech.evidence
+                ],
                 provider="wappalyzer",
                 detection_method="wappalyzer-cli",
                 metadata=dict(tech.raw_metadata),
             )
-            for tech in normalized.technologies
-        ]
+            matches.append(self._finalize_match(match))
         return ProviderDetectionResult(
             provider="wappalyzer",
             target_url=target_url,
@@ -85,7 +116,7 @@ class ProviderNormalizer:
                     continue
                 match = self._from_retire_result(result, source_file=source_file)
                 if match is not None:
-                    matches.append(match)
+                    matches.append(self._finalize_match(match))
         return ProviderDetectionResult(
             provider="retirejs",
             target_url=target_url,
@@ -93,23 +124,77 @@ class ProviderNormalizer:
             elapsed_ms=elapsed_ms,
         )
 
+    def _finalize_match(self, match: ProviderMatch) -> ProviderMatch:
+        """Apply naming, version metadata, and validation to a match."""
+        tech_id, display_name = normalize_technology_identity(
+            match.name,
+            fallback_id=match.technology_id,
+        )
+        enriched = match.model_copy(
+            update={
+                "technology_id": tech_id,
+                "name": normalize_technology_name(display_name),
+            },
+        )
+        return self._version_builder.build_all(enriched)
+
     def _from_technology_match(self, match: TechnologyMatch) -> ProviderMatch:
         """Map TechSpecter TechnologyMatch to ProviderMatch."""
         tech = match.technology
         evidence: list[str] = []
+        evidence_items: list[ProviderEvidenceItem] = []
         if match.detection_reason:
             evidence.append(match.detection_reason)
-        evidence.extend(match.matched_patterns[:10])
-        evidence.extend(f"source:{item}" for item in match.evidence_sources[:5])
-        evidence.extend(f"resource:{item}" for item in match.matched_resources[:5])
+            evidence_items.append(
+                ProviderEvidenceItem(
+                    source="techspecter",
+                    category="runtime",
+                    detail=match.detection_reason,
+                    detection_method="fingerprint-engine",
+                ),
+            )
+        for pattern in match.matched_patterns[:10]:
+            evidence.append(pattern)
+            category = "runtime" if pattern.startswith("runtime:") else "javascript"
+            evidence_items.append(
+                ProviderEvidenceItem(
+                    source="techspecter",
+                    category=category,
+                    detail=pattern,
+                    detection_method="fingerprint-engine",
+                ),
+            )
+        for item in match.evidence_sources[:5]:
+            evidence.append(f"source:{item}")
+            evidence_items.append(
+                ProviderEvidenceItem(
+                    source="techspecter",
+                    category="source",
+                    detail=item,
+                    detection_method="fingerprint-engine",
+                ),
+            )
+        for item in match.matched_resources[:5]:
+            evidence.append(f"resource:{item}")
+            evidence_items.append(
+                ProviderEvidenceItem(
+                    source="techspecter",
+                    category="resource",
+                    detail=item,
+                    location=item,
+                    detection_method="fingerprint-engine",
+                ),
+            )
 
+        tech_id, display_name = normalize_technology_identity(tech.name, fallback_id=tech.id)
         return ProviderMatch(
-            technology_id=normalize_technology_id(tech.id),
-            name=tech.name,
+            technology_id=tech_id,
+            name=display_name,
             category=normalize_category(tech.category),
             version=match.version or UNKNOWN_VERSION,
             confidence=match.confidence,
             evidence=evidence,
+            evidence_items=evidence_items,
             provider="techspecter",
             detection_method="fingerprint-engine",
             metadata={
@@ -130,19 +215,29 @@ class ProviderNormalizer:
         if not component:
             return None
         version = str(result.get("version") or UNKNOWN_VERSION).strip() or UNKNOWN_VERSION
-        tech_id = normalize_technology_id(component)
-        security_findings = self._parse_vulnerabilities(result, component, version, source_file)
-        evidence = [f"retire.js:{source_file}"] if source_file else ["retire.js"]
+        tech_id, display_name = normalize_technology_identity(component)
+        security_findings = self._parse_vulnerabilities(result, display_name, version, source_file)
+        evidence = [f"retirejs:{source_file}"] if source_file else ["retirejs:scan"]
+        evidence_items = [
+            ProviderEvidenceItem(
+                source="retirejs",
+                category="retirejs",
+                detail=source_file or "scan",
+                location=source_file or None,
+                detection_method="retire.js-scan",
+            ),
+        ]
         if security_findings:
             evidence.append("vulnerability-intelligence")
 
         return ProviderMatch(
             technology_id=tech_id,
-            name=component,
+            name=display_name,
             category=_JAVASCRIPT_LIBRARY,
             version=version,
             confidence=85.0 if security_findings else 75.0,
             evidence=evidence,
+            evidence_items=evidence_items,
             provider="retirejs",
             detection_method="retire.js-scan",
             metadata={"source_file": source_file},
