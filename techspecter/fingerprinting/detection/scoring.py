@@ -27,6 +27,7 @@ class ScoringEngine:
         penalty = evaluation.penalty
 
         final = min(100.0, max(0.0, evidence_score + corr_bonus + priority_bonus - penalty))
+        final = min(100.0, max(0.0, final + evaluation.signature.confidence_modifier))
 
         components = {
             "evidence_score": round(evidence_score, 2),
@@ -63,7 +64,8 @@ class ConfidenceEngine:
 
     def calculate(self, evaluation: TechnologyEvaluation) -> ScoringBreakdown:
         """Return explainable confidence breakdown."""
-        breakdown = self.scorer.score(evaluation)
+        scorer = self.scorer or ScoringEngine(weights=self.weights)
+        breakdown = scorer.score(evaluation)
         if breakdown.final_confidence < self.weights.min_detection_confidence:
             return ScoringBreakdown(
                 evidence_score=breakdown.evidence_score,

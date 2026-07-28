@@ -46,13 +46,13 @@ def _collection(*items: Evidence, target_url: str = "https://example.com/") -> E
 
 
 def test_signature_loader_loads_focused_technologies() -> None:
-    """Loader should load Phase 3 technology signatures without legacy bloat."""
+    """Loader should load expanded Phase 4 technology signatures."""
     signatures = TechnologySignatureLoader().load_all()
     ids = {item.id for item in signatures}
     assert "react" in ids
     assert "nextjs" in ids
     assert "angular" in ids
-    assert len(signatures) <= 20
+    assert len(signatures) >= 80
 
 
 def test_detects_react_from_runtime_and_package_evidence() -> None:

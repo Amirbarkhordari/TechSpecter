@@ -60,7 +60,10 @@ def test_compatibility_layer_runs_both_pipelines() -> None:
                 url="https://example.com/react.js",
                 filename="react.js",
                 download_success=True,
-                content='ReactDOM.createRoot(document.getElementById("root")); React.version="18.2.0";',
+                content=(
+                    'ReactDOM.createRoot(document.getElementById("root"));'
+                    ' React.version="18.2.0";'
+                ),
             ),
         ],
     )

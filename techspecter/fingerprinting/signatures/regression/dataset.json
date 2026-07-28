@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "description": "TechSpecter fingerprinting regression dataset with expected detections",
+  "samples": [
+    {
+      "id": "react-spa",
+      "url": "https://react.example.com/",
+      "expected": ["react"],
+      "versions": {},
+      "evidence": [
+        {"type": "runtime_pattern", "value": "ReactDOM.createRoot", "source": "javascript"},
+        {"type": "package_reference", "value": "react", "source": "javascript"},
+        {"type": "version_candidate", "value": "19.1.0", "source": "javascript"}
+      ]
+    },
+    {
+      "id": "nextjs-app",
+      "url": "https://next.example.com/",
+      "expected": ["nextjs", "react"],
+      "versions": {},
+      "evidence": [
+        {"type": "runtime_pattern", "value": "__NEXT_DATA__", "source": "javascript"},
+        {"type": "manifest", "value": "buildManifest", "source": "javascript"},
+        {"type": "runtime_pattern", "value": "ReactDOM.createRoot", "source": "javascript"},
+        {"type": "package_reference", "value": "react", "source": "javascript"}
+      ]
+    },
+    {
+      "id": "vue-nuxt-stack",
+      "url": "https://nuxt.example.com/",
+      "expected": ["nuxt", "vue"],
+      "evidence": [
+        {"type": "runtime_pattern", "value": "__NUXT__", "source": "javascript"},
+        {"type": "runtime_pattern", "value": "Vue.createApp", "source": "javascript"},
+        {"type": "package_reference", "value": "@vue/", "source": "javascript"}
+      ]
+    },
+    {
+      "id": "angular-ivy",
+      "url": "https://angular.example.com/",
+      "expected": ["angular"],
+      "evidence": [
+        {"type": "runtime_pattern", "value": "ɵɵdefineComponent", "source": "javascript"},
+        {"type": "package_reference", "value": "@angular/core", "source": "javascript"}
+      ]
+    },
+    {
+      "id": "angular-zone-only-negative",
+      "url": "https://zone.example.com/",
+      "expected": [],
+      "evidence": [
+        {"type": "runtime_pattern", "value": "zone.js", "source": "javascript", "metadata": {"runtime_family": "angular"}}
+      ]
+    },
+    {
+      "id": "webpack-bundle",
+      "url": "https://webpack.example.com/",
+      "expected": ["webpack"],
+      "evidence": [
+        {"type": "bundle_runtime", "value": "__webpack_require__", "source": "bundle"}
+      ]
+    },
+    {
+      "id": "vite-spa",
+      "url": "https://vite.example.com/",
+      "expected": ["vite"],
+      "evidence": [
+        {"type": "bundle_runtime", "value": "__vite__", "source": "bundle"},
+        {"type": "manifest", "value": "vite.manifest", "source": "bundle"}
+      ]
+    },
+    {
+      "id": "wordpress-site",
+      "url": "https://wp.example.com/",
+      "expected": ["wordpress"],
+      "evidence": [
+        {"type": "http_header", "value": "X-Powered-By: WordPress", "source": "network"},
+        {"type": "metadata", "value": "WordPress 6.4", "source": "network"}
+      ]
+    },
+    {
+      "id": "shopify-store",
+      "url": "https://shop.example.com/",
+      "expected": ["shopify"],
+      "evidence": [
+        {"type": "metadata", "value": "cdn.shopify.com", "source": "html"},
+        {"type": "http_header", "value": "x-shopid", "source": "network"}
+      ]
+    },
+    {
+      "id": "tailwind-react",
+      "url": "https://tailwind.example.com/",
+      "expected": ["tailwindcss", "react"],
+      "evidence": [
+        {"type": "package_reference", "value": "tailwindcss", "source": "javascript"},
+        {"type": "runtime_pattern", "value": "ReactDOM.createRoot", "source": "javascript"},
+        {"type": "package_reference", "value": "react", "source": "javascript"}
+      ]
+    },
+    {
+      "id": "django-backend",
+      "url": "https://django.example.com/",
+      "expected": ["django"],
+      "evidence": [
+        {"type": "http_header", "value": "csrftoken", "source": "network"},
+        {"type": "http_header", "value": "django", "source": "network"}
+      ]
+    },
+    {
+      "id": "cloudflare-cdn",
+      "url": "https://cf.example.com/",
+      "expected": ["cloudflare"],
+      "evidence": [
+        {"type": "http_header", "value": "cf-ray", "source": "network"},
+        {"type": "http_header", "value": "__cf_bm", "source": "network"}
+      ]
+    },
+    {
+      "id": "ga-gtm-stack",
+      "url": "https://analytics.example.com/",
+      "expected": ["google-analytics", "google-tag-manager"],
+      "evidence": [
+        {"type": "script_reference", "value": "google-analytics.com/analytics.js", "source": "html"},
+        {"type": "script_reference", "value": "googletagmanager.com/gtm.js", "source": "html"}
+      ]
+    },
+    {
+      "id": "sentry-monitoring",
+      "url": "https://sentry.example.com/",
+      "expected": ["sentry"],
+      "evidence": [
+        {"type": "package_reference", "value": "@sentry/browser", "source": "javascript"},
+        {"type": "metadata", "value": "sentry.io", "source": "javascript"}
+      ]
+    },
+    {
+      "id": "stripe-checkout",
+      "url": "https://pay.example.com/",
+      "expected": ["stripe"],
+      "evidence": [
+        {"type": "script_reference", "value": "js.stripe.com", "source": "html"},
+        {"type": "runtime_pattern", "value": "Stripe", "source": "javascript"}
+      ]
+    }
+  ]
+}

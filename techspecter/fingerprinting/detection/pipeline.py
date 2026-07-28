@@ -61,19 +61,22 @@ class EvidenceDetectionPipeline:
             evaluation = self.rule_evaluator.evaluate(signature, normalized)
             evaluations.append(evaluation)
 
-        accepted = self.false_positive_reducer.filter_evaluations(evaluations)
+        reducer = self.false_positive_reducer or FalsePositiveReducer(weights=self.weights)
+        accepted = reducer.filter_evaluations(evaluations)
 
+        confidence_engine = self.confidence_engine or ConfidenceEngine(weights=self.weights)
         scoring_map = {}
         for evaluation in accepted:
-            breakdown = self.confidence_engine.calculate(evaluation)
+            breakdown = confidence_engine.calculate(evaluation)
             scoring_map[evaluation.signature.id] = breakdown
 
+        version_engine = self.version_engine or VersionResolutionEngine(weights=self.weights)
         version_map = {}
         for evaluation in accepted:
             tech_id = evaluation.signature.id
             if scoring_map.get(tech_id) is None or scoring_map[tech_id].final_confidence <= 0:
                 continue
-            version_map[tech_id] = self.version_engine.resolve(
+            version_map[tech_id] = version_engine.resolve(
                 evaluation.signature,
                 evidence_items=collection.items,
                 matched_rules=evaluation.matched_rules,

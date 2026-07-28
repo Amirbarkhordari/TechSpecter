@@ -10,7 +10,7 @@ from techspecter.fingerprinting.detection.models import (
     RuleMatch,
     TechnologyEvaluation,
 )
-from techspecter.fingerprinting.signatures.models import TechnologySignature
+from techspecter.fingerprinting.signatures.models import SignatureRule, TechnologySignature
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class RuleEvaluator:
         required = _collect_matches(signature.required_rules, evidence)
         negative = _collect_matches(signature.negative_rules, evidence)
 
-        all_matches = _dedupe_matches(positive + optional + required)
+        all_matches = _dedupe_matches(list(positive + optional + required))
         raw_score = sum(match.weight for match in all_matches)
 
         rejected = False
@@ -63,7 +63,7 @@ class RuleEvaluator:
 
 
 def _collect_matches(
-    rules: tuple,
+    rules: tuple[SignatureRule, ...],
     evidence: tuple[NormalizedEvidence, ...],
 ) -> tuple[RuleMatch, ...]:
     """Collect rule matches across evidence items."""
