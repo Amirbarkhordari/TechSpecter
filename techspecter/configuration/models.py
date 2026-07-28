@@ -97,6 +97,7 @@ class LoggingConfig(TechSpecterModel):
     file_path: str | None = None
     structured: bool = False
     debug: bool = False
+    quiet: bool = False
 
     @field_validator("level")
     @classmethod
@@ -117,6 +118,13 @@ class PerformanceConfig(TechSpecterModel):
     compile_regex: bool = True
     max_cached_rules: int = Field(default=1000, ge=1)
     rule_batch_size: int = Field(default=100, ge=1)
+    cache_enabled: bool = True
+    max_cache_entries: int = Field(default=128, ge=1)
+    cache_artifact_extraction: bool = True
+    cache_plugin_manager: bool = True
+    parallel_analyzers: bool = False
+    max_analyzer_workers: int = Field(default=4, ge=1)
+    max_regex_cache_size: int = Field(default=512, ge=1)
 
 
 class PluginEntryConfig(TechSpecterModel):

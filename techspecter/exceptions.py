@@ -6,6 +6,10 @@ from __future__ import annotations
 class TechSpecterError(Exception):
     """Base exception for all TechSpecter errors."""
 
+    def user_message(self) -> str:
+        """Return a safe user-facing message."""
+        return str(self)
+
 
 class ConfigurationError(TechSpecterError):
     """Raised when application configuration is invalid or incomplete."""

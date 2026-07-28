@@ -161,6 +161,31 @@ Rules are validated for duplicate IDs, severity, confidence bounds, and regex co
 
 Future analyzers will consume rules through the rule runner instead of embedding pattern logic directly.
 
+## Performance Architecture
+
+Phase 8 production hardening adds caching, optional parallel analyzer execution, and execution telemetry without changing the discovery → analysis → reporting flow.
+
+```
+AnalysisPipeline
+    ↓
+AnalysisCache (artifact extraction)
+    ↓
+AnalyzerExecutor (sequential | ThreadPoolExecutor)
+    ↓
+PipelineTiming → AnalysisMetadata.extra
+    ↓
+ReportEngine performance sections
+```
+
+Shared resources:
+
+- `techspecter/performance/cache.py` — analysis derivation cache
+- `techspecter/performance/executor.py` — concurrent analyzer dispatch
+- `techspecter/performance/plugin_cache.py` — shared plugin manager
+- `techspecter/rules/shared.py` — shared rule and regex caches
+
+Configuration is controlled through `TechSpecterConfig.performance` and `logging.quiet`.
+
 ## Design Principles
 
 - **Passive only** — analyze downloaded public resources

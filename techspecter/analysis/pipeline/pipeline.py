@@ -26,10 +26,15 @@ from techspecter.configuration.models import (
     ArtifactAnalysisConfig,
     HttpAnalysisConfig,
     MetadataAnalysisConfig,
+    PerformanceConfig,
 )
 from techspecter.crawler.discovery import DiscoveryPipeline, DiscoveryPipelineConfig
 from techspecter.fingerprinting.models import DetectionResult
 from techspecter.models.discovery import DiscoveryResult
+from techspecter.performance.cache import AnalysisCache, get_analysis_cache
+from techspecter.performance.executor import AnalyzerExecutor
+from techspecter.performance.plugin_cache import get_shared_plugin_manager
+from techspecter.performance.timing import PipelineTiming
 from techspecter.plugins.hooks import HookName
 from techspecter.plugins.manager import PluginManager
 
@@ -92,6 +97,7 @@ class AnalysisPipeline:
     async def run(self, target_url: str) -> AnalysisResult:
         """Discover resources and run all configured analyzers."""
         started = time.perf_counter()
+        timing = PipelineTiming()
         plugin_manager = self._ensure_plugin_manager()
         if plugin_manager is not None:
             plugin_manager.run_hook(
@@ -99,9 +105,9 @@ class AnalysisPipeline:
                 target_url=target_url,
             )
 
-        discovery_started = time.perf_counter()
-        discovery = await self._discovery_pipeline.run(target_url)
-        discovery_elapsed_ms = (time.perf_counter() - discovery_started) * 1000
+        with timing.stage("discovery"):
+            discovery = await self._discovery_pipeline.run(target_url)
+        discovery_elapsed_ms = timing.stages[-1].elapsed_ms if timing.stages else 0.0
 
         if plugin_manager is not None:
             plugin_manager.run_hook(
@@ -116,8 +122,10 @@ class AnalysisPipeline:
             )
 
         analysis_started = time.perf_counter()
-        enriched_discovery = self._enrich_with_artifacts(discovery)
-        analyzer_results = self._run_analyzers(enriched_discovery)
+        with timing.stage("artifact_enrichment"):
+            enriched_discovery = self._enrich_with_artifacts(discovery)
+        with timing.stage("analyzers"):
+            analyzer_results = self._run_analyzers(enriched_discovery, timing=timing)
         findings = self._aggregator.aggregate(analyzer_results)
         statistics = self._aggregator.calculate_statistics(
             findings,
@@ -128,6 +136,11 @@ class AnalysisPipeline:
         total_elapsed_ms = (time.perf_counter() - started) * 1000
 
         detection = _extract_detection(analyzer_results, enriched_discovery, findings)
+        metadata_extra = _build_metadata_extra(
+            timing=timing,
+            plugin_manager=plugin_manager,
+            performance=self._resolved_performance_config(),
+        )
         metadata = AnalysisMetadata(
             target_url=str(enriched_discovery.target.url),
             tool_version=__version__,
@@ -136,6 +149,7 @@ class AnalysisPipeline:
             total_elapsed_ms=total_elapsed_ms,
             analyzers=[result.analyzer_id for result in analyzer_results],
             timestamp=datetime.now(UTC),
+            extra=metadata_extra,
         )
         logger.info(
             "Analysis complete for %s: %d findings from %d analyzers (%.0f ms)",
@@ -167,6 +181,7 @@ class AnalysisPipeline:
     def analyze_discovery(self, discovery: DiscoveryResult) -> AnalysisResult:
         """Run analyzers against an existing discovery result."""
         started = time.perf_counter()
+        timing = PipelineTiming()
         plugin_manager = self._ensure_plugin_manager()
         target_url = str(discovery.target.url)
         if plugin_manager is not None:
@@ -176,8 +191,10 @@ class AnalysisPipeline:
                 data={"discovery": discovery},
             )
 
-        enriched_discovery = self._enrich_with_artifacts(discovery)
-        analyzer_results = self._run_analyzers(enriched_discovery)
+        with timing.stage("artifact_enrichment"):
+            enriched_discovery = self._enrich_with_artifacts(discovery)
+        with timing.stage("analyzers"):
+            analyzer_results = self._run_analyzers(enriched_discovery, timing=timing)
         findings = self._aggregator.aggregate(analyzer_results)
         statistics = self._aggregator.calculate_statistics(
             findings,
@@ -193,6 +210,11 @@ class AnalysisPipeline:
             total_elapsed_ms=elapsed_ms,
             analyzers=[result.analyzer_id for result in analyzer_results],
             timestamp=datetime.now(UTC),
+            extra=_build_metadata_extra(
+                timing=timing,
+                plugin_manager=plugin_manager,
+                performance=self._resolved_performance_config(),
+            ),
         )
         result = AnalysisResult(
             target_url=metadata.target_url,
@@ -220,20 +242,22 @@ class AnalysisPipeline:
         if analyzer not in self._analyzers:
             self._analyzers.append(analyzer)
 
-    def _run_analyzers(self, discovery: DiscoveryResult) -> list[AnalyzerResult]:
+    def _run_analyzers(
+        self,
+        discovery: DiscoveryResult,
+        *,
+        timing: PipelineTiming | None = None,
+    ) -> list[AnalyzerResult]:
         """Execute all configured analyzers with failure isolation."""
-        enriched = self._enrich_with_artifacts(discovery)
-        results: list[AnalyzerResult] = []
-        for analyzer in self._analyzers:
-            logger.info("Running analyzer '%s'", analyzer.metadata.id)
-            result = analyzer.run(enriched)
-            if result.errors:
-                logger.warning(
-                    "Analyzer '%s' completed with errors: %s",
-                    analyzer.metadata.id,
-                    "; ".join(result.errors),
-                )
-            results.append(result)
+        performance = self._resolved_performance_config()
+        executor = AnalyzerExecutor(
+            max_workers=performance.max_analyzer_workers,
+            parallel=performance.parallel_analyzers,
+        )
+        results = executor.run(self._analyzers, discovery)
+        if timing is not None:
+            for result in results:
+                timing.record_analyzer(result.analyzer_id, result.elapsed_ms)
         return results
 
     def _enrich_with_artifacts(self, discovery: DiscoveryResult) -> DiscoveryResult:
@@ -243,8 +267,25 @@ class AnalysisPipeline:
             return discovery
         if discovery.artifact_observation is not None:
             return discovery
+
+        performance = self._resolved_performance_config()
+        cache = get_analysis_cache(
+            enabled=performance.cache_enabled,
+            max_entries=performance.max_cache_entries,
+        )
+        cache_key = AnalysisCache.discovery_fingerprint(
+            target_url=str(discovery.target.url),
+            inline_count=len(discovery.inline_scripts),
+            download_count=len(discovery.downloads),
+            metadata_present=discovery.metadata_observation is not None,
+        )
+        if performance.cache_artifact_extraction:
+            cached = cache.get_artifact_observation(cache_key)
+            if cached is not None:
+                logger.debug("Using cached artifact observation for %s", discovery.target.url)
+                return discovery.model_copy(update={"artifact_observation": cached})
+
         observation = self._artifact_extractor.extract(discovery)
-        artifact_config = self._resolved_artifact_config()
         if artifact_config.sensitive_analysis:
             sensitive_extractor = SensitiveArtifactExtractor(
                 entropy_threshold=artifact_config.entropy_threshold,
@@ -259,19 +300,25 @@ class AnalysisPipeline:
                     "sources_scanned": merged_sources,
                 },
             )
+        if performance.cache_artifact_extraction:
+            cache.set_artifact_observation(cache_key, observation)
         return discovery.model_copy(update={"artifact_observation": observation})
 
     def _ensure_plugin_manager(self) -> PluginManager | None:
-        """Return a plugin manager with built-in HTTP plugins loaded."""
+        """Return a plugin manager with built-in plugins loaded."""
         if self._plugin_manager is not None:
             return self._plugin_manager
         if not self._load_builtin_plugins:
             return None
 
-        manager = PluginManager()
-        manager.load_plugins(load_builtins=True)
-        self._plugin_manager = manager
-        return manager
+        performance = self._resolved_performance_config()
+        if performance.cache_plugin_manager:
+            self._plugin_manager = get_shared_plugin_manager(load_builtins=True)
+        else:
+            manager = PluginManager()
+            manager.load_plugins(load_builtins=True)
+            self._plugin_manager = manager
+        return self._plugin_manager
 
     def _resolved_analysis_config(self) -> AnalysisConfig:
         """Return analysis configuration from constructor or global manager."""
@@ -296,6 +343,41 @@ class AnalysisPipeline:
         if self._artifact_config is not None:
             return self._artifact_config
         return get_configuration_manager().config.artifact_analysis
+
+    def _resolved_performance_config(self) -> PerformanceConfig:
+        """Return performance configuration from the global manager."""
+        return get_configuration_manager().config.performance
+
+
+def _build_metadata_extra(
+    *,
+    timing: PipelineTiming,
+    plugin_manager: PluginManager | None,
+    performance: PerformanceConfig,
+) -> dict[str, object]:
+    """Build extended metadata for reporting and diagnostics."""
+    cache = get_analysis_cache(
+        enabled=performance.cache_enabled,
+        max_entries=performance.max_cache_entries,
+    )
+    plugin_summary: dict[str, object] = {}
+    if plugin_manager is not None:
+        plugin_summary = {
+            "loaded_count": len(plugin_manager.registry.list_plugins()),
+            "plugin_ids": sorted(plugin_manager.registry.list_plugins()),
+        }
+    return {
+        "timing": timing.as_metadata(),
+        "cache": cache.stats_summary(),
+        "performance": {
+            "parallel_analyzers": performance.parallel_analyzers,
+            "max_analyzer_workers": performance.max_analyzer_workers,
+            "cache_enabled": performance.cache_enabled,
+            "cache_artifact_extraction": performance.cache_artifact_extraction,
+            "cache_plugin_manager": performance.cache_plugin_manager,
+        },
+        "plugins": plugin_summary,
+    }
 
 
 def _extract_detection(

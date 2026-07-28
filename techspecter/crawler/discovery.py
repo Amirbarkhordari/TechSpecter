@@ -105,18 +105,18 @@ class DiscoveryPipeline:
                 base_url=html_document.url,
             )
             metadata_observation = None
+            external_scripts = deduplicate_scripts(parse_result.external_scripts)
+            js_downloader = JsDownloader(
+                client,
+                JsDownloadConfig(max_concurrency=self._settings.max_concurrency),
+            )
+            downloads = await js_downloader.download_all(external_scripts)
             if self._config.collect_metadata:
                 metadata_collector = WellKnownResourceCollector(client)
                 well_known_resources = await metadata_collector.collect(
                     html_document.url,
                     linked_urls=metadata_parse.linked_resource_urls,
                 )
-                external_scripts = deduplicate_scripts(parse_result.external_scripts)
-                js_downloader = JsDownloader(
-                    client,
-                    JsDownloadConfig(max_concurrency=self._settings.max_concurrency),
-                )
-                downloads = await js_downloader.download_all(external_scripts)
                 metadata_observation = MetadataDiscoveryObservation(
                     html=metadata_parse.html_metadata,
                     well_known_resources=well_known_resources,
@@ -127,13 +127,6 @@ class DiscoveryPipeline:
                     ),
                     service_worker_references=metadata_parse.service_worker_references,
                 )
-            else:
-                external_scripts = deduplicate_scripts(parse_result.external_scripts)
-                js_downloader = JsDownloader(
-                    client,
-                    JsDownloadConfig(max_concurrency=self._settings.max_concurrency),
-                )
-                downloads = await js_downloader.download_all(external_scripts)
 
             elapsed_ms = (time.perf_counter() - started_perf) * 1000
             completed_at = datetime.now(tz=UTC)

@@ -119,6 +119,14 @@ class PluginManager:
 
         return loaded_ids
 
+    def load_summary(self) -> dict[str, object]:
+        """Return a diagnostic summary of loaded plugins."""
+        return {
+            "loaded_count": len(self.registry.list_plugins()),
+            "plugin_ids": sorted(self.registry.list_plugins()),
+            "hook_count": len(self.hooks.list_hooks()),
+        }
+
     def shutdown(self) -> None:
         """Shutdown all registered plugins."""
         for identifier in reversed(self.registry.list_plugins()):

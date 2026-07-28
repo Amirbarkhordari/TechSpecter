@@ -24,6 +24,7 @@ from techspecter.reporting.models import (
     ReportTechnology,
     TechnologyGroup,
 )
+from techspecter.reporting.performance_sections import build_performance_report_sections
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,7 @@ class ReportEngine:
                     *build_http_report_sections(analysis, findings),
                     *build_metadata_report_sections(analysis, findings),
                     *build_artifact_report_sections(analysis, findings),
+                    *build_performance_report_sections(analysis),
                 ],
             }
         )

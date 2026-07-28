@@ -6,6 +6,7 @@ import logging
 
 import pytest
 
+from techspecter.configuration.manager import ConfigurationManager, set_configuration_manager
 from techspecter.utils.logging import reset_logging
 
 
@@ -15,3 +16,29 @@ def isolate_logging() -> None:
     yield
     reset_logging()
     logging.getLogger().setLevel(logging.WARNING)
+
+
+@pytest.fixture
+def config_manager() -> ConfigurationManager:
+    """Return a fresh default configuration manager."""
+    manager = ConfigurationManager.load()
+    set_configuration_manager(manager)
+    return manager
+
+
+@pytest.fixture(autouse=True)
+def reset_performance_caches() -> None:
+    """Reset shared performance caches before each test."""
+    from techspecter.performance.cache import reset_analysis_cache
+    from techspecter.performance.plugin_cache import reset_shared_plugin_manager
+    from techspecter.rules.shared import reset_shared_rule_resources
+
+    reset_analysis_cache()
+    reset_shared_plugin_manager()
+    reset_shared_rule_resources()
+    manager = ConfigurationManager.load()
+    set_configuration_manager(manager)
+    yield
+    reset_analysis_cache()
+    reset_shared_plugin_manager()
+    reset_shared_rule_resources()

@@ -200,8 +200,8 @@ config = manager.config
 | `downloader` | HTTP timeouts, retries, concurrency |
 | `analysis` | Analyzer enablement and thresholds |
 | `reporting` | Export formats, output directory, theme |
-| `logging` | Console/file logging, structured output |
-| `performance` | Rule caching and regex compilation |
+| `logging` | Console/file logging, structured output, quiet mode |
+| `performance` | Rule caching, regex compilation, analysis cache, parallel analyzers |
 | `plugins` | Plugin SDK: directories, enable/disable lists, per-plugin settings |
 | `analyzers` | Reserved future analyzer directories |
 
@@ -533,6 +533,66 @@ techspecter sensitive https://example.com --json
 - Extend `ClassificationEngine` mapping for new artifact types.
 - Extend `RiskEngine` severity rules for new classifications.
 - Implement `CategoryArtifactAnalyzer` subclasses for new analyzers.
+
+## Performance Architecture (Phase 8)
+
+TechSpecter includes production hardening for RC readiness without changing the passive analysis architecture.
+
+### Execution Flow
+
+```
+DiscoveryPipeline
+        ↓
+Artifact enrichment (cached when enabled)
+        ↓
+AnalyzerExecutor (sequential or parallel)
+        ↓
+ResultAggregator
+        ↓
+ReportEngine (+ performance sections)
+```
+
+### Caching
+
+| Cache | Location | Purpose |
+|---|---|---|
+| Rule cache | `RuleLoader` + `RuleCache` | Avoid reloading YAML/JSON rules |
+| Regex cache | `RegexCache` (shared) | Reuse compiled patterns |
+| Analysis cache | `AnalysisCache` | Cache artifact extraction per discovery fingerprint |
+| Plugin manager | `get_shared_plugin_manager()` | Load built-in plugins once per process |
+
+Configure via `performance` in YAML/JSON or environment overrides:
+
+```yaml
+performance:
+  cache_enabled: true
+  cache_artifact_extraction: true
+  cache_plugin_manager: true
+  parallel_analyzers: false
+  max_analyzer_workers: 4
+  max_cache_entries: 128
+  max_regex_cache_size: 512
+```
+
+### Parallel Analyzers
+
+When `performance.parallel_analyzers` is `true`, analyzers run in a `ThreadPoolExecutor`. Results remain ordered deterministically by analyzer registration order.
+
+### CLI UX
+
+- `--quiet` / `-q` — minimal output (one-line summary)
+- `--verbose` / `--debug` — detailed logging and full error messages
+- Analysis summaries include discovery/analysis timing and slowest analyzer
+
+### Reporting
+
+Analysis metadata includes `timing`, `cache`, `performance`, and `plugins` in `metadata.extra`. Reports add execution, timing, performance, plugin, and finding statistics sections.
+
+### Migration Notes
+
+- No breaking API changes; new configuration fields use safe defaults.
+- Existing configs without `performance` extensions continue to work.
+- Parallel analyzers are opt-in (`parallel_analyzers: false` by default).
 
 ## Related Documentation
 

@@ -15,6 +15,7 @@ from techspecter.rules.executors.regex import RegexRuleExecutor
 from techspecter.rules.executors.string import StringRuleExecutor
 from techspecter.rules.loader import RuleLoader
 from techspecter.rules.models import Rule
+from techspecter.rules.shared import create_rule_loader, get_shared_regex_cache
 from techspecter.rules.validator import RuleValidator
 
 logger = logging.getLogger(__name__)
@@ -43,12 +44,13 @@ class RuleRunner:
         min_confidence: float = 0.0,
     ) -> None:
         """Initialize the rule runner."""
-        self._loader = loader or RuleLoader()
+        regex_cache = get_shared_regex_cache()
+        self._loader = loader or create_rule_loader()
         self._validator = validator or RuleValidator()
         self._executors = executors or [
-            RegexRuleExecutor(),
+            RegexRuleExecutor(regex_cache=regex_cache),
             StringRuleExecutor(),
-            HeaderRuleExecutor(),
+            HeaderRuleExecutor(regex_cache=regex_cache),
         ]
         self._min_confidence = min_confidence
         self._executor_map = {executor.rule_type: executor for executor in self._executors}

@@ -36,10 +36,12 @@ from techspecter.models.discovery import DiscoveryResult
 from techspecter.plugins.cli import plugins_app
 from techspecter.reporting.renderer import render_report
 from techspecter.reporting.service import ReportService
+from techspecter.utils.errors import format_user_error
 from techspecter.utils.logging import configure_logging
 
 console = Console()
 logger = logging.getLogger(__name__)
+_cli_quiet = False
 
 app = typer.Typer(
     name="techspecter",
@@ -73,6 +75,7 @@ def _build_cli_overrides(
     *,
     debug: bool,
     verbose: bool,
+    quiet: bool = False,
     min_confidence: float | None,
     disable_analyzer: list[str] | None,
     enable_analyzer: list[str] | None,
@@ -115,6 +118,9 @@ def _build_cli_overrides(
     overrides: dict[str, Any] = {}
 
     logging_override: dict[str, Any] = {}
+    if quiet:
+        logging_override["quiet"] = True
+        logging_override["console"] = False
     if debug or verbose:
         logging_override["debug"] = True
         logging_override["level"] = "DEBUG"
@@ -344,13 +350,20 @@ def cli_callback(
         bool,
         typer.Option("--verbose", help="Enable verbose (DEBUG) logging."),
     ] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option("--quiet", "-q", help="Suppress non-essential console output."),
+    ] = False,
 ) -> None:
     """TechSpecter — passive web application analysis framework."""
+    global _cli_quiet
+    _cli_quiet = quiet
     manager = ConfigurationManager.load(
         config_path=config,
         cli_overrides=_build_cli_overrides(
             debug=debug,
             verbose=verbose,
+            quiet=quiet,
             min_confidence=None,
             disable_analyzer=[],
             enable_analyzer=[],
@@ -429,12 +442,9 @@ def discover_command(
         pipeline = DiscoveryPipeline()
         result = asyncio.run(pipeline.run(url))
     except ValidationError as exc:
-        console.print(f"[red]Validation error:[/red] {exc}")
-        raise typer.Exit(code=1) from exc
+        _handle_analysis_error(exc, label="Validation error", url=url)
     except TechSpecterError as exc:
-        console.print(f"[red]Discovery failed:[/red] {exc}")
-        logger.exception("Discovery failed for %s", url)
-        raise typer.Exit(code=1) from exc
+        _handle_analysis_error(exc, label="Discovery failed", url=url)
 
     if json_output:
         payload = _serialize_discovery_result(result)
@@ -530,12 +540,9 @@ def fingerprint_command(
         service = FingerprintService()
         result = asyncio.run(service.analyze_url(url))
     except ValidationError as exc:
-        console.print(f"[red]Validation error:[/red] {exc}")
-        raise typer.Exit(code=1) from exc
+        _handle_analysis_error(exc, label="Validation error", url=url)
     except TechSpecterError as exc:
-        console.print(f"[red]Fingerprint analysis failed:[/red] {exc}")
-        logger.exception("Fingerprint analysis failed for %s", url)
-        raise typer.Exit(code=1) from exc
+        _handle_analysis_error(exc, label="Fingerprint analysis failed", url=url)
 
     if json_output:
         payload = _serialize_fingerprint_result(result)
@@ -588,12 +595,40 @@ def fingerprint_command(
     )
 
 
+def _handle_analysis_error(exc: Exception, *, label: str, url: str) -> None:
+    """Print a user-facing analysis error and exit."""
+    debug_enabled = get_configuration_manager().config.logging.debug
+    console.print(f"[red]{label}:[/red] {format_user_error(exc, debug=debug_enabled)}")
+    if debug_enabled:
+        logger.exception("%s failed for %s", label, url)
+    raise typer.Exit(code=1) from exc
+
+
 def _render_analysis_summary(
     result: AnalysisResult, *, title: str = "HTTP Analysis Findings"
 ) -> None:
     """Render a human-readable analysis summary."""
+    if _cli_quiet:
+        console.print(
+            f"{result.target_url}: {result.statistics.total_findings} findings "
+            f"({result.elapsed_ms:.0f} ms)"
+        )
+        return
+
     console.print(f"\n[bold]Target:[/bold] {result.target_url}")
     console.print(f"[bold]Elapsed:[/bold] {result.elapsed_ms:.0f} ms")
+    if result.metadata.discovery_elapsed_ms:
+        console.print(f"[bold]Discovery:[/bold] {result.metadata.discovery_elapsed_ms:.0f} ms")
+    if result.metadata.analysis_elapsed_ms:
+        console.print(f"[bold]Analysis:[/bold] {result.metadata.analysis_elapsed_ms:.0f} ms")
+    timing = result.metadata.extra.get("timing", {})
+    if isinstance(timing, dict):
+        analyzer_timings = timing.get("analyzer_timings", {})
+        if isinstance(analyzer_timings, dict) and analyzer_timings:
+            slowest = max(analyzer_timings.items(), key=lambda item: float(item[1]))
+            console.print(
+                f"[bold]Slowest analyzer:[/bold] {slowest[0]} ({float(slowest[1]):.0f} ms)"
+            )
     console.print(f"[bold]Findings:[/bold] {result.statistics.total_findings}")
     console.print(f"[bold]Analyzers:[/bold] {', '.join(result.metadata.analyzers)}\n")
 
@@ -696,12 +731,9 @@ def analyze_command(
         service = AnalysisService()
         result = asyncio.run(service.analyze_url(url))
     except ValidationError as exc:
-        console.print(f"[red]Validation error:[/red] {exc}")
-        raise typer.Exit(code=1) from exc
+        _handle_analysis_error(exc, label="Validation error", url=url)
     except TechSpecterError as exc:
-        console.print(f"[red]HTTP analysis failed:[/red] {exc}")
-        logger.exception("HTTP analysis failed for %s", url)
-        raise typer.Exit(code=1) from exc
+        _handle_analysis_error(exc, label="HTTP analysis failed", url=url)
 
     if json_output:
         payload = result.model_dump(mode="json")
@@ -811,12 +843,9 @@ def _run_metadata_analysis(
         service = AnalysisService()
         result = asyncio.run(service.analyze_url(url))
     except ValidationError as exc:
-        console.print(f"[red]Validation error:[/red] {exc}")
-        raise typer.Exit(code=1) from exc
+        _handle_analysis_error(exc, label="Validation error", url=url)
     except TechSpecterError as exc:
-        console.print(f"[red]Metadata analysis failed:[/red] {exc}")
-        logger.exception("Metadata analysis failed for %s", url)
-        raise typer.Exit(code=1) from exc
+        _handle_analysis_error(exc, label="Metadata analysis failed", url=url)
 
     if json_output:
         payload = result.model_dump(mode="json")
@@ -1041,12 +1070,9 @@ def _run_artifact_analysis(
         service = AnalysisService()
         result = asyncio.run(service.analyze_url(url))
     except ValidationError as exc:
-        console.print(f"[red]Validation error:[/red] {exc}")
-        raise typer.Exit(code=1) from exc
+        _handle_analysis_error(exc, label="Validation error", url=url)
     except TechSpecterError as exc:
-        console.print(f"[red]Artifact analysis failed:[/red] {exc}")
-        logger.exception("Artifact analysis failed for %s", url)
-        raise typer.Exit(code=1) from exc
+        _handle_analysis_error(exc, label="Artifact analysis failed", url=url)
 
     if json_output:
         payload = result.model_dump(mode="json")
