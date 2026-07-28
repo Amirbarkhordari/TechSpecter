@@ -34,7 +34,7 @@ def test_html_analyzer_collects_script_references() -> None:
 
 
 def test_javascript_analyzer_collects_download_evidence() -> None:
-    """JavaScript analyzer should emit content evidence for downloads."""
+    """JavaScript analyzer should emit intelligence evidence for downloads."""
     discovery = DiscoveryResult(
         target=Target(url="https://example.com/", original_url="https://example.com"),
         downloads=[
@@ -46,9 +46,9 @@ def test_javascript_analyzer_collects_download_evidence() -> None:
             ),
         ],
     )
-    result = JavaScriptAnalyzer().collect(discovery)
-    assert len(result.items) == 1
-    assert result.items[0].evidence_type.value == "script_content"
+    result = JavaScriptAnalyzer(fetch_source_maps=False).collect(discovery)
+    assert result.items
+    assert any(item.evidence_type.value == "script_content" for item in result.items)
 
 
 def test_bundle_analyzer_detects_bundle_filenames_only() -> None:

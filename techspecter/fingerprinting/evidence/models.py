@@ -37,6 +37,16 @@ class EvidenceType(StrEnum):
     PACKAGE_MARKER = "package_marker"
     METADATA = "metadata"
     CUSTOM = "custom"
+    STRING_LITERAL = "string_literal"
+    VERSION_CANDIDATE = "version_candidate"
+    RUNTIME_PATTERN = "runtime_pattern"
+    PACKAGE_REFERENCE = "package_reference"
+    BANNER = "banner"
+    MANIFEST = "manifest"
+    BUNDLE_RUNTIME = "bundle_runtime"
+    AST_EXTRACTION = "ast_extraction"
+    SOURCE_MAP_METADATA = "source_map_metadata"
+    IMPORT_EXPORT = "import_export"
 
 
 class Evidence(TechSpecterModel):

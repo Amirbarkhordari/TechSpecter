@@ -2,30 +2,27 @@
 
 from __future__ import annotations
 
-import re
 import time
 from datetime import UTC, datetime
 
 from techspecter.fingerprinting.analyzers.base import EvidenceCollector
-from techspecter.fingerprinting.evidence.models import (
-    Evidence,
-    EvidenceResult,
-    EvidenceSource,
-    EvidenceType,
-)
+from techspecter.fingerprinting.evidence.models import Evidence, EvidenceResult
+from techspecter.fingerprinting.javascript.cache import get_parse_cache
+from techspecter.fingerprinting.javascript.evidence_builder import build_evidence
+from techspecter.fingerprinting.javascript.extractors.package import extract_package_findings
+from techspecter.fingerprinting.javascript.models import JavaScriptResource, ParseStrategy
+from techspecter.fingerprinting.javascript.normalizer import normalize_javascript
+from techspecter.fingerprinting.javascript.parser import TokenJavaScriptParser
 from techspecter.models.discovery import DiscoveryResult
-
-_PACKAGE_MARKERS = (
-    re.compile(r"\brequire\s*\(\s*['\"]"),
-    re.compile(r"\bimport\s+.+\s+from\s+['\"]"),
-    re.compile(r"\bexport\s+(?:default\s+)?(?:function|class|const|let|var)\b"),
-    re.compile(r"__webpack_require__"),
-    re.compile(r"System\.register\s*\("),
-)
 
 
 class PackageAnalyzer(EvidenceCollector):
-    """Collect module system markers from JavaScript content."""
+    """Collect package markers using shared package intelligence extractors."""
+
+    def __init__(self) -> None:
+        """Initialize package analyzer with shared parser and cache."""
+        self._parser = TokenJavaScriptParser()
+        self._cache = get_parse_cache()
 
     @property
     def name(self) -> str:
@@ -42,7 +39,7 @@ class PackageAnalyzer(EvidenceCollector):
         return bool(discovery.downloads or discovery.inline_scripts)
 
     def collect(self, discovery: DiscoveryResult) -> EvidenceResult:
-        """Collect package/module markers as raw evidence only."""
+        """Collect package markers via shared package intelligence extractors."""
         started = time.perf_counter()
         items: list[Evidence] = []
         timestamp = datetime.now(UTC)
@@ -61,24 +58,29 @@ class PackageAnalyzer(EvidenceCollector):
             )
 
         for url, filename, content in sources:
-            for pattern in _PACKAGE_MARKERS:
-                match = pattern.search(content)
-                if match is None:
-                    continue
-                items.append(
-                    Evidence(
-                        source=EvidenceSource.PACKAGE,
-                        evidence_type=EvidenceType.PACKAGE_MARKER,
-                        collector=self.name,
-                        url=url,
-                        file=filename,
-                        matched_value=match.group(0),
-                        matched_pattern=pattern.pattern,
-                        category="package",
-                        reason="Observed JavaScript module system marker",
-                        timestamp=timestamp,
-                    ),
-                )
+            normalized = normalize_javascript(content)
+            resource = JavaScriptResource(
+                url=url,
+                filename=filename,
+                content=normalized.content,
+                content_length=normalized.original_length,
+                is_minified=normalized.is_minified,
+                parse_strategy=ParseStrategy.FULL,
+            )
+            cache_key = self._cache.cache_key(url=url, content=resource.content)
+            parsed = self._cache.get(cache_key)
+            if parsed is None:
+                parsed = self._parser.parse(resource)
+                self._cache.set(cache_key, parsed)
+            findings = extract_package_findings(parsed, content=resource.content)
+            items.extend(
+                build_evidence(
+                    findings=findings,
+                    resource=resource,
+                    collector=self.name,
+                    timestamp=timestamp,
+                ),
+            )
 
         elapsed_ms = (time.perf_counter() - started) * 1000
         return EvidenceResult(collector=self.name, items=tuple(items), elapsed_ms=elapsed_ms)
