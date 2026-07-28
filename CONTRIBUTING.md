@@ -6,6 +6,8 @@ Thank you for your interest in contributing to TechSpecter! This document provid
 
 ## Getting Started
 
+See [docs/INSTALLATION.md](docs/INSTALLATION.md) and [docs/QUICKSTART.md](docs/QUICKSTART.md) for detailed setup instructions.
+
 ### Prerequisites
 
 - Python 3.11 or later
@@ -64,6 +66,15 @@ Thank you for your interest in contributing to TechSpecter! This document provid
 
 ---
 
+## Related Documentation
+
+- [Developer Guide](docs/DEVELOPER.md)
+- [Plugin SDK](docs/PLUGIN_SDK.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Configuration](docs/CONFIGURATION.md)
+- [Security Policy](SECURITY.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+
 ## Coding Standards
 
 ### Python Style
@@ -80,8 +91,10 @@ Thank you for your interest in contributing to TechSpecter! This document provid
 We use [Ruff](https://docs.astral.sh/ruff/) for linting:
 
 ```bash
-ruff check techspecter tests
-ruff format techspecter tests
+ruff check .
+black --check .
+mypy techspecter
+python -m pytest -v
 ```
 
 ### Type Checking

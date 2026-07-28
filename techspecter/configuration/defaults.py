@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version
 
+from techspecter._version import __version__
 from techspecter.configuration.models import TechSpecterConfig
 
 try:
     _APP_VERSION = version("techspecter")
 except PackageNotFoundError:
-    _APP_VERSION = "0.7.0"
+    _APP_VERSION = __version__
 
 DEFAULT_USER_AGENT = f"TechSpecter/{_APP_VERSION} (+https://github.com/Amirbarkhordari/TechSpecter)"
 

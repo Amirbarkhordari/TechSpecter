@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import importlib
 
+from techspecter import __version__, version_display
+
 
 def test_package_imports_successfully() -> None:
     """Verify the top-level package and subpackages import without errors."""
     package = importlib.import_module("techspecter")
-    assert package.__version__ == "0.7.0"
+    assert package.__version__ == __version__
 
     subpackages = [
         "techspecter.core",
@@ -24,6 +26,7 @@ def test_package_imports_successfully() -> None:
         "techspecter.models",
         "techspecter.utils",
         "techspecter.plugins",
+        "techspecter.performance",
     ]
     for name in subpackages:
         module = importlib.import_module(name)
@@ -32,9 +35,10 @@ def test_package_imports_successfully() -> None:
 
 def test_public_exports() -> None:
     """Verify key symbols are exported from the public API."""
-    from techspecter import Settings, __version__, get_settings
+    from techspecter import Settings, get_settings
 
-    assert __version__ == "0.7.0"
+    assert __version__ == "1.0.0rc1"
+    assert version_display() == "1.0.0-rc1"
     settings = get_settings()
     assert isinstance(settings, Settings)
     assert settings.app_name == "TechSpecter"

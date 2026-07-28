@@ -10,6 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Nothing yet.
 
+## [1.0.0-rc1] - 2026-07-28
+
+### Added
+- Release candidate packaging for v1.0.0 with semantic versioning (`techspecter/_version.py`)
+- Production GitHub Actions: lint, format, mypy, multi-Python pytest, package build artifacts
+- CodeQL, Dependency Review, Dependabot, and SBOM workflows
+- `techspecter doctor` CLI diagnostics command
+- Documentation: INSTALLATION, CONFIGURATION, QUICKSTART, MIGRATION, RELEASE_NOTES, SBOM guides
+- SECURITY.md, CODE_OF_CONDUCT.md, SUPPORT.md, ROADMAP.md
+- Examples: sample configuration, sample report, examples README
+- SBOM generator (`tools/generate_sbom.py`) with CycloneDX and SPDX output
+- Release engineering and packaging validation tests
+
+### Changed
+- Project status updated to v1.0.0 Release Candidate
+- README refreshed for open-source release readiness
+- PyPI metadata: classifiers, keywords, project URLs, dynamic versioning
+- CLI help text and version display (`1.0.0-rc1`)
+
 ## [0.7.0] - 2026-07-28
 
 ### Added
@@ -147,7 +166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial test suite
 - Project documentation (README, CONTRIBUTING, LICENSE)
 
-[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/Amirbarkhordari/TechSpecter/compare/v1.0.0-rc1...HEAD
+[1.0.0-rc1]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.7.0...v1.0.0-rc1
 [0.7.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Amirbarkhordari/TechSpecter/compare/v0.4.0...v0.5.0

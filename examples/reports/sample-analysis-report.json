@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "tool_name": "TechSpecter",
+    "tool_version": "1.0.0rc1",
+    "target_url": "https://example.com/",
+    "scan_duration_ms": 1250.0,
+    "technologies_detected": 2,
+    "findings_detected": 5
+  },
+  "summary": {
+    "headline": "5 findings detected",
+    "technologies_detected": 2,
+    "findings_detected": 5
+  },
+  "statistics": {
+    "total_technologies": 2,
+    "total_findings": 5,
+    "average_confidence": 72.5
+  },
+  "technologies": [],
+  "findings": [],
+  "sections": [
+    {
+      "id": "execution-summary",
+      "title": "Execution Summary",
+      "summary": "Sample report structure for documentation and integration tests."
+    }
+  ]
+}

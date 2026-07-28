@@ -18,7 +18,7 @@ class MetadataBuilder:
             "version": "1.0.0",
             "description": name,
             "plugin_type": PluginType.LIFECYCLE,
-            "minimum_core_version": "0.7.0",
+            "minimum_core_version": __version__,
             "minimum_python_version": current_python_version(),
         }
 

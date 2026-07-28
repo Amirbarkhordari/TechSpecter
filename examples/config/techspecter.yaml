@@ -1,0 +1,43 @@
+# TechSpecter example configuration
+# Usage: techspecter --config examples/config/techspecter.yaml analyze https://example.com
+
+downloader:
+  request_timeout: 30.0
+  max_retries: 3
+  max_concurrency: 10
+
+analysis:
+  min_confidence: 0.0
+
+http_analysis:
+  enabled: true
+  http_analysis: true
+
+metadata_analysis:
+  enabled: true
+  metadata_analysis: true
+
+artifact_analysis:
+  enabled: true
+  artifact_analysis: true
+  sensitive_analysis: false
+
+reporting:
+  default_format: json
+  output_directory: "."
+
+logging:
+  level: INFO
+  console: true
+  quiet: false
+
+performance:
+  cache_enabled: true
+  cache_artifact_extraction: true
+  cache_plugin_manager: true
+  parallel_analyzers: false
+  max_analyzer_workers: 4
+
+plugins:
+  enabled: true
+  load_entry_points: true

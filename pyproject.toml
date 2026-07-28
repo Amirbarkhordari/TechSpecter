@@ -4,12 +4,16 @@ build-backend = "hatchling.build"
 
 [project]
 name = "techspecter"
-version = "0.7.0"
-description = "Professional cross-platform Web Technology Fingerprinting and JavaScript Intelligence framework"
+dynamic = ["version"]
+description = "Passive web application analysis framework for technology fingerprinting, HTTP observation, metadata intelligence, and structured reporting"
 readme = "README.md"
 license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [
+    { name = "TechSpecter Contributors" },
+]
+maintainers = [
     { name = "TechSpecter Contributors" },
 ]
 keywords = [
@@ -18,12 +22,18 @@ keywords = [
     "javascript",
     "web-technology",
     "reconnaissance",
+    "passive-analysis",
+    "web-intelligence",
+    "osint",
+    "metadata",
+    "openapi",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
@@ -31,8 +41,10 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Security",
+    "Topic :: Internet :: WWW/HTTP",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
+    "Framework :: AsyncIO",
 ]
 dependencies = [
     "typer>=0.12.0",
@@ -55,6 +67,14 @@ dev = [
     "mypy>=1.10.0",
     "black>=24.0.0",
     "types-PyYAML>=6.0.0",
+    "build>=1.2.0",
+]
+release = [
+    "build>=1.2.0",
+    "twine>=5.0.0",
+]
+sbom = [
+    "cyclonedx-python-lib>=7.0.0",
 ]
 
 [project.scripts]
@@ -66,24 +86,33 @@ techspecter = "techspecter.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Amirbarkhordari/TechSpecter"
-Documentation = "https://github.com/Amirbarkhordari/TechSpecter#readme"
+Documentation = "https://github.com/Amirbarkhordari/TechSpecter/tree/main/docs"
 Repository = "https://github.com/Amirbarkhordari/TechSpecter"
 Issues = "https://github.com/Amirbarkhordari/TechSpecter/issues"
 Changelog = "https://github.com/Amirbarkhordari/TechSpecter/blob/main/CHANGELOG.md"
+Security = "https://github.com/Amirbarkhordari/TechSpecter/blob/main/SECURITY.md"
+Support = "https://github.com/Amirbarkhordari/TechSpecter/blob/main/SUPPORT.md"
+
+[tool.hatch.version]
+path = "techspecter/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["techspecter"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"techspecter/rules/data" = "techspecter/rules/data"
 
 [tool.hatch.build.targets.sdist]
 include = [
   "techspecter/",
   "tests/",
+  "docs/",
+  "examples/",
   "README.md",
   "LICENSE",
   "CHANGELOG.md",
+  "CONTRIBUTING.md",
+  "SECURITY.md",
+  "CODE_OF_CONDUCT.md",
+  "SUPPORT.md",
+  "ROADMAP.md",
 ]
 
 [tool.pytest.ini_options]

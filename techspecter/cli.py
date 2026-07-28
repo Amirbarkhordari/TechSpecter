@@ -14,6 +14,7 @@ from rich.console import Console
 from rich.table import Table
 
 from techspecter import __version__
+from techspecter._version import version_display
 from techspecter.analysis.artifact.analyzer_ids import (
     ARTIFACT_ANALYZER_IDS,
     CLI_FLAG_ARTIFACT_MAP,
@@ -45,9 +46,14 @@ _cli_quiet = False
 
 app = typer.Typer(
     name="techspecter",
-    help="TechSpecter — Passive Web Application Analysis Framework.",
+    help=(
+        "TechSpecter — passive web application analysis framework.\n\n"
+        "Discover JavaScript, fingerprint technologies, analyze HTTP/metadata/artifacts, "
+        "and export structured reports. Passive only — no exploitation or active scanning."
+    ),
     no_args_is_help=True,
     add_completion=False,
+    rich_markup_mode="markdown",
 )
 
 
@@ -67,7 +73,7 @@ app.add_typer(plugins_app, name="plugins")
 def version_callback(value: bool) -> None:
     """Print the application version and exit."""
     if value:
-        console.print(f"TechSpecter {__version__}")
+        console.print(f"TechSpecter {version_display()}")
         raise typer.Exit()
 
 
@@ -427,6 +433,62 @@ def _render_discovery_result(result: DiscoveryResult) -> None:
 
     if result.inline_scripts:
         console.print(f"\n[bold]Inline Scripts:[/bold] {len(result.inline_scripts)} found")
+
+
+@app.command("doctor")
+def doctor_command(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output diagnostics as JSON."),
+    ] = False,
+) -> None:
+    """Run installation and environment diagnostics."""
+    import platform
+    import sys
+
+    from techspecter.plugins.developer.diagnostics import environment_diagnostics
+    from techspecter.plugins.manager import PluginManager
+
+    manager = get_configuration_manager()
+    env = environment_diagnostics()
+    plugin_manager = PluginManager()
+    plugin_manager.load_plugins(load_builtins=True)
+    plugin_summary = plugin_manager.load_summary()
+    plugin_manager.shutdown()
+
+    payload: dict[str, object] = {
+        "status": "ok",
+        "version": __version__,
+        "version_display": version_display(),
+        "python_version": env.python_version,
+        "platform": env.platform,
+        "implementation": env.implementation,
+        "configuration_loaded": True,
+        "logging_level": manager.config.logging.level,
+        "plugins_enabled": manager.config.plugins.enabled,
+        "parallel_analyzers": manager.config.performance.parallel_analyzers,
+        "cache_enabled": manager.config.performance.cache_enabled,
+        "plugin_summary": plugin_summary,
+        "executable": sys.executable,
+        "platform_release": platform.release(),
+    }
+
+    if json_output:
+        typer.echo(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        return
+
+    console.print("\n[bold]TechSpecter Doctor[/bold]\n")
+    console.print(f"[bold]Version:[/bold] {version_display()} ({__version__})")
+    console.print(f"[bold]Python:[/bold] {env.python_version}")
+    console.print(f"[bold]Platform:[/bold] {env.platform} ({platform.release()})")
+    console.print(f"[bold]Logging:[/bold] {manager.config.logging.level}")
+    cache_state = "on" if manager.config.performance.cache_enabled else "off"
+    parallel_state = "on" if manager.config.performance.parallel_analyzers else "off"
+    console.print(f"[bold]Performance:[/bold] cache={cache_state}, parallel={parallel_state}")
+    console.print(
+        f"[bold]Plugins:[/bold] {plugin_summary.get('loaded_count', 0)} built-in plugins loaded"
+    )
+    console.print("\n[green]Diagnostics completed successfully.[/green]")
 
 
 @app.command("discover")
