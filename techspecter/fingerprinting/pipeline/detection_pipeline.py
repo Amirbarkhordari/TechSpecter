@@ -11,6 +11,7 @@ from techspecter.fingerprinting.engine import FingerprintEngine
 from techspecter.fingerprinting.loader import SignatureLoader
 from techspecter.fingerprinting.models import DetectionResult, TechnologyMatch
 from techspecter.models.discovery import DiscoveryResult, DownloadResult, InlineScript
+from techspecter.versioning.engine import VersionDetectionEngine
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class FingerprintPipeline:
         *,
         signature_loader: SignatureLoader | None = None,
         merger: TechnologyMerger | None = None,
+        version_engine: VersionDetectionEngine | None = None,
     ) -> None:
         """Initialize the fingerprint pipeline.
 
@@ -31,10 +33,12 @@ class FingerprintPipeline:
             engine: Optional preconfigured fingerprint engine.
             signature_loader: Optional signature loader for dependency injection.
             merger: Optional technology merger for duplicate suppression.
+            version_engine: Optional version detection engine for Phase 6 enrichment.
         """
         self._signature_loader = signature_loader or SignatureLoader()
         self._engine = engine or FingerprintEngine(self._signature_loader.load_all())
         self._merger = merger or TechnologyMerger()
+        self._version_engine = version_engine or VersionDetectionEngine()
 
     def detect_context(self, context: MatchContext) -> list[TechnologyMatch]:
         """Detect technologies in a single JavaScript resource context.
@@ -65,21 +69,22 @@ class FingerprintPipeline:
             all_matches.extend(self._engine.detect(context))
 
         matches = self._merger.merge_matches(all_matches)
-
         elapsed_ms = (time.perf_counter() - started) * 1000
-        logger.info(
-            "Fingerprint detection complete for %s: %d technologies from %d scripts (%.0f ms)",
-            target_url,
-            len(matches),
-            len(contexts),
-            elapsed_ms,
-        )
-        return DetectionResult(
+        detection = DetectionResult(
             target_url=target_url,
             matches=matches,
             scripts_analyzed=len(contexts),
             elapsed_ms=elapsed_ms,
         )
+        detection = self._version_engine.enrich(detection, discovery)
+        logger.info(
+            "Fingerprint detection complete for %s: %d technologies from %d scripts (%.0f ms)",
+            target_url,
+            len(detection.matches),
+            len(contexts),
+            elapsed_ms,
+        )
+        return detection
 
 
 def _iter_analysis_contexts(discovery: DiscoveryResult) -> list[MatchContext]:

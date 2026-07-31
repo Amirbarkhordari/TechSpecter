@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from techspecter.analysis.analyzers.base import Analyzer
 from techspecter.core.context import ScanContext
 from techspecter.core.interfaces import Plugin as CorePlugin
 from techspecter.core.interfaces import PluginMetadata as CorePluginMetadata
@@ -15,6 +15,9 @@ from techspecter.plugins.hooks import HookRegistry
 from techspecter.plugins.metadata import PluginMetadata, PluginType
 from techspecter.reporting.engine import ReportEngine
 from techspecter.reporting.exporters.base import BaseExporter
+
+if TYPE_CHECKING:
+    from techspecter.analysis.analyzers.base import Analyzer
 
 
 class Plugin(CorePlugin):
