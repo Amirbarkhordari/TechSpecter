@@ -25,10 +25,29 @@ logger = logging.getLogger(__name__)
 _SECTION_WIDTH = 50
 
 
+def render_fingerprint_technology_intelligence(
+    report: TechnologyIntelligenceReport,
+    *,
+    console: Console,
+) -> None:
+    """Render a concise technology intelligence summary for fingerprint CLI."""
+    render_technology_intelligence(report, console=console, cli_mode=True)
+
+
+def render_fingerprint_technology_evidence(
+    report: TechnologyIntelligenceReport,
+    *,
+    console: Console,
+) -> None:
+    """Render concise technology evidence blocks for fingerprint CLI."""
+    render_technology_evidence(report, console=console, cli_mode=True)
+
+
 def render_technology_intelligence(
     report: TechnologyIntelligenceReport,
     *,
     console: Console,
+    cli_mode: bool = False,
 ) -> None:
     """Render technology intelligence summary table."""
     if not report.technologies:
@@ -38,7 +57,7 @@ def render_technology_intelligence(
     console.print("[bold]Technology Intelligence[/bold]")
     console.print("=" * _SECTION_WIDTH + "\n")
 
-    table = _build_summary_table(report)
+    table = _build_summary_table(report, cli_mode=cli_mode)
     console.print(table)
     console.print()
 
@@ -47,6 +66,7 @@ def render_technology_evidence(
     report: TechnologyIntelligenceReport,
     *,
     console: Console,
+    cli_mode: bool = False,
 ) -> None:
     """Render detailed technology evidence blocks."""
     if not report.technologies:
@@ -57,22 +77,35 @@ def render_technology_evidence(
     console.print("=" * _SECTION_WIDTH + "\n")
 
     for entry in report.technologies:
-        _render_evidence_block(entry, console=console)
+        _render_evidence_block(entry, console=console, cli_mode=cli_mode)
 
 
-def _build_summary_table(report: TechnologyIntelligenceReport) -> Table:
+def _build_summary_table(
+    report: TechnologyIntelligenceReport,
+    *,
+    cli_mode: bool = False,
+) -> Table:
     width = shutil.get_terminal_size(fallback=(120, 24)).columns
     table = Table(show_header=True, header_style="bold", expand=False, width=min(width, 120))
     table.add_column("Technology", overflow="fold")
     table.add_column("Version", overflow="fold")
     table.add_column("Category", overflow="fold")
     table.add_column("Confidence", justify="right")
-    table.add_column("Files", justify="right")
-    table.add_column("Evidence", justify="right")
-    table.add_column("Relationship", justify="right")
-    table.add_column("Detector", overflow="fold")
+    if not cli_mode:
+        table.add_column("Files", justify="right")
+        table.add_column("Evidence", justify="right")
+        table.add_column("Relationship", justify="right")
+        table.add_column("Detector", overflow="fold")
 
     for entry in report.technologies:
+        if cli_mode:
+            table.add_row(
+                entry.technology.name,
+                entry.version,
+                entry.technology.category,
+                f"{entry.confidence:.0f}%",
+            )
+            continue
         rel_count = len(entry.relationships)
         table.add_row(
             entry.technology.name,
@@ -87,10 +120,15 @@ def _build_summary_table(report: TechnologyIntelligenceReport) -> Table:
     return table
 
 
-def _render_evidence_block(entry: TechnologyIntelligenceEntry, *, console: Console) -> None:
+def _render_evidence_block(
+    entry: TechnologyIntelligenceEntry,
+    *,
+    console: Console,
+    cli_mode: bool = False,
+) -> None:
     console.print("-" * _SECTION_WIDTH)
     console.print(f"[bold]Technology:[/bold] {entry.technology.name}")
-    _render_found_in(entry, console=console)
+    _render_found_in(entry, console=console, cli_mode=cli_mode)
 
     primary = _primary_evidence(entry.evidence)
     if primary is not None:
@@ -98,15 +136,12 @@ def _render_evidence_block(entry: TechnologyIntelligenceEntry, *, console: Conso
         matched_text = _display_matched_text(primary)
         if matched_text:
             console.print(f"  {matched_text}")
-        if primary.matched_pattern and primary.matched_pattern != matched_text:
-            console.print("\n[bold]Matched Pattern:[/bold]")
-            console.print(f"  {primary.matched_pattern}")
 
-    if entry.metadata.detection_methods:
+    if not cli_mode and entry.metadata.detection_methods:
         console.print("\n[bold]Discovery Methods:[/bold]")
         console.print(f"  {', '.join(entry.metadata.detection_methods)}")
 
-    if entry.relationships:
+    if not cli_mode and entry.relationships:
         console.print("\n[bold]Relationships:[/bold]")
         for rel in entry.relationships:
             console.print(
@@ -115,14 +150,21 @@ def _render_evidence_block(entry: TechnologyIntelligenceEntry, *, console: Conso
             )
 
     if entry.version_attribution is not None:
-        _render_version_attribution(entry, console=console)
+        _render_version_attribution(entry, console=console, cli_mode=cli_mode)
 
     console.print(f"\n[bold]Confidence:[/bold] {entry.confidence:.0f}%\n")
 
 
-def _render_found_in(entry: TechnologyIntelligenceEntry, *, console: Console) -> None:
+def _render_found_in(
+    entry: TechnologyIntelligenceEntry,
+    *,
+    console: Console,
+    cli_mode: bool = False,
+) -> None:
     console.print("[bold]Found In:[/bold]")
     locations = _collect_locations(entry)
+    if cli_mode:
+        locations = locations[:1]
     if not locations:
         console.print("  [dim](unknown)[/dim]")
         return
@@ -132,14 +174,19 @@ def _render_found_in(entry: TechnologyIntelligenceEntry, *, console: Console) ->
             console.print(f"  [bold]Relative Path:[/bold] {location['relative_path']}")
         if location.get("asset_id"):
             console.print(f"  [bold]Asset ID:[/bold] {location['asset_id']}")
-        if location.get("source_url"):
+        if not cli_mode and location.get("source_url"):
             console.print(f"  [bold]Source URL:[/bold] {location['source_url']}")
-        if location.get("discovery_method"):
+        if not cli_mode and location.get("discovery_method"):
             console.print(f"  [bold]Discovery:[/bold] {location['discovery_method']}")
         console.print()
 
 
-def _render_version_attribution(entry: TechnologyIntelligenceEntry, *, console: Console) -> None:
+def _render_version_attribution(
+    entry: TechnologyIntelligenceEntry,
+    *,
+    console: Console,
+    cli_mode: bool = False,
+) -> None:
     attr = entry.version_attribution
     if attr is None:
         return
@@ -147,7 +194,7 @@ def _render_version_attribution(entry: TechnologyIntelligenceEntry, *, console: 
     console.print(f"  [bold]Version:[/bold] {attr.detected_version}")
     if attr.source_file:
         console.print(f"  [bold]Source File:[/bold] {attr.source_file}")
-    if attr.source_url:
+    if not cli_mode and attr.source_url:
         console.print(f"  [bold]Source URL:[/bold] {attr.source_url}")
     if attr.source_asset_id:
         console.print(f"  [bold]Asset ID:[/bold] {attr.source_asset_id}")

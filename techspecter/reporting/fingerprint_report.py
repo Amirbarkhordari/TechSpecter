@@ -12,6 +12,7 @@ from techspecter.fingerprinting.models import (
     FingerprintAnalysisResult,
     SecurityFinding,
 )
+from techspecter.reporting.cli_display import count_fingerprint_security_findings
 from techspecter.reporting.models import Report
 from techspecter.reporting.renderer import render_report
 
@@ -37,9 +38,9 @@ def render_fingerprint_report(
     _render_target_summary(result, report, console=console)
 
     if result.asset_inventory is not None:
-        from techspecter.asset_discovery.report import render_asset_inventory
+        from techspecter.asset_discovery.report import render_fingerprint_asset_inventory
 
-        render_asset_inventory(result.asset_inventory, console=console)
+        render_fingerprint_asset_inventory(result.asset_inventory, console=console)
 
     _render_technology_detection(
         report, console=console, group_by_category=group_by_category, verbose=verbose
@@ -47,17 +48,22 @@ def render_fingerprint_report(
 
     if result.technology_intelligence is not None:
         from techspecter.technology_intelligence.report import (
-            render_technology_evidence,
-            render_technology_intelligence,
+            render_fingerprint_technology_evidence,
+            render_fingerprint_technology_intelligence,
         )
 
-        render_technology_intelligence(result.technology_intelligence, console=console)
-        render_technology_evidence(result.technology_intelligence, console=console)
+        render_fingerprint_technology_intelligence(
+            result.technology_intelligence,
+            console=console,
+        )
+        render_fingerprint_technology_evidence(result.technology_intelligence, console=console)
 
     if result.sensitive_intelligence is not None:
-        from techspecter.sensitive_intelligence.report import render_sensitive_intelligence
+        from techspecter.sensitive_intelligence.cli_display import (
+            render_fingerprint_sensitive_intelligence,
+        )
 
-        render_sensitive_intelligence(result.sensitive_intelligence, console=console)
+        render_fingerprint_sensitive_intelligence(result.sensitive_intelligence, console=console)
 
     _render_security_summary(result.detection, console=console)
 
@@ -90,9 +96,9 @@ def _render_target_summary(
 
     sensitive = result.sensitive_intelligence
     if sensitive is not None:
-        console.print(
-            f"[bold]Sensitive findings:[/bold] {sensitive.summary.total_findings}",
-        )
+        security_count = count_fingerprint_security_findings(sensitive)
+        if security_count:
+            console.print(f"[bold]Security findings:[/bold] {security_count}")
     console.print()
 
 
@@ -119,6 +125,7 @@ def _render_technology_detection(
         group_by_category=group_by_category,
         verbose=verbose,
         skip_header=True,
+        cli_mode=True,
     )
     console.print()
 

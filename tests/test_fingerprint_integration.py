@@ -24,6 +24,10 @@ from techspecter.providers.evidence import ProviderEvidenceAggregator
 from techspecter.providers.models import ProviderEvidenceItem, ProviderMatch
 from techspecter.reporting.fingerprint_report import render_fingerprint_report
 from techspecter.reporting.service import ReportService
+from techspecter.sensitive_intelligence.cli_display import (
+    filter_fingerprint_cli_findings,
+    is_fingerprint_cli_relevant,
+)
 from techspecter.sensitive_intelligence.models import (
     ConfidenceLevel,
     FindingType,
@@ -32,6 +36,7 @@ from techspecter.sensitive_intelligence.models import (
     SensitiveIntelligenceSummary,
     SeverityLevel,
 )
+from techspecter.sensitive_intelligence.report import build_report_sensitive_intelligence
 from techspecter.technology_intelligence.attribution import AssetAttributor
 from techspecter.technology_intelligence.engine import TechnologyIntelligenceEngine
 from techspecter.technology_intelligence.evidence import build_evidence_from_match
@@ -66,13 +71,40 @@ def _sample_sensitive_report() -> SensitiveIntelligenceReport:
         target_url="https://example.com/",
         summary=SensitiveIntelligenceSummary(
             emails=1,
-            domains=1,
-            total_findings=2,
+            phones=1,
+            domains=2,
+            secrets=1,
+            credentials=1,
+            total_findings=6,
             assets_analyzed=1,
         ),
         findings=[
             SensitiveFindingRecord(
-                finding_id="f1",
+                finding_id="f-secret",
+                finding_type=FindingType.SECRET,
+                subtype="jwt-token",
+                severity=SeverityLevel.HIGH,
+                confidence=94.0,
+                confidence_level=ConfidenceLevel.HIGH,
+                matched_value="jwt-token [redacted]",
+                matched_pattern="jwt",
+                detector_name="secret-detector",
+                source_files=["main.js"],
+            ),
+            SensitiveFindingRecord(
+                finding_id="f-cred",
+                finding_type=FindingType.CREDENTIAL,
+                subtype="mongodb-uri",
+                severity=SeverityLevel.HIGH,
+                confidence=95.0,
+                confidence_level=ConfidenceLevel.HIGH,
+                matched_value="mongodb-uri [redacted]",
+                matched_pattern="mongodb",
+                detector_name="credential-detector",
+                source_files=["config.js"],
+            ),
+            SensitiveFindingRecord(
+                finding_id="f-email",
                 finding_type=FindingType.EMAIL,
                 subtype="standard",
                 severity=SeverityLevel.LOW,
@@ -81,6 +113,30 @@ def _sample_sensitive_report() -> SensitiveIntelligenceReport:
                 matched_value="admin@example.com",
                 matched_pattern=r"[a-z]+@[a-z]+\.[a-z]+",
                 detector_name="email-detector",
+                source_files=["main.js"],
+            ),
+            SensitiveFindingRecord(
+                finding_id="f-phone",
+                finding_type=FindingType.PHONE,
+                subtype="us-phone",
+                severity=SeverityLevel.LOW,
+                confidence=70.0,
+                confidence_level=ConfidenceLevel.MEDIUM,
+                matched_value="+1-555-0100",
+                matched_pattern="phone",
+                detector_name="phone-detector",
+                source_files=["main.js"],
+            ),
+            SensitiveFindingRecord(
+                finding_id="f-domain",
+                finding_type=FindingType.DOMAIN,
+                subtype="domain",
+                severity=SeverityLevel.LOW,
+                confidence=65.0,
+                confidence_level=ConfidenceLevel.MEDIUM,
+                matched_value="example.com",
+                matched_pattern="domain",
+                detector_name="domain-detector",
                 source_files=["main.js"],
             ),
         ],
@@ -170,20 +226,50 @@ def test_asset_inventory_report_includes_required_columns() -> None:
     render_fingerprint_report(result, report, console=console)
     output = console.export_text()
     assert "asset-main" in output
-    assert "/_next/static/chunks/main.js" in output
     assert "main.js" in output
 
 
-def test_sensitive_intelligence_report_is_rendered() -> None:
-    """Verify sensitive intelligence appears in fingerprint output."""
+def test_fingerprint_hides_domains_phones_and_emails_from_cli() -> None:
+    """Verify informational sensitive findings are hidden from fingerprint CLI."""
     result = _analysis_result()
     report = ReportService().generate_report(result.detection)
-    console = Console(record=True, width=120)
+    console = Console(record=True, width=140)
     render_fingerprint_report(result, report, console=console)
     output = console.export_text()
+
     assert "Sensitive Data Intelligence" in output
-    assert "Domains:" in output
-    assert "admin@example.com" in output
+    assert "jwt-token" in output
+    assert "mongodb-uri" in output
+    assert "Domains:" not in output
+    assert "Phones:" not in output
+    assert "Emails:" not in output
+    assert "admin@example.com" not in output
+    assert "+1-555-0100" not in output
+    assert "Domain Findings" not in output
+    assert "Email Findings" not in output
+
+
+def test_internal_sensitive_models_preserve_all_findings() -> None:
+    """Verify export models still contain hidden CLI findings."""
+    report = _sample_sensitive_report()
+    export = build_report_sensitive_intelligence(report)
+    assert export.total_findings == 6
+    assert len(export.findings) == 5
+    types = {item.finding_type for item in export.findings}
+    assert "email" in types
+    assert "phone" in types
+    assert "domain" in types
+
+
+def test_fingerprint_cli_filter_keeps_security_relevant_findings() -> None:
+    """Verify CLI filter keeps secrets and credentials."""
+    report = _sample_sensitive_report()
+    filtered = filter_fingerprint_cli_findings(report.findings)
+    assert len(filtered) == 2
+    assert all(is_fingerprint_cli_relevant(item) for item in filtered)
+    assert all(
+        item.finding_type in {FindingType.SECRET, FindingType.CREDENTIAL} for item in filtered
+    )
 
 
 def test_technology_attribution_avoids_unknown_when_asset_known() -> None:
@@ -265,6 +351,8 @@ def test_fingerprint_cli_renders_integrated_sections(mock_analyze: AsyncMock) ->
     assert "Asset Inventory" in result.stdout
     assert "Sensitive Data Intelligence" in result.stdout
     assert "Technology Evidence" in result.stdout
+    assert "Domains:" not in result.stdout
+    assert "Phones:" not in result.stdout
 
 
 @respx.mock

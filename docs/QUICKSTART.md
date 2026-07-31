@@ -42,6 +42,11 @@ intelligence, sensitive intelligence, and reporting in one pass. Console output 
 in order: Target Summary, Asset Inventory, Technology Detection, Technology Intelligence,
 Technology Evidence, Sensitive Data Intelligence, and Security Summary.
 
+The fingerprint CLI report focuses on security-relevant output. Informational findings such
+as emails, phone numbers, domains, URLs, IPs, and UUIDs are collected internally but are
+not printed to the terminal. Secrets, credentials, and security markers (TODO/FIXME/debug)
+are shown.
+
 ### Full passive analysis (HTTP + metadata + artifacts)
 
 ```bash

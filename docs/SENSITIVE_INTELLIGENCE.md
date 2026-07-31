@@ -27,7 +27,8 @@ DiscoveryPipeline.run()
 | `tracker.py` | Deduplication and multi-file merge |
 | `evidence.py` | Evidence helpers (line numbers, offsets, counts) |
 | `engine.py` | Orchestration |
-| `report.py` | Console output + export-ready models |
+| `report.py` | Full console output + export-ready models |
+| `cli_display.py` | Fingerprint CLI filtering and concise rendering |
 
 ## Detector pipeline
 
@@ -77,7 +78,29 @@ Each `SensitiveFindingRecord` includes:
 
 ### Console
 
-`discover`, `sensitive-intelligence`, and discovery pipeline output include:
+`discover` and `sensitive-intelligence` render the full finding set.
+
+The `fingerprint` command uses a **filtered CLI view** that prioritizes security-relevant
+findings only. Emails, phone numbers, domains, URLs, IPs, UUIDs, and usernames remain in
+internal models and export payloads but are not printed to the terminal. Secrets,
+credentials, and security markers (TODO/FIXME/HACK/debug) are shown.
+
+```
+==================================================
+Sensitive Data Intelligence
+==================================================
+
+Summary
+  Secrets: …
+  Credentials: …
+  Security Markers: …
+  High Severity: …
+
+Category | Value | Severity | Confidence | Source
+...
+```
+
+Full console example (`discover` / `sensitive-intelligence`):
 
 ```
 ==================================================

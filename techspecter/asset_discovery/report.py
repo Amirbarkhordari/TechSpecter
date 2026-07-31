@@ -13,6 +13,8 @@ from techspecter.reporting.models import ReportAssetEntry, ReportAssetInventory,
 
 logger = logging.getLogger(__name__)
 
+_MAX_FINGERPRINT_ASSETS = 50
+
 _CATEGORY_LABELS: dict[AssetCategory, str] = {
     AssetCategory.JAVASCRIPT: "JavaScript",
     AssetCategory.CSS: "CSS",
@@ -88,6 +90,68 @@ def render_asset_inventory(inventory: AssetInventory, *, console: Console | None
 
     output.print(table)
     logger.info("Rendered asset inventory with %d assets", len(inventory.assets))
+
+
+def render_fingerprint_asset_inventory(
+    inventory: AssetInventory,
+    *,
+    console: Console | None = None,
+) -> None:
+    """Render a concise asset inventory for the fingerprint CLI."""
+    output = console or Console()
+    summary = inventory.summary
+
+    output.print("\n[bold]" + "=" * 50 + "[/bold]")
+    output.print("[bold]Asset Inventory[/bold]")
+    output.print("[bold]" + "=" * 50 + "[/bold]\n")
+    output.print("[bold]Summary[/bold]\n")
+    output.print(f"JavaScript : {summary.javascript}")
+    output.print(f"CSS : {summary.css}")
+    output.print(f"JSON : {summary.json_count}")
+    output.print(f"Source Maps : {summary.map_count}")
+    output.print(f"Manifest : {summary.manifest}")
+    output.print(f"Workers : {summary.worker}")
+    output.print(f"Service Workers : {summary.service_worker}")
+    output.print(f"Fonts : {summary.font}")
+    output.print(f"WASM : {summary.wasm}")
+    output.print(f"XML : {summary.xml}")
+    output.print(f"TXT : {summary.text}")
+    output.print(f"Images : {summary.image}")
+    other = summary.unknown + summary.other
+    output.print(f"Other : {other}")
+    output.print(f"\n[bold]Total Assets : {summary.total_assets}[/bold]\n")
+
+    if not inventory.assets:
+        output.print("[dim]No assets discovered.[/dim]")
+        return
+
+    terminal_width = shutil.get_terminal_size(fallback=(120, 24)).columns
+    table = Table(title="Asset Inventory", expand=True, min_width=min(terminal_width, 120))
+    table.add_column("Category", no_wrap=True)
+    table.add_column("File Name", overflow="fold", max_width=max(20, terminal_width // 5))
+    table.add_column("Relative Path", overflow="fold", max_width=max(20, terminal_width // 4))
+    table.add_column("Extension", no_wrap=True)
+    table.add_column("Status", no_wrap=True)
+    table.add_column("Size", no_wrap=True)
+    table.add_column("Asset ID", overflow="fold", max_width=max(12, terminal_width // 8))
+
+    displayed = inventory.assets[:_MAX_FINGERPRINT_ASSETS]
+    for asset in displayed:
+        table.add_row(
+            _category_label(asset.category),
+            asset.filename,
+            asset.relative_path or "-",
+            asset.extension or "-",
+            _format_status(asset),
+            _format_size(asset.file_size),
+            asset.asset_id,
+        )
+
+    output.print(table)
+    remaining = len(inventory.assets) - len(displayed)
+    if remaining > 0:
+        output.print(f"[dim]... and {remaining} more assets[/dim]")
+    logger.info("Rendered fingerprint asset inventory with %d assets", len(displayed))
 
 
 def build_report_asset_inventory(inventory: AssetInventory) -> ReportAssetInventory:

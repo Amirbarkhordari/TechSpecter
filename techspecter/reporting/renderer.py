@@ -18,6 +18,7 @@ def render_report(
     group_by_category: bool = False,
     verbose: bool = False,
     skip_header: bool = False,
+    cli_mode: bool = False,
 ) -> None:
     """Render a scan report to the terminal."""
     if compact:
@@ -30,7 +31,8 @@ def render_report(
         console.print(f"[bold]Scripts analyzed:[/bold] {report.statistics.scripts_analyzed}")
         console.print(f"[bold]Summary:[/bold] {report.summary.headline}\n")
 
-    _render_statistics(report, console=console)
+    if not cli_mode:
+        _render_statistics(report, console=console)
 
     if not report.technologies:
         console.print("[yellow]No JavaScript technologies detected.[/yellow]")
@@ -38,10 +40,10 @@ def render_report(
 
     matches = list(report.technologies)
     if group_by_category:
-        _render_grouped(matches, console=console, verbose=verbose)
+        _render_grouped(matches, console=console, verbose=verbose, cli_mode=cli_mode)
         return
 
-    _render_table(matches, console=console, verbose=verbose)
+    _render_table(matches, console=console, verbose=verbose, cli_mode=cli_mode)
 
 
 def _render_statistics(report: Report, *, console: Console) -> None:
@@ -77,6 +79,7 @@ def _render_grouped(
     *,
     console: Console,
     verbose: bool,
+    cli_mode: bool = False,
 ) -> None:
     """Render technologies grouped by category."""
     grouped: dict[str, list[ReportTechnology]] = defaultdict(list)
@@ -85,7 +88,13 @@ def _render_grouped(
 
     for category in sorted(grouped):
         console.print(f"[bold cyan]{category}[/bold cyan]")
-        _render_table(grouped[category], console=console, verbose=verbose, title=None)
+        _render_table(
+            grouped[category],
+            console=console,
+            verbose=verbose,
+            title=None,
+            cli_mode=cli_mode,
+        )
 
 
 def _render_table(
@@ -94,6 +103,7 @@ def _render_table(
     console: Console,
     verbose: bool,
     title: str | None = "Detected Technologies",
+    cli_mode: bool = False,
 ) -> None:
     """Render a Rich table of technologies."""
     table = Table(title=title)
@@ -101,22 +111,28 @@ def _render_table(
     table.add_column("Category")
     table.add_column("Version")
     table.add_column("Confidence")
-    table.add_column("Detected By")
-    table.add_column("Evidence")
-    if verbose:
+    if not cli_mode:
+        table.add_column("Detected By")
+        table.add_column("Evidence")
+    if verbose and not cli_mode:
         table.add_column("Details")
 
     for technology in technologies:
-        detected_by = ", ".join(technology.detected_by) if technology.detected_by else "-"
         row = [
             technology.name,
             technology.category,
             technology.version,
             f"{technology.confidence:.1f}",
-            detected_by,
-            str(technology.evidence_count or len(technology.evidence)),
         ]
-        if verbose:
+        if not cli_mode:
+            detected_by = ", ".join(technology.detected_by) if technology.detected_by else "-"
+            row.extend(
+                [
+                    detected_by,
+                    str(technology.evidence_count or len(technology.evidence)),
+                ],
+            )
+        if verbose and not cli_mode:
             details = technology.detection_reason or "-"
             if technology.detection_methods:
                 details = f"{details} | methods: {', '.join(technology.detection_methods)}"
