@@ -8,6 +8,7 @@ from techspecter.sensitive_intelligence.cli_display import (
 )
 from techspecter.sensitive_intelligence.models import (
     ConfidenceLevel,
+    FindingCategory,
     FindingType,
     SensitiveFindingRecord,
     SeverityLevel,
@@ -23,6 +24,7 @@ def _finding(
     return SensitiveFindingRecord(
         finding_id=f"{finding_type.value}-{subtype}",
         finding_type=finding_type,
+        category=_category_for_type(finding_type, subtype),
         subtype=subtype,
         severity=severity,
         confidence=80.0,
@@ -32,6 +34,16 @@ def _finding(
         detector_name="test-detector",
         source_files=["main.js"],
     )
+
+
+def _category_for_type(finding_type: FindingType, subtype: str) -> FindingCategory:
+    if finding_type == FindingType.SECRET:
+        return FindingCategory.SECRETS
+    if finding_type == FindingType.CREDENTIAL:
+        return FindingCategory.CREDENTIALS
+    if finding_type == FindingType.COMMENT:
+        return FindingCategory.DEVELOPER_ARTIFACTS
+    return FindingCategory.OTHER
 
 
 def test_cli_filter_excludes_domains_and_phones() -> None:

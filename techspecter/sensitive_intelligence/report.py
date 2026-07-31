@@ -14,13 +14,14 @@ from techspecter.reporting.models import (
     ReportSensitiveFinding,
     ReportSensitiveIntelligence,
 )
+from techspecter.sensitive_intelligence.display_utils import escape_rich_markup, print_label_value
 from techspecter.sensitive_intelligence.evidence import (
     byte_offsets,
     evidence_count,
     line_numbers,
 )
 from techspecter.sensitive_intelligence.models import (
-    FindingType,
+    FindingCategory,
     SensitiveFindingRecord,
     SensitiveIntelligenceReport,
 )
@@ -28,17 +29,16 @@ from techspecter.sensitive_intelligence.models import (
 logger = logging.getLogger(__name__)
 
 _SECTION_WIDTH = 50
+_SECTION_TITLE = "Secret & Sensitive Intelligence"
 _CATEGORY_ORDER = (
-    FindingType.EMAIL,
-    FindingType.PHONE,
-    FindingType.URL,
-    FindingType.DOMAIN,
-    FindingType.IP,
-    FindingType.UUID,
-    FindingType.COMMENT,
-    FindingType.SECRET,
-    FindingType.CREDENTIAL,
+    FindingCategory.SECRETS,
+    FindingCategory.CREDENTIALS,
+    FindingCategory.SENSITIVE_CONFIGURATION,
+    FindingCategory.DEVELOPER_ARTIFACTS,
+    FindingCategory.CONTACT_INFORMATION,
+    FindingCategory.OTHER,
 )
+_MAX_DETAIL_BLOCKS = 20
 
 
 def render_sensitive_intelligence(
@@ -46,64 +46,54 @@ def render_sensitive_intelligence(
     *,
     console: Console,
 ) -> None:
-    """Render sensitive data intelligence summary and evidence."""
+    """Render secret and sensitive intelligence summary and evidence."""
     if not report.findings and report.summary.assets_analyzed == 0:
         return
 
     console.print("\n" + "=" * _SECTION_WIDTH)
-    console.print("[bold]Sensitive Data Intelligence[/bold]")
+    console.print(f"[bold]{_SECTION_TITLE}[/bold]")
     console.print("=" * _SECTION_WIDTH + "\n")
-    _render_summary(report, console=console)
+    _render_category_summary(report, console=console)
     console.print()
 
-    grouped = _group_findings(report.findings)
-    for finding_type in _CATEGORY_ORDER:
-        findings = grouped.get(finding_type, [])
+    grouped = _group_by_category(report.findings)
+    for category in _CATEGORY_ORDER:
+        findings = grouped.get(category, [])
         if not findings:
             continue
-        console.print(f"[bold]{finding_type.value.title()} Findings[/bold]")
+        console.print(f"[bold]{_category_label(category)}[/bold]")
         console.print(_build_findings_table(findings))
         console.print()
 
-    other_types = [
-        finding_type
-        for finding_type in grouped
-        if finding_type not in _CATEGORY_ORDER and grouped[finding_type]
-    ]
-    for finding_type in sorted(other_types, key=lambda item: item.value):
-        console.print(f"[bold]{finding_type.value.title()} Findings[/bold]")
-        console.print(_build_findings_table(grouped[finding_type]))
-        console.print()
-
-    for finding in report.findings[:20]:
-        _render_evidence_block(finding, console=console)
-    if len(report.findings) > 20:
-        console.print(f"[dim]... and {len(report.findings) - 20} more findings[/dim]\n")
+    for finding in report.findings[:_MAX_DETAIL_BLOCKS]:
+        _render_detail_block(finding, console=console)
+    if len(report.findings) > _MAX_DETAIL_BLOCKS:
+        console.print(
+            f"[dim]... and {len(report.findings) - _MAX_DETAIL_BLOCKS} more findings[/dim]\n"
+        )
 
 
-def _render_summary(report: SensitiveIntelligenceReport, *, console: Console) -> None:
+def _render_category_summary(report: SensitiveIntelligenceReport, *, console: Console) -> None:
     summary = report.summary
     console.print("[bold]Summary[/bold]")
-    console.print(f"  Emails: {summary.emails}")
-    console.print(f"  Phones: {summary.phones}")
-    console.print(f"  URLs: {summary.urls}")
-    console.print(f"  Domains: {summary.domains}")
-    console.print(f"  IPs: {summary.ips}")
-    console.print(f"  UUIDs: {summary.uuids}")
-    console.print(f"  Comments: {summary.comments}")
     console.print(f"  Secrets: {summary.secrets}")
     console.print(f"  Credentials: {summary.credentials}")
-    console.print(f"  High Severity: {summary.high_severity}")
-    console.print(f"  Medium Severity: {summary.medium_severity}")
-    console.print(f"  Low Severity: {summary.low_severity}")
+    console.print(f"  Sensitive Configuration: {summary.sensitive_configuration}")
+    console.print(f"  Developer Artifacts: {summary.developer_artifacts}")
+    console.print(f"  Critical: {summary.critical_severity}")
+    console.print(f"  High: {summary.high_severity}")
+    console.print(f"  Medium: {summary.medium_severity}")
+    console.print(f"  Low: {summary.low_severity}")
+    console.print(f"  Informational: {summary.informational_severity}")
+    console.print(f"  Assets Analyzed: {summary.assets_analyzed}")
 
 
-def _group_findings(
+def _group_by_category(
     findings: list[SensitiveFindingRecord],
-) -> dict[FindingType, list[SensitiveFindingRecord]]:
-    grouped: dict[FindingType, list[SensitiveFindingRecord]] = defaultdict(list)
+) -> dict[FindingCategory, list[SensitiveFindingRecord]]:
+    grouped: dict[FindingCategory, list[SensitiveFindingRecord]] = defaultdict(list)
     for finding in findings:
-        grouped[finding.finding_type].append(finding)
+        grouped[finding.category].append(finding)
     return grouped
 
 
@@ -114,38 +104,43 @@ def _build_findings_table(findings: list[SensitiveFindingRecord]) -> Table:
     table.add_column("Value", overflow="fold")
     table.add_column("Severity", overflow="fold")
     table.add_column("Confidence", justify="right")
-    table.add_column("Files", justify="right")
-    table.add_column("Occurrences", justify="right")
-    table.add_column("Detector", overflow="fold")
+    table.add_column("Source", overflow="fold")
+    table.add_column("Count", justify="right")
 
     for finding in findings:
+        source = finding.source_files[0] if finding.source_files else "-"
         table.add_row(
-            f"{finding.finding_type.value}/{finding.subtype}",
-            finding.matched_value,
+            escape_rich_markup(f"{finding.subtype}"),
+            escape_rich_markup(finding.matched_value),
             finding.severity.value,
             f"{finding.confidence:.0f}%",
-            str(len(finding.source_files)),
+            escape_rich_markup(source),
             str(finding.occurrence_count),
-            finding.detector_name,
         )
     return table
 
 
-def _render_evidence_block(finding: SensitiveFindingRecord, *, console: Console) -> None:
+def _render_detail_block(finding: SensitiveFindingRecord, *, console: Console) -> None:
     console.print("-" * _SECTION_WIDTH)
-    console.print(f"[bold]Type:[/bold] {finding.finding_type.value} / {finding.subtype}")
-    console.print(f"[bold]Matched Value:[/bold] {finding.matched_value}")
-    console.print(f"[bold]Matched Pattern:[/bold] {finding.matched_pattern}")
-    console.print("[bold]Files:[/bold]")
-    for filename in finding.source_files:
-        console.print(f"  {filename}")
+    print_label_value(console, "What:", finding.description or finding.subtype)
+    source = finding.source_files[0] if finding.source_files else "-"
+    rel_path = finding.relative_paths[0] if finding.relative_paths else source
+    print_label_value(console, "Where:", f"{source} ({rel_path})")
+    if finding.locations and finding.locations[0].asset_id:
+        print_label_value(console, "Asset ID:", finding.locations[0].asset_id)
+    print_label_value(console, "Why it matters:", finding.description or finding.subtype)
+    print_label_value(console, "Matched Pattern:", finding.matched_pattern)
+    print_label_value(console, "Matched Value:", finding.matched_value)
+    if finding.evidence:
+        print_label_value(console, "Evidence:", finding.evidence[:240])
+    if finding.recommendation:
+        print_label_value(console, "Recommendation:", finding.recommendation)
     lines = line_numbers(finding)
     if lines:
-        console.print(f"[bold]Line Numbers:[/bold] {', '.join(str(item) for item in lines)}")
+        console.print(f"[bold]Line Numbers:[/bold] {', '.join(str(item) for item in lines[:5])}")
     offsets = byte_offsets(finding)
     if offsets:
-        console.print(f"[bold]Offsets:[/bold] {', '.join(str(item) for item in offsets)}")
-    console.print(f"[bold]Evidence Count:[/bold] {evidence_count(finding)}")
+        console.print(f"[bold]Offsets:[/bold] {', '.join(str(item) for item in offsets[:5])}")
     console.print(f"[bold]Confidence:[/bold] {finding.confidence:.0f}%\n")
 
 
@@ -168,7 +163,7 @@ def build_report_section(report: SensitiveIntelligenceReport) -> ReportSection:
     export_model = build_report_sensitive_intelligence(report)
     return ReportSection(
         id="sensitive-intelligence",
-        title="Sensitive Data Intelligence",
+        title=_SECTION_TITLE,
         summary=(
             f"{export_model.total_findings} findings across "
             f"{export_model.assets_analyzed} assets"
@@ -196,3 +191,15 @@ def _map_finding(finding: SensitiveFindingRecord) -> ReportSensitiveFinding:
         locations=[item.model_dump(mode="json") for item in finding.locations],
         evidence=finding.evidence,
     )
+
+
+def _category_label(category: FindingCategory) -> str:
+    labels = {
+        FindingCategory.SECRETS: "Secrets",
+        FindingCategory.CREDENTIALS: "Credentials",
+        FindingCategory.SENSITIVE_CONFIGURATION: "Sensitive Configuration",
+        FindingCategory.DEVELOPER_ARTIFACTS: "Developer Artifacts",
+        FindingCategory.CONTACT_INFORMATION: "Contact Information",
+        FindingCategory.OTHER: "Other Findings",
+    }
+    return labels.get(category, category.value.title())

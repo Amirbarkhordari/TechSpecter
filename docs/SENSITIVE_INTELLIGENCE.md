@@ -1,8 +1,6 @@
-# Sensitive Data Intelligence (Phase 7.3)
+# Secret & Sensitive Intelligence Engine (Phase 8)
 
-Phase 7.3 adds a **Sensitive Data & Secrets Intelligence** engine that passively analyzes downloaded textual assets from Phase 7.1 asset discovery and enriches the overall scan with traceable findings.
-
-This phase does **not** perform vulnerability scanning, credential validation, exploitation, or additional HTTP requests.
+Phase 8 delivers a production-grade **Secret & Sensitive Intelligence Engine** that passively analyzes assets already collected by TechSpecter. It does **not** perform vulnerability scanning, exploitation, active probing, or additional downloads.
 
 ## Architecture
 
@@ -10,9 +8,14 @@ This phase does **not** perform vulnerability scanning, credential validation, e
 DiscoveryPipeline.run()
   ├── AssetDiscoveryPipeline → AssetInventory (+ text_bodies)
   └── SensitiveIntelligenceEngine.build()
-        ├── collect_text_assets()
-        ├── DetectorRegistry → pluggable detectors
-        ├── FindingTracker (deduplication + attribution)
+        ├── collect_text_assets()          # reuse downloaded assets only
+        ├── extract_javascript_config_snippets()
+        ├── DetectorRegistry
+        │     ├── RuleEngineDetector (secrets / credentials / config / dev artifacts)
+        │     ├── EntropySecretDetector
+        │     └── contact-info detectors (email, phone, …)
+        ├── correlate_credential_pairs()
+        ├── FindingTracker (dedupe + attribution)
         └── SensitiveIntelligenceReport
 ```
 
@@ -20,172 +23,146 @@ DiscoveryPipeline.run()
 
 | Module | Responsibility |
 |--------|----------------|
-| `models.py` | Finding types, severity, confidence, report models |
-| `sources.py` | Collect textual assets from discovery + inventory |
+| `models.py` | Finding types, categories, severity, confidence, evidence models |
+| `rules/` | Extensible rule engine (`DetectionRule`, validators, catalog, `RuleEngine`) |
+| `javascript_intel.py` | Extract `window.__NEXT_DATA__`, `__INITIAL_STATE__`, `process.env`, etc. |
+| `correlator.py` | Correlate nearby username/password assignments |
 | `registry.py` | Pluggable detector registration |
-| `detectors/` | Individual passive detectors (email, secrets, credentials, …) |
-| `tracker.py` | Deduplication and multi-file merge |
-| `evidence.py` | Evidence helpers (line numbers, offsets, counts) |
 | `engine.py` | Orchestration |
-| `report.py` | Full console output + export-ready models |
+| `report.py` | Full CLI section: **Secret & Sensitive Intelligence** |
 | `cli_display.py` | Fingerprint CLI filtering and concise rendering |
+| `display_utils.py` | Safe Rich markup escaping for evidence output |
 
-## Detector pipeline
+## Rule engine
 
-1. **Collect assets** — JavaScript, JSON, CSS, manifests, maps, workers, XML, TXT, and other text bodies from downloads and `AssetInventory.text_bodies`. Binary assets (fonts, WASM, images) are skipped.
-2. **Run detectors** — Each registered detector scans content independently.
-3. **Attribute findings** — Every match records source file, URL, asset ID, line number, and byte offset.
-4. **Deduplicate** — Identical values merge across files; occurrence count and confidence increase.
-5. **Summarize** — Counts by category and severity feed the report.
+Rules are declarative and extensible. Each `DetectionRule` includes:
 
-## Supported detectors
+| Field | Purpose |
+|-------|---------|
+| `rule_id` | Stable identifier |
+| `name` | Human-readable name |
+| `category` | `secrets`, `credentials`, `sensitive_configuration`, `developer_artifacts` |
+| `pattern` | Compiled regular expression |
+| `severity` | `critical`, `high`, `medium`, `low`, `informational` |
+| `confidence` | Base confidence score (0–100) |
+| `description` | What was found |
+| `recommendation` | Remediation guidance |
+| `validator` | Optional callable to reduce false positives |
 
-| Detector | Finds |
-|----------|-------|
-| `EmailDetector` | Email addresses |
-| `PhoneDetector` | Phone numbers |
-| `UsernameDetector` | Usernames, application names, environment names |
-| `UrlDetector` | External and internal URLs |
-| `DomainDetector` | Domains, hostnames, subdomains |
-| `IpDetector` | IPv4 and IPv6 |
-| `UuidDetector` | UUID / GUID |
-| `SecretDetector` | JWT, API keys, tokens, private keys, high-entropy secrets |
-| `CredentialDetector` | Connection strings, DB URIs, passwords, env vars |
-| `CommentDetector` | TODO, FIXME, HACK, BUG, NOTE, deprecated/debug markers |
+Add a rule without modifying the engine:
 
-## Confidence model
+```python
+from techspecter.sensitive_intelligence.rules.engine import RuleEngine
+from techspecter.sensitive_intelligence.rules.models import DetectionRule, RuleCategory
 
-| Level | Score |
-|-------|-------|
-| Very High | ≥ 95 |
-| High | ≥ 80 |
-| Medium | ≥ 60 |
-| Low | < 60 |
+engine = RuleEngine()
+engine.register(my_rule)
+```
 
-Multiple detections of the same value across files increase confidence slightly. High-entropy and base64 secret detection require elevated entropy thresholds to reduce false positives.
+Built-in catalog: `techspecter/sensitive_intelligence/rules/catalog.py` (40+ rules).
+
+## Supported categories
+
+### Secrets
+
+AWS keys, Google/Firebase API keys, GitHub/GitLab tokens, Azure keys, Stripe/Twilio/Slack/Discord/OpenAI/Anthropic keys, JWT, bearer/basic/session tokens, PEM/RSA/SSH private keys, certificates, GCP service accounts, generic API keys, high-entropy secrets.
+
+### Credentials
+
+MongoDB/PostgreSQL/MySQL/Redis/LDAP/SMTP URIs, hardcoded usernames/passwords, connection strings, correlated username/password pairs.
+
+### Sensitive configuration
+
+Internal/admin/debug/staging/backup endpoints, internal IPs and hostnames, feature flags, environment configuration (`process.env`, `REACT_APP_*`).
+
+### Developer artifacts
+
+TODO, FIXME, BUG, HACK, NOTE, XXX, stack traces, debug markers, `console.debug` statements.
+
+## JavaScript intelligence
+
+The engine recursively inspects extracted configuration from:
+
+- `window.__NEXT_DATA__`
+- `window.__INITIAL_STATE__`
+- `window.__ENV__`
+- `window.config`
+- `runtimeConfig`
+- `process.env.*`
+
+Extracted JSON values are scanned for sensitive keys and secret-like values.
 
 ## Evidence model
 
-Each `SensitiveFindingRecord` includes:
+Every finding includes:
 
-- Type, subtype, severity, confidence, confidence level
-- Matched value (redacted for secrets) and matched pattern
-- Detector name and evidence snippet
-- Locations with file, URL, asset ID, line, offset
-- Source files list and occurrence count
+- Category, finding type, subtype, severity, confidence, confidence level
+- Source file, relative path, asset ID, line number, column, byte offset
+- Matched pattern, matched value (redacted for secrets), evidence snippet
+- Rule metadata (`rule_id`, `rule_name`, description, recommendation)
+
+## Validation
+
+Optional validators in `rules/validators.py`:
+
+- JWT structure and header decode
+- PEM private key / certificate headers
+- AWS access key format
+- GitHub token format
+
+Validated matches receive a small confidence boost; invalid matches are discarded.
 
 ## Reporting
 
-### Console
-
-`discover` and `sensitive-intelligence` render the full finding set.
-
-The `fingerprint` command uses a **filtered CLI view** that prioritizes security-relevant
-findings only. Emails, phone numbers, domains, URLs, IPs, UUIDs, and usernames remain in
-internal models and export payloads but are not printed to the terminal. Secrets,
-credentials, and security markers (TODO/FIXME/HACK/debug) are shown.
+### CLI section
 
 ```
 ==================================================
-Sensitive Data Intelligence
+Secret & Sensitive Intelligence
 ==================================================
 
 Summary
   Secrets: …
   Credentials: …
-  Security Markers: …
-  High Severity: …
-
-Category | Value | Severity | Confidence | Source
-...
+  Sensitive Configuration: …
+  Developer Artifacts: …
 ```
 
-Full console example (`discover` / `sensitive-intelligence`):
+Detailed blocks explain **what**, **where**, **why it matters**, **evidence**, and **recommendation**. User-controlled text is escaped to prevent Rich markup errors.
 
-```
-==================================================
-Sensitive Data Intelligence
-==================================================
+### Fingerprint CLI
 
-Summary
-  Emails: …
-  Secrets: …
-  High Severity: …
+The fingerprint command shows security-relevant findings only (secrets, credentials, sensitive configuration, security-related developer markers). Contact information (emails, phones, domains) is hidden from the fingerprint CLI but preserved in export models.
 
-Type | Value | Severity | Confidence | Files | Occurrences | Detector
-...
---------------------------------------------------
-Type: secret / jwt-token
-Matched Value: jwt-token [redacted]
-Files:
-  config.js
-Line Numbers: 12
-Evidence Count: 1
-```
+## Performance
 
-### Export models (internal)
+- Reuses `AssetInventory.text_bodies` and existing downloads — no re-fetching
+- Skips binary assets (images, fonts, WASM)
+- Deduplicates identical values across files
 
-`ReportSensitiveIntelligence`, `ReportSensitiveFinding`, and `Report.sensitive_intelligence` prepare JSON/HTML/SARIF/SBOM export without implementing exporters in this phase.
+## Testing
 
-## CLI
+| Test file | Coverage |
+|-----------|----------|
+| `tests/test_sensitive_intelligence.py` | Core detectors, engine, export |
+| `tests/test_sensitive_rule_engine.py` | Rule engine, validators, JS intel, correlation |
+| `tests/test_fingerprint_cli_display.py` | Fingerprint CLI filters |
+| `tests/test_fingerprint_integration.py` | End-to-end fingerprint reporting |
+
+Run:
 
 ```bash
-techspecter sensitive-intelligence https://example.com
-techspecter sensitive-intelligence https://example.com --json
-techspecter discover https://example.com   # includes sensitive section when enabled
+python -m pytest tests/test_sensitive_intelligence.py tests/test_sensitive_rule_engine.py -v
 ```
 
-Configuration: `DiscoveryPipelineConfig.collect_sensitive_intelligence` (default: `true`).
+## Limitations
 
-## Examples
+- No active secret validation (revocation checks) — passive pattern matching only
+- Legacy `techspecter sensitive` artifact analyzers remain separate from this engine
+- SARIF/HTML export wiring for sensitive findings is prepared but not fully integrated into `ReportEngine`
+- Entropy-based detection may still produce low-confidence findings on minified bundles
 
-**Email in JavaScript bundle**
+## Related docs
 
-```
-Type: email / email
-Matched Value: admin@example.com
-Files: app.js
-```
-
-**JWT in config**
-
-```
-Type: secret / jwt-token
-Matched Value: jwt-token [redacted]
-Severity: high
-Confidence: 94%
-```
-
-## Extensibility
-
-Register custom detectors without modifying the engine:
-
-```python
-from techspecter.sensitive_intelligence.registry import DetectorRegistry
-from techspecter.sensitive_intelligence.engine import SensitiveIntelligenceEngine
-
-registry = DetectorRegistry()
-registry.register(MyCustomDetector())
-engine = SensitiveIntelligenceEngine(registry=registry)
-```
-
-## Known limitations
-
-- Analysis uses already-downloaded content only; no re-fetching
-- Binary assets are not scanned
-- Company/developer name detection is limited to explicit key/value patterns
-- Phone detection may produce low-confidence matches on numeric sequences
-- Does not validate whether secrets are active or revoked
-
-## Future improvements
-
-- Integrate with artifact analyzers without duplicating patterns
-- Entropy-based scoring calibration per asset type
-- SARIF export with `physicalLocation` via asset IDs
-- Configurable detector enable/disable per scan
-- SBOM cross-reference for exposed package credentials
-
-## Related documentation
-
-- [Asset Discovery](ASSET_DISCOVERY.md) — Phase 7.1 inventory
-- [Technology Intelligence](TECHNOLOGY_INTELLIGENCE.md) — Phase 7.2 evidence engine
+- [Asset Discovery](ASSET_DISCOVERY.md) — upstream asset pipeline (Phase 7.1)
+- [Technology Intelligence](TECHNOLOGY_INTELLIGENCE.md) — sibling Phase 7.2 module

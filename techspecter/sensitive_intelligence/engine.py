@@ -8,7 +8,11 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from techspecter.models.discovery import DiscoveryResult
+from techspecter.sensitive_intelligence.correlator import correlate_credential_pairs
+from techspecter.sensitive_intelligence.detectors.base import BaseSensitiveDetector, DetectorMatch
+from techspecter.sensitive_intelligence.javascript_intel import extract_javascript_config_snippets
 from techspecter.sensitive_intelligence.models import (
+    FindingCategory,
     FindingType,
     SensitiveFindingRecord,
     SensitiveIntelligenceReport,
@@ -34,6 +38,7 @@ class SensitiveIntelligenceEngine:
         target_url = str(discovery.target.url)
         assets = collect_text_assets(discovery)
         tracker = FindingTracker()
+        correlator = _CredentialCorrelatorDetector()
 
         logger.info(
             "Sensitive intelligence starting for %s: %d textual assets",
@@ -42,9 +47,13 @@ class SensitiveIntelligenceEngine:
         )
 
         for asset in assets:
-            for detector in self.registry.all():
-                for match in detector.detect(asset.content):
-                    tracker.add_match(match, detector=detector, source=asset)
+            scan_targets = [asset.content, *extract_javascript_config_snippets(asset.content)]
+            for content in scan_targets:
+                for detector in self.registry.all():
+                    for match in detector.detect(content):
+                        tracker.add_match(match, detector=detector, source=asset)
+                for match in correlator.detect(content):
+                    tracker.add_match(match, detector=correlator, source=asset)
 
         findings = sorted(
             tracker.all(),
@@ -70,6 +79,14 @@ class SensitiveIntelligenceEngine:
         return report
 
 
+class _CredentialCorrelatorDetector(BaseSensitiveDetector):
+    detector_id = "credential-correlator"
+    finding_type = FindingType.CREDENTIAL
+
+    def detect(self, content: str) -> list[DetectorMatch]:
+        return correlate_credential_pairs(content)
+
+
 def _build_summary(
     findings: list[SensitiveFindingRecord],
     *,
@@ -78,21 +95,29 @@ def _build_summary(
     summary = SensitiveIntelligenceSummary(assets_analyzed=assets_analyzed)
     for item in findings:
         summary.total_findings += 1
-        if item.severity == SeverityLevel.HIGH:
+        if item.severity == SeverityLevel.CRITICAL:
+            summary.critical_severity += 1
+        elif item.severity == SeverityLevel.HIGH:
             summary.high_severity += 1
         elif item.severity == SeverityLevel.MEDIUM:
             summary.medium_severity += 1
-        else:
+        elif item.severity == SeverityLevel.LOW:
             summary.low_severity += 1
+        else:
+            summary.informational_severity += 1
 
-        if item.finding_type == FindingType.EMAIL:
+        if item.category == FindingCategory.SECRETS:
+            summary.secrets += 1
+        elif item.category == FindingCategory.CREDENTIALS:
+            summary.credentials += 1
+        elif item.category == FindingCategory.SENSITIVE_CONFIGURATION:
+            summary.sensitive_configuration += 1
+        elif item.category == FindingCategory.DEVELOPER_ARTIFACTS:
+            summary.developer_artifacts += 1
+        elif item.finding_type == FindingType.EMAIL:
             summary.emails += 1
         elif item.finding_type == FindingType.PHONE:
             summary.phones += 1
-        elif item.finding_type == FindingType.SECRET:
-            summary.secrets += 1
-        elif item.finding_type == FindingType.CREDENTIAL:
-            summary.credentials += 1
         elif item.finding_type == FindingType.URL:
             summary.urls += 1
         elif item.finding_type in {FindingType.DOMAIN, FindingType.HOSTNAME}:
@@ -109,4 +134,10 @@ def _build_summary(
 
 
 def _severity_rank(severity: SeverityLevel) -> int:
-    return {SeverityLevel.HIGH: 3, SeverityLevel.MEDIUM: 2, SeverityLevel.LOW: 1}[severity]
+    return {
+        SeverityLevel.CRITICAL: 5,
+        SeverityLevel.HIGH: 4,
+        SeverityLevel.MEDIUM: 3,
+        SeverityLevel.LOW: 2,
+        SeverityLevel.INFORMATIONAL: 1,
+    }[severity]

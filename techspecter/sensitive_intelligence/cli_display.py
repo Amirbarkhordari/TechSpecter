@@ -8,8 +8,10 @@ import shutil
 from rich.console import Console
 from rich.table import Table
 
+from techspecter.sensitive_intelligence.display_utils import escape_rich_markup, print_label_value
 from techspecter.sensitive_intelligence.evidence import line_numbers
 from techspecter.sensitive_intelligence.models import (
+    FindingCategory,
     FindingType,
     SensitiveFindingRecord,
     SensitiveIntelligenceReport,
@@ -19,6 +21,7 @@ from techspecter.sensitive_intelligence.models import (
 logger = logging.getLogger(__name__)
 
 _SECTION_WIDTH = 50
+_SECTION_TITLE = "Secret & Sensitive Intelligence"
 _MAX_EVIDENCE_BLOCKS = 10
 
 _CLI_EXCLUDED_TYPES = frozenset(
@@ -44,13 +47,22 @@ _SECURITY_COMMENT_SUBTYPES = frozenset(
         "bug-comment",
         "debug-marker",
         "deprecated-marker",
+        "stack-trace",
     },
 )
 
 
 def is_fingerprint_cli_relevant(finding: SensitiveFindingRecord) -> bool:
     """Return True when a finding should appear in the fingerprint CLI report."""
+    if finding.category in {
+        FindingCategory.SECRETS,
+        FindingCategory.CREDENTIALS,
+        FindingCategory.SENSITIVE_CONFIGURATION,
+    }:
+        return True
     if finding.finding_type in {FindingType.SECRET, FindingType.CREDENTIAL}:
+        return True
+    if finding.finding_type == FindingType.SENSITIVE_CONFIG:
         return True
     if finding.finding_type == FindingType.COMMENT:
         return finding.subtype in _SECURITY_COMMENT_SUBTYPES
@@ -75,7 +87,7 @@ def render_fingerprint_sensitive_intelligence(
         return
 
     console.print("\n" + "=" * _SECTION_WIDTH)
-    console.print("[bold]Sensitive Data Intelligence[/bold]")
+    console.print(f"[bold]{_SECTION_TITLE}[/bold]")
     console.print("=" * _SECTION_WIDTH + "\n")
     _render_summary(findings, console=console)
     console.print()
@@ -83,7 +95,14 @@ def render_fingerprint_sensitive_intelligence(
     console.print()
 
     detail_candidates = [
-        item for item in findings if item.severity in {SeverityLevel.HIGH, SeverityLevel.MEDIUM}
+        item
+        for item in findings
+        if item.severity
+        in {
+            SeverityLevel.CRITICAL,
+            SeverityLevel.HIGH,
+            SeverityLevel.MEDIUM,
+        }
     ]
     for finding in detail_candidates[:_MAX_EVIDENCE_BLOCKS]:
         _render_evidence_block(finding, console=console)
@@ -93,20 +112,20 @@ def render_fingerprint_sensitive_intelligence(
 
 
 def _render_summary(findings: list[SensitiveFindingRecord], *, console: Console) -> None:
-    secrets = sum(1 for item in findings if item.finding_type == FindingType.SECRET)
-    credentials = sum(1 for item in findings if item.finding_type == FindingType.CREDENTIAL)
-    comments = sum(1 for item in findings if item.finding_type == FindingType.COMMENT)
+    secrets = sum(1 for item in findings if item.category == FindingCategory.SECRETS)
+    credentials = sum(1 for item in findings if item.category == FindingCategory.CREDENTIALS)
+    config = sum(1 for item in findings if item.category == FindingCategory.SENSITIVE_CONFIGURATION)
+    artifacts = sum(1 for item in findings if item.category == FindingCategory.DEVELOPER_ARTIFACTS)
+    critical = sum(1 for item in findings if item.severity == SeverityLevel.CRITICAL)
     high = sum(1 for item in findings if item.severity == SeverityLevel.HIGH)
-    medium = sum(1 for item in findings if item.severity == SeverityLevel.MEDIUM)
-    low = sum(1 for item in findings if item.severity == SeverityLevel.LOW)
 
     console.print("[bold]Summary[/bold]")
     console.print(f"  Secrets: {secrets}")
     console.print(f"  Credentials: {credentials}")
-    console.print(f"  Security Markers: {comments}")
-    console.print(f"  High Severity: {high}")
-    console.print(f"  Medium Severity: {medium}")
-    console.print(f"  Low Severity: {low}")
+    console.print(f"  Sensitive Configuration: {config}")
+    console.print(f"  Developer Artifacts: {artifacts}")
+    console.print(f"  Critical: {critical}")
+    console.print(f"  High: {high}")
 
 
 def _build_findings_table(findings: list[SensitiveFindingRecord]) -> Table:
@@ -121,21 +140,23 @@ def _build_findings_table(findings: list[SensitiveFindingRecord]) -> Table:
     for finding in findings:
         source = finding.source_files[0] if finding.source_files else "-"
         table.add_row(
-            f"{finding.finding_type.value}/{finding.subtype}",
-            finding.matched_value,
+            escape_rich_markup(finding.subtype),
+            escape_rich_markup(finding.matched_value),
             finding.severity.value,
             f"{finding.confidence:.0f}%",
-            source,
+            escape_rich_markup(source),
         )
     return table
 
 
 def _render_evidence_block(finding: SensitiveFindingRecord, *, console: Console) -> None:
     console.print("-" * _SECTION_WIDTH)
-    console.print(f"[bold]{finding.finding_type.value}[/bold] / {finding.subtype}")
-    console.print(f"[bold]Value:[/bold] {finding.matched_value}")
-    if finding.source_files:
-        console.print(f"[bold]Source:[/bold] {finding.source_files[0]}")
+    print_label_value(console, "What:", finding.description or finding.subtype)
+    source = finding.source_files[0] if finding.source_files else "-"
+    print_label_value(console, "Where:", source)
+    if finding.recommendation:
+        print_label_value(console, "Recommendation:", finding.recommendation)
+    print_label_value(console, "Value:", finding.matched_value)
     lines = line_numbers(finding)
     if lines:
         console.print(f"[bold]Lines:[/bold] {', '.join(str(item) for item in lines[:5])}")

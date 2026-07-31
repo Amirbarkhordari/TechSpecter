@@ -26,14 +26,28 @@ class FindingType(StrEnum):
     HOSTNAME = "hostname"
     ENVIRONMENT = "environment"
     APPLICATION = "application"
+    SENSITIVE_CONFIG = "sensitive_config"
+
+
+class FindingCategory(StrEnum):
+    """Phase 8 grouped reporting category."""
+
+    SECRETS = "secrets"
+    CREDENTIALS = "credentials"
+    SENSITIVE_CONFIGURATION = "sensitive_configuration"
+    DEVELOPER_ARTIFACTS = "developer_artifacts"
+    CONTACT_INFORMATION = "contact_information"
+    OTHER = "other"
 
 
 class SeverityLevel(StrEnum):
     """Passive severity classification."""
 
+    CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
+    INFORMATIONAL = "informational"
 
 
 class ConfidenceLevel(StrEnum):
@@ -50,8 +64,10 @@ class FindingLocation(TechSpecterModel):
 
     source_file: str | None = None
     source_url: str | None = None
+    relative_path: str | None = None
     asset_id: str | None = None
     line_number: int | None = Field(default=None, ge=1)
+    column_number: int | None = Field(default=None, ge=1)
     byte_offset: int | None = Field(default=None, ge=0)
 
 
@@ -60,6 +76,7 @@ class SensitiveFindingRecord(TechSpecterModel):
 
     finding_id: str
     finding_type: FindingType
+    category: FindingCategory = FindingCategory.OTHER
     subtype: str
     severity: SeverityLevel
     confidence: float = Field(ge=0.0, le=100.0)
@@ -67,9 +84,14 @@ class SensitiveFindingRecord(TechSpecterModel):
     matched_value: str
     matched_pattern: str
     detector_name: str
+    rule_id: str | None = None
+    rule_name: str | None = None
+    description: str | None = None
+    recommendation: str | None = None
     evidence: str | None = None
     locations: list[FindingLocation] = Field(default_factory=list)
     source_files: list[str] = Field(default_factory=list)
+    relative_paths: list[str] = Field(default_factory=list)
     occurrence_count: int = 1
     detected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -81,15 +103,19 @@ class SensitiveIntelligenceSummary(TechSpecterModel):
     phones: int = 0
     secrets: int = 0
     credentials: int = 0
+    sensitive_configuration: int = 0
+    developer_artifacts: int = 0
     urls: int = 0
     domains: int = 0
     ips: int = 0
     uuids: int = 0
     comments: int = 0
     other: int = 0
+    critical_severity: int = 0
     high_severity: int = 0
     medium_severity: int = 0
     low_severity: int = 0
+    informational_severity: int = 0
     total_findings: int = 0
     assets_analyzed: int = 0
 

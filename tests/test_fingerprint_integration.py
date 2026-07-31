@@ -30,6 +30,7 @@ from techspecter.sensitive_intelligence.cli_display import (
 )
 from techspecter.sensitive_intelligence.models import (
     ConfidenceLevel,
+    FindingCategory,
     FindingType,
     SensitiveFindingRecord,
     SensitiveIntelligenceReport,
@@ -82,6 +83,7 @@ def _sample_sensitive_report() -> SensitiveIntelligenceReport:
             SensitiveFindingRecord(
                 finding_id="f-secret",
                 finding_type=FindingType.SECRET,
+                category=FindingCategory.SECRETS,
                 subtype="jwt-token",
                 severity=SeverityLevel.HIGH,
                 confidence=94.0,
@@ -94,6 +96,7 @@ def _sample_sensitive_report() -> SensitiveIntelligenceReport:
             SensitiveFindingRecord(
                 finding_id="f-cred",
                 finding_type=FindingType.CREDENTIAL,
+                category=FindingCategory.CREDENTIALS,
                 subtype="mongodb-uri",
                 severity=SeverityLevel.HIGH,
                 confidence=95.0,
@@ -210,7 +213,7 @@ def test_fingerprint_report_section_order() -> None:
         "Technology Detection",
         "Technology Intelligence",
         "Technology Evidence",
-        "Sensitive Data Intelligence",
+        "Secret & Sensitive Intelligence",
         "Security Summary",
     ]
     indices = [output.index(section) for section in sections]
@@ -237,7 +240,7 @@ def test_fingerprint_hides_domains_phones_and_emails_from_cli() -> None:
     render_fingerprint_report(result, report, console=console)
     output = console.export_text()
 
-    assert "Sensitive Data Intelligence" in output
+    assert "Secret & Sensitive Intelligence" in output
     assert "jwt-token" in output
     assert "mongodb-uri" in output
     assert "Domains:" not in output
@@ -349,7 +352,7 @@ def test_fingerprint_cli_renders_integrated_sections(mock_analyze: AsyncMock) ->
     result = runner.invoke(app, ["fingerprint", "https://example.com"])
     assert result.exit_code == 0
     assert "Asset Inventory" in result.stdout
-    assert "Sensitive Data Intelligence" in result.stdout
+    assert "Secret & Sensitive Intelligence" in result.stdout
     assert "Technology Evidence" in result.stdout
     assert "Domains:" not in result.stdout
     assert "Phones:" not in result.stdout

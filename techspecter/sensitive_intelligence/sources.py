@@ -32,6 +32,7 @@ class TextAssetSource:
     content: str
     asset_id: str | None = None
     category: str | None = None
+    relative_path: str | None = None
 
 
 def collect_text_assets(discovery: DiscoveryResult) -> list[TextAssetSource]:
@@ -40,7 +41,12 @@ def collect_text_assets(discovery: DiscoveryResult) -> list[TextAssetSource]:
     seen: set[str] = set()
 
     def add(
-        url: str, content: str, *, asset_id: str | None = None, category: str | None = None
+        url: str,
+        content: str,
+        *,
+        asset_id: str | None = None,
+        category: str | None = None,
+        relative_path: str | None = None,
     ) -> None:
         if not content or not content.strip():
             return
@@ -55,6 +61,7 @@ def collect_text_assets(discovery: DiscoveryResult) -> list[TextAssetSource]:
                 content=content,
                 asset_id=asset_id,
                 category=category,
+                relative_path=relative_path,
             ),
         )
 
@@ -125,6 +132,7 @@ def _from_asset_inventory(
                 content=content,
                 asset_id=record.asset_id,
                 category=record.category.value,
+                relative_path=record.relative_path,
             ),
         )
     return sources

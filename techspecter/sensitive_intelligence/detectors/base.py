@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from techspecter.sensitive_intelligence.models import (
     ConfidenceLevel,
+    FindingCategory,
     FindingType,
     SeverityLevel,
 )
@@ -26,6 +27,12 @@ class DetectorMatch:
     evidence: str | None = None
     line_number: int | None = None
     byte_offset: int | None = None
+    column_number: int | None = None
+    category: FindingCategory | None = None
+    rule_id: str | None = None
+    rule_name: str | None = None
+    description: str | None = None
+    recommendation: str | None = None
 
 
 class BaseSensitiveDetector(ABC):
@@ -57,6 +64,7 @@ class BaseSensitiveDetector(ABC):
                 line = content.count("\n", 0, start) + 1
                 snippet_start = max(0, start - 30)
                 snippet_end = min(len(content), match.end() + 30)
+                line_start = content.rfind("\n", 0, start) + 1
                 matches.append(
                     DetectorMatch(
                         finding_type=ftype,
@@ -68,6 +76,8 @@ class BaseSensitiveDetector(ABC):
                         evidence=content[snippet_start:snippet_end],
                         line_number=line,
                         byte_offset=start,
+                        column_number=start - line_start + 1,
+                        category=_category_for_finding_type(ftype),
                     ),
                 )
         return matches
@@ -103,3 +113,24 @@ class BaseSensitiveDetector(ABC):
         if score >= 60:
             return ConfidenceLevel.MEDIUM
         return ConfidenceLevel.LOW
+
+
+def _category_for_finding_type(finding_type: FindingType) -> FindingCategory:
+    if finding_type in {FindingType.EMAIL, FindingType.PHONE, FindingType.USERNAME}:
+        return FindingCategory.CONTACT_INFORMATION
+    if finding_type == FindingType.SECRET:
+        return FindingCategory.SECRETS
+    if finding_type == FindingType.CREDENTIAL:
+        return FindingCategory.CREDENTIALS
+    if finding_type == FindingType.SENSITIVE_CONFIG:
+        return FindingCategory.SENSITIVE_CONFIGURATION
+    if finding_type == FindingType.COMMENT:
+        return FindingCategory.DEVELOPER_ARTIFACTS
+    return FindingCategory.OTHER
+
+
+def resolve_finding_category(match: DetectorMatch) -> FindingCategory:
+    """Resolve reporting category from rule metadata or finding type."""
+    if isinstance(match.category, FindingCategory):
+        return match.category
+    return _category_for_finding_type(match.finding_type)
