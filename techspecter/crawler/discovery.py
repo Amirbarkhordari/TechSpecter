@@ -7,12 +7,13 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from techspecter.analysis.http.helpers import build_http_observation
 from techspecter.config import Settings, get_settings
 from techspecter.crawler.metadata_collector import WellKnownResourceCollector
 from techspecter.downloader.html_downloader import HtmlDownloader
 from techspecter.downloader.http_client import AsyncHttpClient, HttpClientConfig
-from techspecter.downloader.js_downloader import JsDownloadConfig, JsDownloader
+from techspecter.javascript.adapter import to_discovery_result
+from techspecter.javascript.pipeline.config import JavaScriptPipelineConfig
+from techspecter.javascript.pipeline.pipeline import JavaScriptPipeline
 from techspecter.models.discovery import DiscoveryResult, DownloadResult, InlineScript
 from techspecter.models.metadata import (
     MetadataDiscoveryObservation,
@@ -20,7 +21,6 @@ from techspecter.models.metadata import (
 )
 from techspecter.parser.html_metadata_parser import HtmlMetadataParser
 from techspecter.parser.html_parser import HtmlScriptParser
-from techspecter.utils.dedup import deduplicate_scripts
 from techspecter.utils.url import validate_url
 from techspecter.utils.validation import build_target
 
@@ -34,10 +34,12 @@ class DiscoveryPipelineConfig:
     Attributes:
         settings: Application settings used to configure HTTP behavior.
         collect_metadata: Whether to collect passive metadata and well-known resources.
+        javascript_pipeline: JavaScript v2 pipeline configuration.
     """
 
     settings: Settings | None = None
     collect_metadata: bool = False
+    javascript_pipeline: JavaScriptPipelineConfig | None = None
 
 
 class DiscoveryPipeline:
@@ -50,6 +52,7 @@ class DiscoveryPipeline:
         http_client: AsyncHttpClient | None = None,
         html_parser: HtmlScriptParser | None = None,
         metadata_parser: HtmlMetadataParser | None = None,
+        javascript_pipeline: JavaScriptPipeline | None = None,
     ) -> None:
         """Initialize the discovery pipeline.
 
@@ -57,6 +60,8 @@ class DiscoveryPipeline:
             config: Optional pipeline configuration.
             http_client: Optional preconfigured HTTP client for dependency injection.
             html_parser: Optional HTML parser for dependency injection.
+            metadata_parser: Optional HTML metadata parser for dependency injection.
+            javascript_pipeline: Optional JavaScript v2 pipeline for dependency injection.
         """
         self._config = config or DiscoveryPipelineConfig()
         self._settings = self._config.settings or get_settings()
@@ -64,6 +69,10 @@ class DiscoveryPipeline:
         self._html_parser = html_parser or HtmlScriptParser()
         self._metadata_parser = metadata_parser or HtmlMetadataParser()
         self._owns_client = http_client is None
+        js_config = self._config.javascript_pipeline or JavaScriptPipelineConfig(
+            max_concurrency=self._settings.max_concurrency,
+        )
+        self._javascript_pipeline = javascript_pipeline or JavaScriptPipeline(config=js_config)
 
     async def run(self, target_url: str) -> DiscoveryResult:
         """Execute the JavaScript discovery pipeline.
@@ -96,21 +105,18 @@ class DiscoveryPipeline:
             html_downloader = HtmlDownloader(client)
             html_document = await html_downloader.download(normalized_url)
 
-            parse_result = self._html_parser.parse(
-                html_document.content,
-                base_url=html_document.url,
-            )
             metadata_parse = self._metadata_parser.parse(
                 html_document.content,
                 base_url=html_document.url,
             )
             metadata_observation = None
-            external_scripts = deduplicate_scripts(parse_result.external_scripts)
-            js_downloader = JsDownloader(
-                client,
-                JsDownloadConfig(max_concurrency=self._settings.max_concurrency),
+
+            pipeline_result = await self._javascript_pipeline.process_html(
+                html=html_document.content,
+                base_url=html_document.url,
+                client=client,
             )
-            downloads = await js_downloader.download_all(external_scripts)
+
             if self._config.collect_metadata:
                 metadata_collector = WellKnownResourceCollector(client)
                 well_known_resources = await metadata_collector.collect(
@@ -122,14 +128,15 @@ class DiscoveryPipeline:
                     well_known_resources=well_known_resources,
                     sourcemap_references=_merge_sourcemap_references(
                         metadata_parse.sourcemap_references,
-                        parse_result.inline_scripts,
-                        downloads,
+                        _inline_scripts_from_index(pipeline_result.index),
+                        _downloads_from_index(pipeline_result.index),
                     ),
                     service_worker_references=metadata_parse.service_worker_references,
                 )
 
             elapsed_ms = (time.perf_counter() - started_perf) * 1000
-            completed_at = datetime.now(tz=UTC)
+
+            from techspecter.analysis.http.helpers import build_http_observation
 
             http_response = build_http_observation(
                 url=html_document.request_url or normalized_url,
@@ -145,32 +152,79 @@ class DiscoveryPipeline:
                 elapsed_ms=html_document.elapsed_ms,
             )
 
-            result = DiscoveryResult(
+            result = to_discovery_result(
                 target=target,
-                external_scripts=external_scripts,
-                inline_scripts=parse_result.inline_scripts,
-                downloads=downloads,
+                pipeline_result=pipeline_result,
                 http_response=http_response,
                 metadata_observation=metadata_observation,
                 elapsed_ms=elapsed_ms,
                 started_at=started_at,
-                completed_at=completed_at,
+                completed_at=datetime.now(tz=UTC),
             )
 
             logger.info(
                 "Discovery complete for %s: %d external, %d inline, %d downloaded, "
-                "%d failed (%.0f ms)",
+                "%d failed, %d indexed (%.0f ms)",
                 normalized_url,
                 len(result.external_scripts),
                 len(result.inline_scripts),
                 result.downloaded_count,
                 result.failed_count,
+                pipeline_result.index.count,
                 elapsed_ms,
             )
             return result
         finally:
             if self._owns_client:
                 await client.close()
+
+
+def _inline_scripts_from_index(index: object) -> list[InlineScript]:
+    """Extract inline scripts from JavaScript index for metadata merge."""
+    from techspecter.javascript.index.javascript_index import JavaScriptIndex
+
+    if not isinstance(index, JavaScriptIndex):
+        return []
+    scripts: list[InlineScript] = []
+    for resource in index.all_resources():
+        if not resource.inline:
+            continue
+        scripts.append(
+            InlineScript(
+                index=resource.inline_index or 0,
+                content=resource.content or "",
+                source_map_url=resource.metadata.source_map_url,
+            ),
+        )
+    return scripts
+
+
+def _downloads_from_index(index: object) -> list[DownloadResult]:
+    """Extract download results from JavaScript index for metadata merge."""
+    from techspecter.javascript.index.javascript_index import JavaScriptIndex
+
+    if not isinstance(index, JavaScriptIndex):
+        return []
+    downloads: list[DownloadResult] = []
+    for resource in index.all_resources():
+        if resource.inline:
+            continue
+        downloads.append(
+            DownloadResult(
+                url=resource.url,  # type: ignore[arg-type]
+                filename=resource.metadata.filename,
+                status_code=resource.status_code,
+                content_type=resource.content_type,
+                encoding=resource.encoding,
+                content_length=resource.metadata.content_length,
+                download_success=resource.download_success,
+                download_duration_ms=resource.download_duration_ms,
+                error_message=resource.error_message,
+                source_map_url=resource.metadata.source_map_url,
+                content=resource.content,
+            ),
+        )
+    return downloads
 
 
 def _merge_sourcemap_references(

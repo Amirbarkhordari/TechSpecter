@@ -124,6 +124,7 @@ See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) and [examples/](examples/).
 | [Installation](docs/INSTALLATION.md) | Install options |
 | [Configuration](docs/CONFIGURATION.md) | Settings reference |
 | [Developer Guide](docs/DEVELOPER.md) | API and analyzer authoring |
+| [JavaScript Discovery](docs/JAVASCRIPT_DISCOVERY.md) | Phase 5.7 discovery and preprocessing |
 | [Plugin SDK](docs/PLUGIN_SDK.md) | Plugin development |
 | [Migration Guide](docs/MIGRATION.md) | Version upgrades |
 | [Release Notes](docs/RELEASE_NOTES.md) | v1.0.0-rc1 notes |
