@@ -23,11 +23,35 @@ It is built for security engineers, developers, and researchers who need **recon
 
 | What you get | How |
 |---|---|
-| Technology stack | 65+ fingerprint signatures plus optional Wappalyzer and Retire.js providers |
+| Technology stack | 64 bundled fingerprint signatures; optional Wappalyzer and Retire.js when external tools are installed |
 | Asset inventory | JavaScript, CSS, JSON, fonts, images, workers, source maps, and more |
-| Version intelligence | Evidence-backed version detection from bundles and metadata |
-| Sensitive exposure | Secrets, credentials, config leaks, and developer artifacts in downloaded assets |
+| Version intelligence | Evidence-backed version detection where runtime signals are available |
+| Sensitive exposure | Pattern-based analysis of secrets, credentials, config leaks, and developer artifacts in downloaded assets |
 | Reports | Rich CLI output plus JSON, Markdown, HTML, CSV, and SARIF exports |
+
+---
+
+## Why TechSpecter?
+
+Modern web applications expose technology stacks, third-party dependencies, and sensitive data through client-side bundles and publicly reachable assets. Manual inspection with browser DevTools does not scale across targets or teams.
+
+TechSpecter exists to automate that **passive reconnaissance** — collecting the same public signals a reviewer would, then organizing them into attributed, exportable intelligence.
+
+| Audience | Use case |
+|---|---|
+| Security engineers | External attack-surface review and exposure triage |
+| Developers | Stack discovery, dependency visibility, and pre-release checks |
+| Researchers | Reproducible, evidence-backed web application profiling |
+
+**Why passive analysis?** It observes what is already public without sending exploit payloads, guessing credentials, or altering server state. That makes it suitable for early-stage assessment, CI checks, and environments where active scanning is out of scope.
+
+---
+
+## Screenshot
+
+> **Temporary placeholder:** Replace `docs/images/cli-demo.png` with a terminal capture from your environment.
+
+![TechSpecter CLI fingerprint report](docs/images/cli-demo.png)
 
 ---
 
@@ -35,7 +59,7 @@ It is built for security engineers, developers, and researchers who need **recon
 
 ### Technology detection
 
-Identify frameworks, libraries, build tools, and UI kits from JavaScript bundles, HTML, and network evidence. Results include confidence scores and optional multi-provider merging.
+Identify frameworks, libraries, build tools, and UI kits from JavaScript bundles, HTML, and network evidence. The built-in signature database covers 64 technologies. Optional [Wappalyzer](https://github.com/wappalyzer/wappalyzer) and [Retire.js](https://github.com/RetireJS/retire.js) providers add results when their CLI tools are available; the scan continues if they are not installed.
 
 ### Asset discovery
 
@@ -47,7 +71,7 @@ Attribute detected technologies to specific assets with version evidence and pat
 
 ### Secret & sensitive intelligence
 
-Scan downloaded text assets for API keys, tokens, credentials, internal endpoints, and developer artifacts. Findings include severity, confidence, source attribution, and remediation guidance.
+Scan downloaded text assets for API keys, tokens, credentials, internal endpoints, and developer artifacts. Findings include severity, confidence, source attribution, and remediation guidance. Results are pattern-based signals for triage, not confirmation that a secret is valid or exploitable.
 
 ### Reporting
 
@@ -67,6 +91,34 @@ Interactive terminal reports for day-to-day use, plus machine-readable exports f
 | Brute force | No credential guessing |
 | Authenticated testing | No login flows or session hijacking |
 | Network enumeration | Scope is HTTP(S) resources linked from the target |
+
+---
+
+## Architecture
+
+TechSpecter runs a single passive pipeline. Each stage reuses output from the previous step; failed asset downloads are recorded without stopping the scan.
+
+```mermaid
+flowchart TB
+    T[Target URL] --> RD[Resource Discovery]
+    RD --> AC[Asset Collection]
+    AC --> TD[Technology Detection]
+    AC --> SI[Sensitive Intelligence]
+    TD --> EC[Evidence Correlation]
+    SI --> EC
+    EC --> R[Reporting]
+    R --> CLI[CLI Renderer]
+    R --> EXP[Export: JSON / HTML / SARIF / CSV]
+```
+
+| Stage | Responsibility |
+|---|---|
+| Resource Discovery | Fetch HTML, discover JavaScript, collect metadata |
+| Asset Collection | Inventory and download linked scripts, styles, and static files |
+| Technology Detection | Match bundled signatures and optional external providers |
+| Sensitive Intelligence | Scan downloaded text for secrets and exposure indicators |
+| Evidence Correlation | Attribute technologies and findings to source assets |
+| Reporting | Render CLI output or export structured reports |
 
 ---
 
@@ -263,6 +315,16 @@ The `fingerprint` command runs the complete passive pipeline in one pass:
 techspecter fingerprint https://example.com
 ```
 
+Try it on public sites:
+
+```bash
+techspecter fingerprint https://react.dev
+techspecter fingerprint https://github.com
+```
+
+> [!NOTE]
+> Large targets can take several minutes. Use `--quiet` to suppress log noise during long scans.
+
 Output sections: Target Summary → Asset Inventory → Technology Detection → Technology Intelligence → Technology Evidence → Secret & Sensitive Intelligence → Security Summary.
 
 ### Common workflows
@@ -303,15 +365,6 @@ techspecter doctor --json
 techspecter plugins list
 ```
 
-```mermaid
-flowchart LR
-    A[Target URL] --> B[fingerprint]
-    B --> C[Asset Inventory]
-    B --> D[Technologies]
-    B --> E[Sensitive Findings]
-    B --> F[CLI Report / Export]
-```
-
 More examples: [docs/QUICKSTART.md](docs/QUICKSTART.md)
 
 ---
@@ -327,7 +380,7 @@ More examples: [docs/QUICKSTART.md](docs/QUICKSTART.md)
 | `techspecter artifacts <url>` | Cloud configs, API specs, and identity artifacts |
 | `techspecter sensitive-intelligence <url>` | Secret and sensitive-data analysis |
 | `techspecter sensitive <url>` | Legacy sensitive-data command |
-| `techspecter benchmark <url>` | Compare detection against Wappalyzer |
+| `techspecter benchmark <url>` | Compare TechSpecter detection against Wappalyzer (requires Wappalyzer CLI) |
 | `techspecter doctor` | Installation and environment diagnostics |
 | `techspecter plugins list` | List registered plugins |
 | `techspecter plugins show <id>` | Show plugin details |
@@ -345,7 +398,7 @@ More examples: [docs/QUICKSTART.md](docs/QUICKSTART.md)
 | `--verbose` | `fingerprint` | Verbose output including full asset table |
 | `--show-assets` | `fingerprint` | Display full asset inventory table |
 | `--min-confidence <n>` | `fingerprint` | Filter detections below confidence threshold |
-| `--provider <name>` | `fingerprint` | Enable provider: `techspecter`, `wappalyzer`, `retirejs`, `all` |
+| `--provider <name>` | `fingerprint` | Enable provider: `techspecter`, `wappalyzer`, `retirejs`, `all` (external tools required for wappalyzer/retirejs) |
 | `--debug` | Global | Enable debug logging |
 | `--quiet` / `-q` | Global | Minimal console output |
 
@@ -409,17 +462,21 @@ See [examples/config/techspecter.yaml](examples/config/techspecter.yaml) and [do
 
 ## Sample Output
 
-Fingerprint CLI output is concise by default. Below is a representative excerpt.
+Excerpt from `techspecter --quiet fingerprint https://react.dev` (v1.0.0-rc1). Timings and finding counts vary by target.
 
 ```
 ==================================================
 Target Summary
 ==================================================
 
-Target: https://example.com/
-Elapsed: 8420 ms
-Assets discovered: 74
-Security findings: 3
+Target: https://react.dev/
+Elapsed: 351358 ms
+Discovery: 345576 ms
+Scripts analyzed: 55
+Summary: 7 JavaScript technologies detected
+Providers: techspecter, retirejs
+Assets discovered: 200
+Security findings: 10
 
 ==================================================
 Asset Inventory
@@ -427,46 +484,48 @@ Asset Inventory
 
 Summary
 
-JavaScript ............ 29
-CSS ................... 9
-JSON .................. 1
-Manifest .............. 3
-Fonts ................. 5
-Images ............... 21
+JavaScript ........... 43
+CSS ................... 2
+JSON .................. 7
+Manifest ............. 19
+Fonts ................ 38
+Images ............... 83
 
-Total Assets .......... 74
+Total Assets ........ 200
 
 Download Summary
 
-Downloaded ............ 60
-Failed ............... 14
-Skipped ............... 0
-Rate Limited .......... 0
+Downloaded .......... 139
+Failed ............... 61
 
 ==================================================
 Technology Detection
 ==================================================
 
                 Detected Technologies
-+---------------------------------------------------+
-| Technology | Category      | Version | Confidence |
-|------------+---------------+---------+------------|
-| React      | framework     | 19.2.8  | 97.0       |
-| webpack    | build-tool    | Unknown | 94.0       |
-+---------------------------------------------------+
++----------------------------------------------------+
+| Technology | Category       | Version | Confidence |
+|------------+----------------+---------+------------|
+| Next.js    | meta-framework | Unknown | 99.7       |
+| React      | framework      | 19.0.0  | 97.0       |
+| webpack    | build-tool     | Unknown | 94.0       |
+| Angular    | framework      | Unknown | 91.0       |
+| Bootstrap  | css-framework  | Unknown | 91.0       |
+| Leaflet    | visualization  | Unknown | 91.0       |
+| Turbopack  | build-tool     | Unknown | 91.0       |
++----------------------------------------------------+
 
 ==================================================
 Secret & Sensitive Intelligence
 ==================================================
 
-Secrets ..................... 0
+Secrets ..................... 1
 Credentials ................. 0
-Sensitive Configuration ..... 3
+Sensitive Configuration ..... 9
 Developer Artifacts ......... 0
 
-Sensitive Configuration
---------------------------------
-  [medium] internal-ip (80%) — 10.0.0.12 — config.js
+High ........................ 3
+Medium ...................... 6
 
 ==================================================
 Security Summary
@@ -474,12 +533,14 @@ Security Summary
 
 Sensitive Intelligence
 
-Secret & Sensitive Findings ... 3
-Medium ........................ 3
-Sensitive Configuration ....... 3
+Secret & Sensitive Findings . 10
+High ........................ 3
+Medium ...................... 6
+Secrets ..................... 1
+Sensitive Configuration ..... 9
 ```
 
-Use `--show-assets` or `--verbose` to display the full asset inventory table.
+Use `--show-assets` or `--verbose` to display the full asset inventory table and detailed finding blocks.
 
 ---
 
