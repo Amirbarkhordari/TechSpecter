@@ -77,6 +77,10 @@ class FingerprintPipeline:
             elapsed_ms=elapsed_ms,
         )
         detection = self._version_engine.enrich(detection, discovery)
+        logger.debug(
+            "Version detection enrichment complete for %s",
+            target_url,
+        )
         logger.info(
             "Fingerprint detection complete for %s: %d technologies from %d scripts (%.0f ms)",
             target_url,

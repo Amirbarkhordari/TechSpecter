@@ -13,11 +13,17 @@ class MaterialUiVersionExtractor(PatternVersionExtractor):
 
     technology_id = "material-ui"
     aliases = frozenset({"mui", "materialui", "@mui/material"})
+    content_markers = frozenset({"@mui/", "Mui", "material-ui"})
     patterns = (
         ExtractionPattern(
             re.compile(r"@mui/material@([\d.]+(?:[-+][\w.-]+)?)"),
             VersionEvidenceType.PACKAGE_IDENTIFIER,
             "@mui/material package path",
+        ),
+        ExtractionPattern(
+            re.compile(r'"@mui/material"\s*:\s*"([\d.]+(?:[-+][\w.-]+)?)"'),
+            VersionEvidenceType.METADATA,
+            "@mui/material package metadata",
         ),
         ExtractionPattern(
             re.compile(r"material-ui@([\d.]+(?:[-+][\w.-]+)?)"),

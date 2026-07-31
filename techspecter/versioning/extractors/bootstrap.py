@@ -12,6 +12,7 @@ class BootstrapVersionExtractor(PatternVersionExtractor):
     """Extract Bootstrap versions from JavaScript resources."""
 
     technology_id = "bootstrap"
+    content_markers = frozenset({"Bootstrap", "bootstrap@", "data-bs-", "bootstrap.min"})
     patterns = (
         ExtractionPattern(
             re.compile(r"Bootstrap\s+v?([\d.]+(?:[-+][\w.-]+)?)"),
@@ -24,8 +25,8 @@ class BootstrapVersionExtractor(PatternVersionExtractor):
             "bootstrap package path",
         ),
         ExtractionPattern(
-            re.compile(r'version\s*:\s*["\']([\d.]+(?:[-+][\w.-]+)?)["\'][^"\']*bootstrap'),
+            re.compile(r'data-bs-version\s*=\s*["\']([\d.]+(?:[-+][\w.-]+)?)["\']'),
             VersionEvidenceType.METADATA,
-            "Bootstrap metadata version",
+            "Bootstrap data-bs-version attribute",
         ),
     )

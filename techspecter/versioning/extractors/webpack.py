@@ -12,6 +12,7 @@ class WebpackVersionExtractor(PatternVersionExtractor):
     """Extract webpack versions from JavaScript resources."""
 
     technology_id = "webpack"
+    content_markers = frozenset({"webpack", "__webpack", "webpackJsonp"})
     patterns = (
         ExtractionPattern(
             re.compile(r"webpack[/\s]+([\d.]+(?:[-+][\w.-]+)?)"),
@@ -27,5 +28,12 @@ class WebpackVersionExtractor(PatternVersionExtractor):
             re.compile(r"__webpack_require__\.p\s*\+\s*['\"][^'\"]*webpack[^'\"]*([\d.]+)"),
             VersionEvidenceType.BUILD_METADATA,
             "webpack runtime path",
+        ),
+    )
+    filename_patterns = (
+        ExtractionPattern(
+            re.compile(r"webpack[-.]([\d.]+(?:[-+][\w.-]+)?)", re.I),
+            VersionEvidenceType.PACKAGE_IDENTIFIER,
+            "webpack filename version",
         ),
     )

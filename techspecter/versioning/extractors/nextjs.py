@@ -13,7 +13,28 @@ class NextJsVersionExtractor(PatternVersionExtractor):
 
     technology_id = "nextjs"
     aliases = frozenset({"next.js", "next"})
+    content_markers = frozenset(
+        {
+            "next",
+            "NEXT_",
+            "nextVersion",
+            "appDir",
+            "appBootstrap",
+        },
+    )
     patterns = (
+        ExtractionPattern(
+            re.compile(r'window\.next=\{version:"([\d.]+(?:[-+][\w.-]+)?)"'),
+            VersionEvidenceType.RUNTIME_CONSTANT,
+            "window.next runtime version",
+        ),
+        ExtractionPattern(
+            re.compile(
+                r'window\.next\s*=\s*\{[^}]*version\s*:\s*"([\d.]+(?:[-+][\w.-]+)?)"',
+            ),
+            VersionEvidenceType.RUNTIME_CONSTANT,
+            "window.next object version",
+        ),
         ExtractionPattern(
             re.compile(r'"nextVersion"\s*:\s*"([\d.]+(?:[-+][\w.-]+)?)"'),
             VersionEvidenceType.METADATA,

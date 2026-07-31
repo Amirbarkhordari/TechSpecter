@@ -13,6 +13,7 @@ class AngularVersionExtractor(PatternVersionExtractor):
 
     technology_id = "angular"
     aliases = frozenset({"angularjs", "@angular/core"})
+    content_markers = frozenset({"@angular/", "ng.version", "angular.io", "Angular v"})
     patterns = (
         ExtractionPattern(
             re.compile(r'ng\.version\s*=\s*["\']([\d.]+(?:[-+][\w.-]+)?)["\']'),
@@ -30,8 +31,8 @@ class AngularVersionExtractor(PatternVersionExtractor):
             "Angular banner",
         ),
         ExtractionPattern(
-            re.compile(r'VERSION\s*:\s*["\']([\d.]+(?:[-+][\w.-]+)?)["\']'),
+            re.compile(r'@angular/core[^"\']*["\']([\d.]+(?:[-+][\w.-]+)?)["\']'),
             VersionEvidenceType.BUILD_METADATA,
-            "Angular VERSION constant",
+            "Angular core build metadata",
         ),
     )

@@ -35,24 +35,51 @@ class VersionDetectionEngine:
     ) -> DetectionResult:
         """Apply version detection to fingerprint matches using discovery content."""
         resources = list(_collect_resources(discovery))
+        logger.info(
+            "Version detection starting for %s: %d technologies, %d javascript resources",
+            detection.target_url,
+            len(detection.matches),
+            len(resources),
+        )
         if not resources:
+            logger.warning(
+                "Version detection skipped for %s: no javascript content available",
+                detection.target_url,
+            )
             return detection
 
         enriched_matches: list[TechnologyMatch] = []
         resolved = 0
 
         for match in detection.matches:
+            logger.debug(
+                "Version detection processing technology=%s current_version=%s",
+                match.technology.id,
+                match.version,
+            )
             updated = self._resolve_match_version(match, resources)
             if updated.version != UNKNOWN_VERSION and match.version == UNKNOWN_VERSION:
                 resolved += 1
+                logger.info(
+                    "Version detection resolved %s -> %s (confidence=%.1f source=%s)",
+                    match.technology.id,
+                    updated.version,
+                    updated.version_confidence or 0.0,
+                    updated.version_source,
+                )
+            elif updated.version == UNKNOWN_VERSION:
+                logger.debug(
+                    "Version detection left %s as Unknown (no extractor or no candidates)",
+                    match.technology.id,
+                )
             enriched_matches.append(updated)
 
-        if resolved:
-            logger.info(
-                "Version detection resolved %d unknown versions for %s",
-                resolved,
-                detection.target_url,
-            )
+        logger.info(
+            "Version detection finished for %s: resolved %d/%d unknown versions",
+            detection.target_url,
+            resolved,
+            sum(1 for item in detection.matches if item.version == UNKNOWN_VERSION),
+        )
 
         return DetectionResult(
             target_url=detection.target_url,
@@ -69,24 +96,56 @@ class VersionDetectionEngine:
         """Detect the best version for one technology across resources."""
         extractor = self.registry.get(technology_id)
         if extractor is None:
+            logger.debug(
+                "Version detection has no extractor registered for technology=%s",
+                technology_id,
+            )
             return None
+
+        logger.debug(
+            "Version detection selected extractor=%s for technology=%s",
+            extractor.technology_id,
+            technology_id,
+        )
 
         candidates: list[ExtractedVersion] = []
         for resource in resources:
-            candidates.extend(
-                extractor.extract(
-                    resource.content,
-                    url=resource.url,
-                    filename=resource.filename,
-                ),
+            extracted = extractor.extract(
+                resource.content,
+                url=resource.url,
+                filename=resource.filename,
             )
+            if extracted:
+                logger.debug(
+                    "Version detection extractor=%s found %d candidate(s) in %s",
+                    extractor.technology_id,
+                    len(extracted),
+                    resource.filename,
+                )
+            candidates.extend(extracted)
 
         if not candidates:
+            logger.debug(
+                "Version detection extractor=%s found no valid candidates for technology=%s",
+                extractor.technology_id,
+                technology_id,
+            )
             return None
 
         candidates.sort(key=lambda item: (-item.confidence, item.version))
         best = candidates[0]
         rejected = sorted({item.version for item in candidates[1:] if item.version != best.version})
+
+        logger.debug(
+            "Version detection selected version=%s for technology=%s via %s "
+            "(confidence=%.1f rejected=%s candidates=%d)",
+            best.version,
+            technology_id,
+            best.method.value,
+            best.confidence,
+            rejected,
+            len(candidates),
+        )
 
         return TechnologyVersionResult(
             technology_id=extractor.technology_id,
@@ -110,6 +169,12 @@ class VersionDetectionEngine:
         has_known_version = match.version not in (UNKNOWN_VERSION, "", None)
 
         if has_known_version and existing_confidence >= 90.0:
+            logger.debug(
+                "Version detection preserving existing version for %s: %s (confidence=%.1f)",
+                match.technology.id,
+                match.version,
+                existing_confidence,
+            )
             return match
 
         result = self.detect_for_technology(match.technology.id, resources)
@@ -117,6 +182,11 @@ class VersionDetectionEngine:
             return match
 
         if has_known_version and existing_confidence >= result.confidence:
+            logger.debug(
+                "Version detection kept existing version for %s over candidate %s",
+                match.technology.id,
+                result.version,
+            )
             return match
 
         evidence_sources = list(match.evidence_sources)
@@ -159,6 +229,10 @@ def _collect_resources(discovery: DiscoveryResult) -> list[JavaScriptResourceCon
                 ),
             )
         if resources:
+            logger.debug(
+                "Version detection collected %d resources from javascript_index",
+                len(resources),
+            )
             return resources
 
     for download in discovery.downloads:
@@ -181,4 +255,8 @@ def _collect_resources(discovery: DiscoveryResult) -> list[JavaScriptResourceCon
             ),
         )
 
+    logger.debug(
+        "Version detection collected %d resources from legacy discovery downloads/inline scripts",
+        len(resources),
+    )
     return resources

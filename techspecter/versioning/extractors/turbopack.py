@@ -12,6 +12,7 @@ class TurbopackVersionExtractor(PatternVersionExtractor):
     """Extract Turbopack versions from JavaScript resources."""
 
     technology_id = "turbopack"
+    content_markers = frozenset({"TURBOPACK", "turbopack"})
     patterns = (
         ExtractionPattern(
             re.compile(r"turbopack[/\s@]+([\d.]+(?:[-+][\w.-]+)?)"),

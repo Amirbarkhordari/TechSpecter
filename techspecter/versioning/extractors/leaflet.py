@@ -12,11 +12,17 @@ class LeafletVersionExtractor(PatternVersionExtractor):
     """Extract Leaflet versions from JavaScript resources."""
 
     technology_id = "leaflet"
+    content_markers = frozenset({"leaflet", "Leaflet", "L.map", "L.tileLayer"})
     patterns = (
         ExtractionPattern(
             re.compile(r'Leaflet\.version\s*=\s*["\']([\d.]+(?:[-+][\w.-]+)?)["\']'),
             VersionEvidenceType.RUNTIME_CONSTANT,
             "Leaflet.version runtime constant",
+        ),
+        ExtractionPattern(
+            re.compile(r'L\.version\s*=\s*["\']([\d.]+(?:[-+][\w.-]+)?)["\']'),
+            VersionEvidenceType.RUNTIME_CONSTANT,
+            "L.version runtime constant",
         ),
         ExtractionPattern(
             re.compile(r"leaflet@([\d.]+(?:[-+][\w.-]+)?)"),

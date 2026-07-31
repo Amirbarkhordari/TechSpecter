@@ -39,6 +39,10 @@ def test_validate_accepts_semver_variants() -> None:
     assert validate_and_normalize("15.3.2-beta") == "15.3.2-beta"
     assert validate_and_normalize("1.0.0-rc.1") == "1.0.0-rc.1"
     assert validate_and_normalize("2.0.0-alpha") == "2.0.0-alpha"
+    assert (
+        validate_and_normalize("19.3.0-canary-3f0b9e61-20260317")
+        == "19.3.0-canary-3f0b9e61-20260317"
+    )
 
 
 def test_validate_rejects_invalid_versions() -> None:
@@ -87,6 +91,38 @@ def test_react_extractor_minified_bundle() -> None:
     results = extractor.extract(content, url="https://example.com/min.js", filename="min.js")
     versions = {item.version for item in results}
     assert "19.1.0" in versions
+
+
+def test_react_extractor_minified_react_dom_bundle() -> None:
+    """Verify extraction from production React DOM bundles."""
+    content = (
+        'eE=f4.inject({bundleType:0,version:"19.3.0-canary-3f0b9e61-20260317",'
+        'rendererPackageName:"react-dom",reconcilerVersion:"19.3.0-canary-3f0b9e61-20260317"})'
+    )
+    extractor = ReactVersionExtractor()
+    results = extractor.extract(content, url="https://example.com/chunk.js", filename="chunk.js")
+    assert any(item.version == "19.3.0-canary-3f0b9e61-20260317" for item in results)
+
+
+def test_nextjs_extractor_window_next_runtime() -> None:
+    """Verify extraction from Next.js runtime bootstrap."""
+    content = 'window.next={version:"16.2.10",appDir:!0},function n(){}'
+    from techspecter.versioning.extractors.nextjs import NextJsVersionExtractor
+
+    extractor = NextJsVersionExtractor()
+    results = extractor.extract(
+        content, url="https://example.com/bootstrap.js", filename="bootstrap.js"
+    )
+    assert any(item.version == "16.2.10" for item in results)
+
+
+def test_angular_extractor_skips_unrelated_content() -> None:
+    """Verify Angular extractor ignores unrelated version strings."""
+    from techspecter.versioning.extractors.angular import AngularVersionExtractor
+
+    content = '(0,u.default)("MuiSkeleton",["rectangular","rounded"])'
+    extractor = AngularVersionExtractor()
+    assert extractor.extract(content, url="https://example.com/app.js", filename="app.js") == []
 
 
 def test_registry_supports_required_technologies() -> None:
@@ -208,8 +244,8 @@ def test_multiple_extraction_methods_ranked() -> None:
         (
             "techspecter.versioning.extractors.nextjs:NextJsVersionExtractor",
             "nextjs",
-            '"nextVersion":"15.3.2"',
-            "15.3.2",
+            'window.next={version:"16.2.10",appDir:!0}',
+            "16.2.10",
         ),
         (
             "techspecter.versioning.extractors.webpack:WebpackVersionExtractor",

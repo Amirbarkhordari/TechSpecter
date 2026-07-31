@@ -13,6 +13,7 @@ class VueVersionExtractor(PatternVersionExtractor):
 
     technology_id = "vue"
     aliases = frozenset({"vuejs", "vue.js"})
+    content_markers = frozenset({"Vue", "vue@", "__VUE__"})
     patterns = (
         ExtractionPattern(
             re.compile(r'Vue\.version\s*=\s*["\']([\d.]+(?:[-+][\w.-]+)?)["\']'),

@@ -13,6 +13,7 @@ class TailwindVersionExtractor(PatternVersionExtractor):
 
     technology_id = "tailwindcss"
     aliases = frozenset({"tailwind", "tailwind-css"})
+    content_markers = frozenset({"tailwindcss", "Tailwind CSS"})
     patterns = (
         ExtractionPattern(
             re.compile(r"tailwindcss@([\d.]+(?:[-+][\w.-]+)?)"),

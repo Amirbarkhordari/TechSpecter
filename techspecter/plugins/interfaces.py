@@ -13,11 +13,11 @@ from techspecter.core.interfaces import ScanResult
 from techspecter.plugins.context import PluginContext
 from techspecter.plugins.hooks import HookRegistry
 from techspecter.plugins.metadata import PluginMetadata, PluginType
-from techspecter.reporting.engine import ReportEngine
-from techspecter.reporting.exporters.base import BaseExporter
 
 if TYPE_CHECKING:
     from techspecter.analysis.analyzers.base import Analyzer
+    from techspecter.reporting.engine import ReportEngine
+    from techspecter.reporting.exporters.base import BaseExporter
 
 
 class Plugin(CorePlugin):

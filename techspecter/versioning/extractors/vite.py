@@ -12,6 +12,7 @@ class ViteVersionExtractor(PatternVersionExtractor):
     """Extract Vite versions from JavaScript resources."""
 
     technology_id = "vite"
+    content_markers = frozenset({"vite", "__vite__"})
     patterns = (
         ExtractionPattern(
             re.compile(r"vite[/\s@]+([\d.]+(?:[-+][\w.-]+)?)"),

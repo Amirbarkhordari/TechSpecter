@@ -12,6 +12,7 @@ class JQueryVersionExtractor(PatternVersionExtractor):
     """Extract jQuery versions from JavaScript resources."""
 
     technology_id = "jquery"
+    content_markers = frozenset({"jQuery", "jquery@"})
     patterns = (
         ExtractionPattern(
             re.compile(r'jQuery\.fn\.jquery\s*=\s*["\']([\d.]+(?:[-+][\w.-]+)?)["\']'),
