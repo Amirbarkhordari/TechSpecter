@@ -9,6 +9,8 @@ from pydantic import ConfigDict, Field
 from techspecter.models.base import TechSpecterModel
 
 if TYPE_CHECKING:
+    from techspecter.asset_discovery.models import AssetInventory
+    from techspecter.sensitive_intelligence.models import SensitiveIntelligenceReport
     from techspecter.technology_intelligence.models import TechnologyIntelligenceReport
 
 MatcherType = Literal["string", "regex", "filename", "sourcemap", "global"]
@@ -134,3 +136,5 @@ class FingerprintAnalysisResult(TechSpecterModel):
     elapsed_ms: float = 0.0
     provider_diagnostics: dict[str, object] = Field(default_factory=dict)
     technology_intelligence: TechnologyIntelligenceReport | None = None
+    asset_inventory: AssetInventory | None = None
+    sensitive_intelligence: SensitiveIntelligenceReport | None = None

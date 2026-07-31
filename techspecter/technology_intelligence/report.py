@@ -22,23 +22,39 @@ from techspecter.technology_intelligence.models import (
 
 logger = logging.getLogger(__name__)
 
+_SECTION_WIDTH = 50
+
 
 def render_technology_intelligence(
     report: TechnologyIntelligenceReport,
     *,
     console: Console,
 ) -> None:
-    """Render technology intelligence summary and evidence to the terminal."""
+    """Render technology intelligence summary table."""
     if not report.technologies:
         return
 
-    console.print("\n" + "=" * 50)
+    console.print("\n" + "=" * _SECTION_WIDTH)
     console.print("[bold]Technology Intelligence[/bold]")
-    console.print("=" * 50 + "\n")
+    console.print("=" * _SECTION_WIDTH + "\n")
 
     table = _build_summary_table(report)
     console.print(table)
     console.print()
+
+
+def render_technology_evidence(
+    report: TechnologyIntelligenceReport,
+    *,
+    console: Console,
+) -> None:
+    """Render detailed technology evidence blocks."""
+    if not report.technologies:
+        return
+
+    console.print("=" * _SECTION_WIDTH)
+    console.print("[bold]Technology Evidence[/bold]")
+    console.print("=" * _SECTION_WIDTH + "\n")
 
     for entry in report.technologies:
         _render_evidence_block(entry, console=console)
@@ -72,36 +88,131 @@ def _build_summary_table(report: TechnologyIntelligenceReport) -> Table:
 
 
 def _render_evidence_block(entry: TechnologyIntelligenceEntry, *, console: Console) -> None:
-    console.print("-" * 50)
+    console.print("-" * _SECTION_WIDTH)
     console.print(f"[bold]Technology:[/bold] {entry.technology.name}")
-    console.print("[bold]Found In:[/bold]")
-    if entry.found_in_files:
-        for filename in entry.found_in_files:
-            console.print(f"  {filename}")
-    else:
-        console.print("  [dim](unknown)[/dim]")
+    _render_found_in(entry, console=console)
 
     primary = _primary_evidence(entry.evidence)
     if primary is not None:
         console.print("\n[bold]Evidence:[/bold]")
-        console.print(
-            f"  {primary.matched_pattern or primary.matched_text or primary.evidence_type.value}"
-        )
-        if primary.matched_pattern:
+        matched_text = _display_matched_text(primary)
+        if matched_text:
+            console.print(f"  {matched_text}")
+        if primary.matched_pattern and primary.matched_pattern != matched_text:
             console.print("\n[bold]Matched Pattern:[/bold]")
             console.print(f"  {primary.matched_pattern}")
-        if primary.matched_text:
-            console.print("\n[bold]Matched Text:[/bold]")
-            console.print(f"  {primary.matched_text}")
+
+    if entry.metadata.detection_methods:
+        console.print("\n[bold]Discovery Methods:[/bold]")
+        console.print(f"  {', '.join(entry.metadata.detection_methods)}")
+
+    if entry.relationships:
+        console.print("\n[bold]Relationships:[/bold]")
+        for rel in entry.relationships:
+            console.print(
+                f"  {rel.source_technology_name} -> {rel.target_technology_name} "
+                f"({rel.relationship.value})",
+            )
 
     if entry.version_attribution is not None:
-        attr = entry.version_attribution
-        console.print("\n[bold]Version Source:[/bold]")
-        console.print(f"  {attr.source_file or attr.source_url or 'unknown'}")
-        if attr.matched_text:
-            console.print(f"  {attr.matched_text}")
+        _render_version_attribution(entry, console=console)
 
     console.print(f"\n[bold]Confidence:[/bold] {entry.confidence:.0f}%\n")
+
+
+def _render_found_in(entry: TechnologyIntelligenceEntry, *, console: Console) -> None:
+    console.print("[bold]Found In:[/bold]")
+    locations = _collect_locations(entry)
+    if not locations:
+        console.print("  [dim](unknown)[/dim]")
+        return
+    for location in locations:
+        console.print(f"  [bold]Source File:[/bold] {location['source_file']}")
+        if location.get("relative_path"):
+            console.print(f"  [bold]Relative Path:[/bold] {location['relative_path']}")
+        if location.get("asset_id"):
+            console.print(f"  [bold]Asset ID:[/bold] {location['asset_id']}")
+        if location.get("source_url"):
+            console.print(f"  [bold]Source URL:[/bold] {location['source_url']}")
+        if location.get("discovery_method"):
+            console.print(f"  [bold]Discovery:[/bold] {location['discovery_method']}")
+        console.print()
+
+
+def _render_version_attribution(entry: TechnologyIntelligenceEntry, *, console: Console) -> None:
+    attr = entry.version_attribution
+    if attr is None:
+        return
+    console.print("\n[bold]Version Attribution:[/bold]")
+    console.print(f"  [bold]Version:[/bold] {attr.detected_version}")
+    if attr.source_file:
+        console.print(f"  [bold]Source File:[/bold] {attr.source_file}")
+    if attr.source_url:
+        console.print(f"  [bold]Source URL:[/bold] {attr.source_url}")
+    if attr.source_asset_id:
+        console.print(f"  [bold]Asset ID:[/bold] {attr.source_asset_id}")
+    if attr.matched_pattern:
+        console.print(f"  [bold]Matched Pattern:[/bold] {attr.matched_pattern}")
+    if attr.matched_text:
+        console.print(f"  [bold]Matched Value:[/bold] {attr.matched_text}")
+    console.print(f"  [bold]Confidence:[/bold] {attr.confidence:.0f}%")
+
+
+def _collect_locations(entry: TechnologyIntelligenceEntry) -> list[dict[str, str]]:
+    """Build unique attribution locations from evidence and found-in metadata."""
+    seen: set[tuple[str, str, str]] = set()
+    locations: list[dict[str, str]] = []
+
+    def add(
+        *,
+        source_file: str | None,
+        relative_path: str | None = None,
+        asset_id: str | None = None,
+        source_url: str | None = None,
+        discovery_method: str | None = None,
+    ) -> None:
+        file_label = source_file or source_url or asset_id
+        if not file_label:
+            return
+        key = (file_label, asset_id or "", source_url or "")
+        if key in seen:
+            return
+        seen.add(key)
+        location: dict[str, str] = {"source_file": file_label}
+        if relative_path:
+            location["relative_path"] = relative_path
+        if asset_id:
+            location["asset_id"] = asset_id
+        if source_url:
+            location["source_url"] = source_url
+        if discovery_method:
+            location["discovery_method"] = discovery_method
+        locations.append(location)
+
+    for item in entry.evidence:
+        add(
+            source_file=item.source_file,
+            asset_id=item.source_asset_id,
+            source_url=item.source_url,
+            discovery_method=item.discovery_method.value,
+        )
+
+    if not locations:
+        for filename in entry.found_in_files:
+            add(source_file=filename)
+        for index, asset_id in enumerate(entry.found_in_asset_ids):
+            linked_file = entry.found_in_files[index] if index < len(entry.found_in_files) else None
+            add(source_file=linked_file, asset_id=asset_id)
+
+    return locations
+
+
+def _display_matched_text(item: TechnologyEvidenceRecord) -> str | None:
+    """Prefer matched text over internal labels for display."""
+    for candidate in (item.matched_text, item.matched_pattern):
+        if candidate and not candidate.startswith("techspecter:"):
+            return candidate
+    return item.matched_text or item.matched_pattern
 
 
 def _primary_evidence(

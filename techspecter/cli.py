@@ -36,7 +36,6 @@ from techspecter.fingerprinting.models import FingerprintAnalysisResult
 from techspecter.models.discovery import DiscoveryResult
 from techspecter.plugins.cli import plugins_app
 from techspecter.providers.service import UnifiedDetectionService
-from techspecter.reporting.renderer import render_report
 from techspecter.reporting.service import ReportService
 from techspecter.utils.errors import format_user_error
 from techspecter.utils.logging import configure_logging
@@ -803,18 +802,16 @@ def fingerprint_command(
         console.print(f"[red]Report generation failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
-    render_report(
+    from techspecter.reporting.fingerprint_report import render_fingerprint_report
+
+    render_fingerprint_report(
+        result,
         report,
         console=console,
         compact=compact,
         group_by_category=group_by_category,
         verbose=verbose_output,
     )
-
-    if result.technology_intelligence is not None:
-        from techspecter.technology_intelligence.report import render_technology_intelligence
-
-        render_technology_intelligence(result.technology_intelligence, console=console)
 
     if compare_wappalyzer:
         console.print("\n[bold]Running Wappalyzer comparison benchmark…[/bold]")

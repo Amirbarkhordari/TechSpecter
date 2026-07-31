@@ -47,10 +47,10 @@ class ProviderEvidenceAggregator:
             seen_structured.add(key)
             structured.append(
                 PatternEvidence(
-                    matcher=item.category,
-                    pattern=item.detail,
+                    matcher=_resolve_matcher(item),
+                    pattern=_resolve_pattern(item),
                     weight=_EVIDENCE_CATEGORY_WEIGHTS.get(item.category, 50.0),
-                    detail=f"{item.source}:{item.detail}" if item.source else item.detail,
+                    detail=_resolve_detail(item),
                 ),
             )
         return strings, structured
@@ -100,6 +100,57 @@ class ProviderEvidenceAggregator:
 
     def _format_item(self, item: ProviderEvidenceItem) -> str:
         """Format an evidence item for report strings."""
+        detail = _resolve_detail(item)
         if item.location:
-            return f"{item.category}:{item.detail} ({item.location})"
-        return f"{item.category}:{item.detail}"
+            return f"{item.category}:{detail} ({item.location})"
+        return f"{item.category}:{detail}"
+
+
+_PROVIDER_PREFIXES = frozenset({"techspecter", "wappalyzer", "retirejs"})
+_CATEGORY_PREFIXES = frozenset(_EVIDENCE_CATEGORY_WEIGHTS) | {
+    "filename",
+    "resource",
+    "source",
+    "retire.js",
+}
+
+
+def _resolve_matcher(item: ProviderEvidenceItem) -> str:
+    """Map evidence item to fingerprint matcher type."""
+    detail = item.detail
+    if ":" in detail:
+        prefix = detail.split(":", 1)[0].lower()
+        if prefix in {"filename", "global", "string", "regex", "sourcemap"}:
+            return prefix
+    return item.category
+
+
+def _resolve_pattern(item: ProviderEvidenceItem) -> str:
+    """Extract the matched pattern from an evidence item."""
+    detail = item.detail
+    if ":" in detail:
+        prefix, rest = detail.split(":", 1)
+        if prefix.lower() in _CATEGORY_PREFIXES or prefix.lower() in _PROVIDER_PREFIXES:
+            if prefix.lower() in _PROVIDER_PREFIXES and ":" in rest:
+                _, nested = rest.split(":", 1)
+                return nested.strip() or rest.strip()
+            return rest.strip() or detail
+    return detail
+
+
+def _resolve_detail(item: ProviderEvidenceItem) -> str | None:
+    """Extract human-readable matched text from an evidence item."""
+    pattern = _resolve_pattern(item)
+    if pattern and not _looks_internal(pattern):
+        return pattern
+    return item.detail
+
+
+def _looks_internal(value: str) -> bool:
+    """Return True when a value looks like an internal label rather than evidence."""
+    return (
+        value.startswith("techspecter:")
+        or value.startswith("wappalyzer:")
+        or value.startswith("resource:")
+        or value.startswith("source:")
+    )

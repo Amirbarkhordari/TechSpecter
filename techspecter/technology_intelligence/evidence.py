@@ -20,6 +20,21 @@ logger = logging.getLogger(__name__)
 
 _DETECTOR_NAME = "techspecter-fingerprint"
 _EVIDENCE_DETECTOR = "techspecter-evidence"
+_PROVIDER_PREFIXES = frozenset({"techspecter", "wappalyzer", "retirejs"})
+_CATEGORY_PREFIXES = frozenset(
+    {
+        "runtime",
+        "javascript",
+        "html",
+        "headers",
+        "wappalyzer",
+        "retirejs",
+        "resource",
+        "source",
+        "filename",
+        "other",
+    },
+)
 
 
 def build_evidence_from_match(
@@ -68,6 +83,19 @@ def build_evidence_from_match(
             )
 
     if not records and (source_url or match.filename):
+        if match.matched_patterns:
+            fallback_pattern = match.matched_patterns[0]
+            synthetic = PatternEvidence(
+                matcher="string",
+                pattern=fallback_pattern,
+                weight=match.confidence,
+                detail=match.detection_reason,
+            )
+            matched_pattern = _strip_evidence_prefixes(fallback_pattern)
+            matched_text = _resolve_matched_text(synthetic)
+        else:
+            matched_pattern = None
+            matched_text = match.detection_reason
         records.append(
             TechnologyEvidenceRecord(
                 evidence_id=str(uuid4()),
@@ -77,8 +105,8 @@ def build_evidence_from_match(
                 confidence=match.confidence,
                 detector_name=_DETECTOR_NAME,
                 evidence_type=IntelligenceEvidenceType.PATTERN_MATCH,
-                matched_pattern=match.matched_patterns[0] if match.matched_patterns else None,
-                matched_text=match.detection_reason,
+                matched_pattern=matched_pattern,
+                matched_text=matched_text,
                 source_file=source_file,
                 source_url=source_url,
                 source_asset_id=asset_id,
@@ -129,12 +157,13 @@ def build_version_attribution(
     if version_result is None:
         if match.version in ("Unknown", "", None):
             return None
+        raw_pattern = match.matched_patterns[0] if match.matched_patterns else None
         return VersionAttributionRecord(
             detected_version=match.version,
             source_file=attributor.source_file(match.source_url, match.filename),
             source_url=match.source_url,
             source_asset_id=attributor.asset_id(match.source_url),
-            matched_pattern=match.matched_patterns[0] if match.matched_patterns else None,
+            matched_pattern=_strip_evidence_prefixes(raw_pattern) if raw_pattern else None,
             matched_text=match.version_reason,
             confidence=match.version_confidence or match.confidence,
             extractor_id=match.version_source,
@@ -147,12 +176,17 @@ def build_version_attribution(
         source_url,
         primary.filename if primary else match.filename,
     )
+    raw_pattern = (
+        primary.pattern
+        if primary
+        else (match.matched_patterns[0] if match.matched_patterns else None)
+    )
     return VersionAttributionRecord(
         detected_version=version_result.version,
         source_file=source_file,
         source_url=source_url,
         source_asset_id=attributor.asset_id(source_url),
-        matched_pattern=primary.pattern if primary else None,
+        matched_pattern=_strip_evidence_prefixes(raw_pattern) if raw_pattern else None,
         matched_text=primary.matched_value if primary else None,
         confidence=version_result.confidence,
         extractor_id=version_result.method.value,
@@ -195,7 +229,7 @@ def _pattern_evidence(
         detector_name=_DETECTOR_NAME,
         evidence_type=_map_matcher_type(pattern.matcher),
         matched_pattern=pattern.pattern,
-        matched_text=pattern.detail,
+        matched_text=_resolve_matched_text(pattern),
         source_file=source_file,
         source_url=source_url,
         source_asset_id=asset_id,
@@ -306,3 +340,45 @@ def _map_discovery_method(value: str | None) -> DiscoveryMethod:
         "inline": DiscoveryMethod.INLINE,
     }
     return mapping.get(value, DiscoveryMethod.UNKNOWN)
+
+
+def _resolve_matched_text(pattern: PatternEvidence) -> str | None:
+    """Return human-readable evidence text from a pattern record."""
+    if pattern.matcher in {"global", "string", "regex", "sourcemap"}:
+        if pattern.detail and not _looks_internal_label(pattern.detail):
+            return pattern.detail
+        return pattern.pattern
+
+    if pattern.matcher == "filename":
+        return pattern.pattern
+
+    for candidate in (pattern.detail, pattern.pattern):
+        if not candidate:
+            continue
+        cleaned = _strip_evidence_prefixes(candidate)
+        if cleaned and not _looks_internal_label(cleaned):
+            return cleaned
+    return pattern.pattern or pattern.detail
+
+
+def _strip_evidence_prefixes(value: str) -> str:
+    """Remove provider and category prefixes from evidence strings."""
+    current = value.strip()
+    while ":" in current:
+        prefix, rest = current.split(":", 1)
+        lowered = prefix.lower()
+        if lowered in _PROVIDER_PREFIXES or lowered in _CATEGORY_PREFIXES:
+            current = rest.strip()
+            continue
+        break
+    return current
+
+
+def _looks_internal_label(value: str) -> bool:
+    """Return True when a value is an internal label rather than matched content."""
+    return (
+        value.startswith("techspecter:")
+        or value.startswith("wappalyzer:")
+        or value.startswith("resource:")
+        or value.startswith("source:")
+    )

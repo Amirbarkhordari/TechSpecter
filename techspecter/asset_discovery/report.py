@@ -42,12 +42,16 @@ def render_asset_inventory(inventory: AssetInventory, *, console: Console | None
     output.print(f"JavaScript : {summary.javascript}")
     output.print(f"CSS : {summary.css}")
     output.print(f"JSON : {summary.json_count}")
-    output.print(f"Maps : {summary.map_count}")
-    output.print(f"Workers : {summary.worker + summary.service_worker}")
+    output.print(f"Source Maps : {summary.map_count}")
+    output.print(f"Manifest : {summary.manifest}")
+    output.print(f"Workers : {summary.worker}")
+    output.print(f"Service Workers : {summary.service_worker}")
     output.print(f"Fonts : {summary.font}")
     output.print(f"WASM : {summary.wasm}")
-    output.print(f"Manifest : {summary.manifest}")
-    other = summary.unknown + summary.other + summary.xml + summary.text + summary.image
+    output.print(f"XML : {summary.xml}")
+    output.print(f"TXT : {summary.text}")
+    output.print(f"Images : {summary.image}")
+    other = summary.unknown + summary.other
     output.print(f"Other : {other}")
     output.print(f"\n[bold]Total Assets : {summary.total_assets}[/bold]\n")
 
@@ -58,23 +62,27 @@ def render_asset_inventory(inventory: AssetInventory, *, console: Console | None
     terminal_width = shutil.get_terminal_size(fallback=(120, 24)).columns
     table = Table(title="Asset Inventory", expand=True, min_width=min(terminal_width, 120))
     table.add_column("Category", no_wrap=True)
-    table.add_column("File", overflow="fold", max_width=max(20, terminal_width // 6))
+    table.add_column("File Name", overflow="fold", max_width=max(20, terminal_width // 7))
+    table.add_column("Relative Path", overflow="fold", max_width=max(20, terminal_width // 6))
     table.add_column("Extension", no_wrap=True)
-    table.add_column("Size", no_wrap=True)
-    table.add_column("Status", no_wrap=True)
     table.add_column("Content-Type", overflow="fold", max_width=max(16, terminal_width // 8))
+    table.add_column("HTTP Status", no_wrap=True)
+    table.add_column("Size", no_wrap=True)
     table.add_column("Referenced By", overflow="fold", max_width=max(16, terminal_width // 6))
+    table.add_column("Asset ID", overflow="fold", max_width=max(12, terminal_width // 10))
     table.add_column("URL", overflow="fold")
 
     for asset in inventory.assets:
         table.add_row(
             _category_label(asset.category),
             asset.filename,
+            asset.relative_path or "-",
             asset.extension or "-",
-            _format_size(asset.file_size),
-            _format_status(asset),
             asset.content_type or "-",
+            _format_status(asset),
+            _format_size(asset.file_size),
             _format_referenced_by(asset),
+            asset.asset_id,
             asset.url,
         )
 

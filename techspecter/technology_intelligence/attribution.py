@@ -47,7 +47,16 @@ class AssetAttributor:
             return filename
         if url and url.startswith("inline://"):
             return url.rsplit("/", 1)[-1] + ".js"
+        if url:
+            path = url.rsplit("/", 1)[-1]
+            if path and "." in path:
+                return path
         return None
+
+    def relative_path(self, url: str | None) -> str | None:
+        """Return relative path for a URL when known in inventory."""
+        record = self.resolve(url)
+        return record.relative_path if record else None
 
     def discovery_method(self, url: str | None) -> str | None:
         """Return primary discovery method from asset inventory."""

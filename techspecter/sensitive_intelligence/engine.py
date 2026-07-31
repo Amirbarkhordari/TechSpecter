@@ -93,10 +93,14 @@ def _build_summary(
             summary.secrets += 1
         elif item.finding_type == FindingType.CREDENTIAL:
             summary.credentials += 1
-        elif item.finding_type in {FindingType.URL, FindingType.DOMAIN, FindingType.HOSTNAME}:
+        elif item.finding_type == FindingType.URL:
             summary.urls += 1
+        elif item.finding_type in {FindingType.DOMAIN, FindingType.HOSTNAME}:
+            summary.domains += 1
         elif item.finding_type == FindingType.IP:
             summary.ips += 1
+        elif item.finding_type == FindingType.UUID:
+            summary.uuids += 1
         elif item.finding_type == FindingType.COMMENT:
             summary.comments += 1
         else:

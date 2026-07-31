@@ -106,6 +106,8 @@ class UnifiedDetectionService:
                 "merge_summary": merge_summary.model_dump() if merge_summary else {},
             },
             technology_intelligence=intelligence,
+            asset_inventory=discovery.asset_inventory,
+            sensitive_intelligence=discovery.sensitive_intelligence,
         )
 
     def build_unified_result(

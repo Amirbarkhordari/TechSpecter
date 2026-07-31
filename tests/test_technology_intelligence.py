@@ -21,6 +21,7 @@ from techspecter.technology_intelligence.models import (
 )
 from techspecter.technology_intelligence.report import (
     build_report_technology_intelligence,
+    render_technology_evidence,
     render_technology_intelligence,
 )
 from techspecter.technology_intelligence.tracker import EvidenceTracker
@@ -252,6 +253,8 @@ def test_render_technology_intelligence_smoke() -> None:
     report = TechnologyIntelligenceEngine().build(discovery, detection)
     console = Console(record=True, width=120)
     render_technology_intelligence(report, console=console)
+    render_technology_evidence(report, console=console)
     output = console.export_text()
     assert "Technology Intelligence" in output
+    assert "Technology Evidence" in output
     assert "React" in output

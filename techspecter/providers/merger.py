@@ -140,6 +140,8 @@ class ProviderMerger:
         if version_outcome.rejected_versions:
             provider_metadata["rejected_versions"] = list(version_outcome.rejected_versions)
 
+        source_url, filename, matched_resources = self._collect_provenance(matches)
+
         return TechnologyMatch(
             technology=Technology(
                 id=tech_id,
@@ -156,6 +158,9 @@ class ProviderMerger:
             evidence_count=len(evidence_strings),
             evidence_sources=detection_methods,
             evidence=structured_evidence[:20],
+            source_url=source_url,
+            filename=filename,
+            matched_resources=matched_resources,
             confidence_breakdown={
                 "provider_agreement": confidence_breakdown.provider_agreement,
                 "base_confidence": confidence_breakdown.base_confidence,
@@ -174,6 +179,34 @@ class ProviderMerger:
         """Select the primary match for naming (TechSpecter preferred)."""
         priority = {"techspecter": 0, "wappalyzer": 1, "retirejs": 2}
         return min(matches, key=lambda item: (priority.get(item.provider, 99), -item.confidence))
+
+    def _collect_provenance(
+        self,
+        matches: list[ProviderMatch],
+    ) -> tuple[str | None, str | None, list[str]]:
+        """Collect source URL, filename, and matched resources from provider matches."""
+        source_urls: list[str] = []
+        filenames: list[str] = []
+        resources: set[str] = set()
+        for match in matches:
+            metadata = match.metadata or {}
+            source_url = metadata.get("source_url")
+            filename = metadata.get("filename")
+            if isinstance(source_url, str) and source_url:
+                source_urls.append(source_url)
+            if isinstance(filename, str) and filename:
+                filenames.append(filename)
+            matched = metadata.get("matched_resources")
+            if isinstance(matched, list):
+                resources.update(str(item) for item in matched if item)
+            for item in match.evidence_items:
+                if item.location:
+                    resources.add(item.location)
+        return (
+            source_urls[0] if source_urls else None,
+            filenames[0] if filenames else None,
+            sorted(resources),
+        )
 
     def _merge_security_findings(
         self,

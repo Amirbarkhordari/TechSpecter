@@ -41,6 +41,12 @@ class EvidenceCorrelationEngine:
         correlated = tracker.all()
         unique_files = tracker.unique_source_files()
         unique_assets = tracker.unique_asset_ids()
+        unique_files, unique_assets = self._enrich_attribution(
+            match,
+            unique_files,
+            unique_assets,
+            evidence,
+        )
         confidence = self.calculate_confidence(
             base=match.confidence,
             file_count=len(unique_files),
@@ -76,6 +82,38 @@ class EvidenceCorrelationEngine:
             confidence,
         )
         return entry
+
+    def _enrich_attribution(
+        self,
+        match: TechnologyMatch,
+        files: list[str],
+        asset_ids: list[str],
+        evidence: list[TechnologyEvidenceRecord],
+    ) -> tuple[list[str], list[str]]:
+        """Merge match-level provenance into attribution lists."""
+        file_set = set(files)
+        asset_set = set(asset_ids)
+
+        if match.filename:
+            file_set.add(match.filename)
+        if match.source_url:
+            for item in evidence:
+                if item.source_url == match.source_url and item.source_file:
+                    file_set.add(item.source_file)
+        for url in match.matched_resources:
+            for item in evidence:
+                if item.source_url == url and item.source_file:
+                    file_set.add(item.source_file)
+            filename = url.rsplit("/", 1)[-1] if url else None
+            if filename and "." in filename:
+                file_set.add(filename)
+        for item in evidence:
+            if item.source_file:
+                file_set.add(item.source_file)
+            if item.source_asset_id:
+                asset_set.add(item.source_asset_id)
+
+        return sorted(file_set), sorted(asset_set)
 
     def calculate_confidence(
         self,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import shutil
+from collections import defaultdict
 
 from rich.console import Console
 from rich.table import Table
@@ -19,11 +20,25 @@ from techspecter.sensitive_intelligence.evidence import (
     line_numbers,
 )
 from techspecter.sensitive_intelligence.models import (
+    FindingType,
     SensitiveFindingRecord,
     SensitiveIntelligenceReport,
 )
 
 logger = logging.getLogger(__name__)
+
+_SECTION_WIDTH = 50
+_CATEGORY_ORDER = (
+    FindingType.EMAIL,
+    FindingType.PHONE,
+    FindingType.URL,
+    FindingType.DOMAIN,
+    FindingType.IP,
+    FindingType.UUID,
+    FindingType.COMMENT,
+    FindingType.SECRET,
+    FindingType.CREDENTIAL,
+)
 
 
 def render_sensitive_intelligence(
@@ -35,15 +50,30 @@ def render_sensitive_intelligence(
     if not report.findings and report.summary.assets_analyzed == 0:
         return
 
-    console.print("\n" + "=" * 50)
+    console.print("\n" + "=" * _SECTION_WIDTH)
     console.print("[bold]Sensitive Data Intelligence[/bold]")
-    console.print("=" * 50 + "\n")
+    console.print("=" * _SECTION_WIDTH + "\n")
     _render_summary(report, console=console)
     console.print()
 
-    table = _build_findings_table(report.findings)
-    console.print(table)
-    console.print()
+    grouped = _group_findings(report.findings)
+    for finding_type in _CATEGORY_ORDER:
+        findings = grouped.get(finding_type, [])
+        if not findings:
+            continue
+        console.print(f"[bold]{finding_type.value.title()} Findings[/bold]")
+        console.print(_build_findings_table(findings))
+        console.print()
+
+    other_types = [
+        finding_type
+        for finding_type in grouped
+        if finding_type not in _CATEGORY_ORDER and grouped[finding_type]
+    ]
+    for finding_type in sorted(other_types, key=lambda item: item.value):
+        console.print(f"[bold]{finding_type.value.title()} Findings[/bold]")
+        console.print(_build_findings_table(grouped[finding_type]))
+        console.print()
 
     for finding in report.findings[:20]:
         _render_evidence_block(finding, console=console)
@@ -56,15 +86,25 @@ def _render_summary(report: SensitiveIntelligenceReport, *, console: Console) ->
     console.print("[bold]Summary[/bold]")
     console.print(f"  Emails: {summary.emails}")
     console.print(f"  Phones: {summary.phones}")
+    console.print(f"  URLs: {summary.urls}")
+    console.print(f"  Domains: {summary.domains}")
+    console.print(f"  IPs: {summary.ips}")
+    console.print(f"  UUIDs: {summary.uuids}")
+    console.print(f"  Comments: {summary.comments}")
     console.print(f"  Secrets: {summary.secrets}")
     console.print(f"  Credentials: {summary.credentials}")
-    console.print(f"  URLs: {summary.urls}")
-    console.print(f"  IPs: {summary.ips}")
-    console.print(f"  Comments: {summary.comments}")
     console.print(f"  High Severity: {summary.high_severity}")
     console.print(f"  Medium Severity: {summary.medium_severity}")
     console.print(f"  Low Severity: {summary.low_severity}")
-    console.print(f"  Assets Analyzed: {summary.assets_analyzed}")
+
+
+def _group_findings(
+    findings: list[SensitiveFindingRecord],
+) -> dict[FindingType, list[SensitiveFindingRecord]]:
+    grouped: dict[FindingType, list[SensitiveFindingRecord]] = defaultdict(list)
+    for finding in findings:
+        grouped[finding.finding_type].append(finding)
+    return grouped
 
 
 def _build_findings_table(findings: list[SensitiveFindingRecord]) -> Table:
@@ -92,7 +132,7 @@ def _build_findings_table(findings: list[SensitiveFindingRecord]) -> Table:
 
 
 def _render_evidence_block(finding: SensitiveFindingRecord, *, console: Console) -> None:
-    console.print("-" * 50)
+    console.print("-" * _SECTION_WIDTH)
     console.print(f"[bold]Type:[/bold] {finding.finding_type.value} / {finding.subtype}")
     console.print(f"[bold]Matched Value:[/bold] {finding.matched_value}")
     console.print(f"[bold]Matched Pattern:[/bold] {finding.matched_pattern}")

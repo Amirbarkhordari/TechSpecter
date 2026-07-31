@@ -82,7 +82,9 @@ class SensitiveIntelligenceSummary(TechSpecterModel):
     secrets: int = 0
     credentials: int = 0
     urls: int = 0
+    domains: int = 0
     ips: int = 0
+    uuids: int = 0
     comments: int = 0
     other: int = 0
     high_severity: int = 0

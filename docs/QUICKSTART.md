@@ -37,6 +37,11 @@ techspecter discover https://example.com
 techspecter fingerprint https://example.com
 ```
 
+The fingerprint command runs discovery, asset inventory, technology detection, technology
+intelligence, sensitive intelligence, and reporting in one pass. Console output includes,
+in order: Target Summary, Asset Inventory, Technology Detection, Technology Intelligence,
+Technology Evidence, Sensitive Data Intelligence, and Security Summary.
+
 ### Full passive analysis (HTTP + metadata + artifacts)
 
 ```bash

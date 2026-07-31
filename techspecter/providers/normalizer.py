@@ -153,6 +153,19 @@ class ProviderNormalizer:
                     detection_method="fingerprint-engine",
                 ),
             )
+        for pattern_evidence in match.evidence:
+            category = pattern_evidence.matcher
+            detail = pattern_evidence.detail or pattern_evidence.pattern
+            evidence.append(detail)
+            evidence_items.append(
+                ProviderEvidenceItem(
+                    source="techspecter",
+                    category=category,
+                    detail=detail,
+                    location=match.source_url,
+                    detection_method="fingerprint-engine",
+                ),
+            )
         for pattern in match.matched_patterns[:10]:
             evidence.append(pattern)
             category = "runtime" if pattern.startswith("runtime:") else "javascript"
@@ -164,24 +177,24 @@ class ProviderNormalizer:
                     detection_method="fingerprint-engine",
                 ),
             )
-        for item in match.evidence_sources[:5]:
-            evidence.append(f"source:{item}")
+        for source_name in match.evidence_sources[:5]:
+            evidence.append(f"source:{source_name}")
             evidence_items.append(
                 ProviderEvidenceItem(
                     source="techspecter",
                     category="source",
-                    detail=item,
+                    detail=source_name,
                     detection_method="fingerprint-engine",
                 ),
             )
-        for item in match.matched_resources[:5]:
-            evidence.append(f"resource:{item}")
+        for resource_url in match.matched_resources[:5]:
+            evidence.append(f"resource:{resource_url}")
             evidence_items.append(
                 ProviderEvidenceItem(
                     source="techspecter",
                     category="resource",
-                    detail=item,
-                    location=item,
+                    detail=resource_url,
+                    location=resource_url,
                     detection_method="fingerprint-engine",
                 ),
             )
@@ -201,6 +214,9 @@ class ProviderNormalizer:
                 "version_source": match.version_source,
                 "version_confidence": match.version_confidence,
                 "evidence_count": match.evidence_count,
+                "source_url": match.source_url,
+                "filename": match.filename,
+                "matched_resources": list(match.matched_resources),
             },
         )
 

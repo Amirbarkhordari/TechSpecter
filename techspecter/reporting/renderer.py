@@ -17,16 +17,18 @@ def render_report(
     compact: bool = False,
     group_by_category: bool = False,
     verbose: bool = False,
+    skip_header: bool = False,
 ) -> None:
     """Render a scan report to the terminal."""
     if compact:
         _render_compact(report, console=console)
         return
 
-    console.print(f"\n[bold]Target:[/bold] {report.target.url}")
-    console.print(f"[bold]Elapsed:[/bold] {report.metadata.scan_duration_ms:.0f} ms")
-    console.print(f"[bold]Scripts analyzed:[/bold] {report.statistics.scripts_analyzed}")
-    console.print(f"[bold]Summary:[/bold] {report.summary.headline}\n")
+    if not skip_header:
+        console.print(f"\n[bold]Target:[/bold] {report.target.url}")
+        console.print(f"[bold]Elapsed:[/bold] {report.metadata.scan_duration_ms:.0f} ms")
+        console.print(f"[bold]Scripts analyzed:[/bold] {report.statistics.scripts_analyzed}")
+        console.print(f"[bold]Summary:[/bold] {report.summary.headline}\n")
 
     _render_statistics(report, console=console)
 
