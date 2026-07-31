@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import logging
-import shutil
 
 from rich.console import Console
-from rich.table import Table
 
-from techspecter.sensitive_intelligence.display_utils import escape_rich_markup, print_label_value
-from techspecter.sensitive_intelligence.evidence import line_numbers
+from techspecter.reporting.cli_format import format_metric_line
+from techspecter.sensitive_intelligence.cli_render import (
+    render_grouped_findings,
+    render_section_header,
+    render_summary_from_findings,
+)
 from techspecter.sensitive_intelligence.models import (
     FindingCategory,
     FindingType,
@@ -20,8 +22,6 @@ from techspecter.sensitive_intelligence.models import (
 
 logger = logging.getLogger(__name__)
 
-_SECTION_WIDTH = 50
-_SECTION_TITLE = "Secret & Sensitive Intelligence"
 _MAX_EVIDENCE_BLOCKS = 10
 
 _CLI_EXCLUDED_TYPES = frozenset(
@@ -86,78 +86,57 @@ def render_fingerprint_sensitive_intelligence(
     if not findings:
         return
 
-    console.print("\n" + "=" * _SECTION_WIDTH)
-    console.print(f"[bold]{_SECTION_TITLE}[/bold]")
-    console.print("=" * _SECTION_WIDTH + "\n")
-    _render_summary(findings, console=console)
-    console.print()
-    console.print(_build_findings_table(findings))
-    console.print()
+    render_section_header(console)
+    render_summary_from_findings(console, findings)
+    render_grouped_findings(
+        console,
+        findings,
+        detail_filter=_is_detail_candidate,
+        max_detail_blocks=_MAX_EVIDENCE_BLOCKS,
+        include_contact=False,
+    )
+    console.print("")
 
-    detail_candidates = [
-        item
-        for item in findings
-        if item.severity
-        in {
-            SeverityLevel.CRITICAL,
-            SeverityLevel.HIGH,
-            SeverityLevel.MEDIUM,
-        }
+
+def render_security_summary_lines(findings: list[SensitiveFindingRecord]) -> list[str]:
+    """Build concise security summary lines for the Security Summary section."""
+    if not findings:
+        return []
+    lines = [
+        format_metric_line("Secret & Sensitive Findings", len(findings), width=30),
+        format_metric_line(
+            "Critical",
+            sum(1 for item in findings if item.severity == SeverityLevel.CRITICAL),
+            width=30,
+        ),
+        format_metric_line(
+            "High", sum(1 for item in findings if item.severity == SeverityLevel.HIGH), width=30
+        ),
+        format_metric_line(
+            "Medium", sum(1 for item in findings if item.severity == SeverityLevel.MEDIUM), width=30
+        ),
     ]
-    for finding in detail_candidates[:_MAX_EVIDENCE_BLOCKS]:
-        _render_evidence_block(finding, console=console)
-    remaining = len(detail_candidates) - _MAX_EVIDENCE_BLOCKS
-    if remaining > 0:
-        console.print(f"[dim]... and {remaining} more security findings[/dim]\n")
+    by_category = {
+        FindingCategory.SECRETS: sum(
+            1 for item in findings if item.category == FindingCategory.SECRETS
+        ),
+        FindingCategory.CREDENTIALS: sum(
+            1 for item in findings if item.category == FindingCategory.CREDENTIALS
+        ),
+        FindingCategory.SENSITIVE_CONFIGURATION: sum(
+            1 for item in findings if item.category == FindingCategory.SENSITIVE_CONFIGURATION
+        ),
+    }
+    for category, count in by_category.items():
+        if count:
+            label = category.value.replace("_", " ").title()
+            lines.append(format_metric_line(label, count, width=30))
+    return lines
 
 
-def _render_summary(findings: list[SensitiveFindingRecord], *, console: Console) -> None:
-    secrets = sum(1 for item in findings if item.category == FindingCategory.SECRETS)
-    credentials = sum(1 for item in findings if item.category == FindingCategory.CREDENTIALS)
-    config = sum(1 for item in findings if item.category == FindingCategory.SENSITIVE_CONFIGURATION)
-    artifacts = sum(1 for item in findings if item.category == FindingCategory.DEVELOPER_ARTIFACTS)
-    critical = sum(1 for item in findings if item.severity == SeverityLevel.CRITICAL)
-    high = sum(1 for item in findings if item.severity == SeverityLevel.HIGH)
-
-    console.print("[bold]Summary[/bold]")
-    console.print(f"  Secrets: {secrets}")
-    console.print(f"  Credentials: {credentials}")
-    console.print(f"  Sensitive Configuration: {config}")
-    console.print(f"  Developer Artifacts: {artifacts}")
-    console.print(f"  Critical: {critical}")
-    console.print(f"  High: {high}")
-
-
-def _build_findings_table(findings: list[SensitiveFindingRecord]) -> Table:
-    width = shutil.get_terminal_size(fallback=(120, 24)).columns
-    table = Table(show_header=True, header_style="bold", expand=False, width=min(width, 120))
-    table.add_column("Category", overflow="fold")
-    table.add_column("Value", overflow="fold")
-    table.add_column("Severity", no_wrap=True)
-    table.add_column("Confidence", justify="right")
-    table.add_column("Source", overflow="fold")
-
-    for finding in findings:
-        source = finding.source_files[0] if finding.source_files else "-"
-        table.add_row(
-            escape_rich_markup(finding.subtype),
-            escape_rich_markup(finding.matched_value),
-            finding.severity.value,
-            f"{finding.confidence:.0f}%",
-            escape_rich_markup(source),
-        )
-    return table
-
-
-def _render_evidence_block(finding: SensitiveFindingRecord, *, console: Console) -> None:
-    console.print("-" * _SECTION_WIDTH)
-    print_label_value(console, "What:", finding.description or finding.subtype)
-    source = finding.source_files[0] if finding.source_files else "-"
-    print_label_value(console, "Where:", source)
-    if finding.recommendation:
-        print_label_value(console, "Recommendation:", finding.recommendation)
-    print_label_value(console, "Value:", finding.matched_value)
-    lines = line_numbers(finding)
-    if lines:
-        console.print(f"[bold]Lines:[/bold] {', '.join(str(item) for item in lines[:5])}")
-    console.print(f"[bold]Confidence:[/bold] {finding.confidence:.0f}%\n")
+def _is_detail_candidate(finding: SensitiveFindingRecord) -> bool:
+    return finding.severity in {
+        SeverityLevel.CRITICAL,
+        SeverityLevel.HIGH,
+        SeverityLevel.MEDIUM,
+    }

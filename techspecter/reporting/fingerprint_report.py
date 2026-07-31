@@ -15,6 +15,10 @@ from techspecter.fingerprinting.models import (
 from techspecter.reporting.cli_display import count_fingerprint_security_findings
 from techspecter.reporting.models import Report
 from techspecter.reporting.renderer import render_report
+from techspecter.sensitive_intelligence.cli_display import (
+    filter_fingerprint_cli_findings,
+    render_security_summary_lines,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +33,7 @@ def render_fingerprint_report(
     compact: bool = False,
     group_by_category: bool = False,
     verbose: bool = False,
+    show_assets: bool = False,
 ) -> None:
     """Render the complete fingerprint report in the required section order."""
     if compact:
@@ -40,7 +45,11 @@ def render_fingerprint_report(
     if result.asset_inventory is not None:
         from techspecter.asset_discovery.report import render_fingerprint_asset_inventory
 
-        render_fingerprint_asset_inventory(result.asset_inventory, console=console)
+        render_fingerprint_asset_inventory(
+            result.asset_inventory,
+            console=console,
+            show_assets=show_assets or verbose,
+        )
 
     _render_technology_detection(
         report, console=console, group_by_category=group_by_category, verbose=verbose
@@ -65,7 +74,11 @@ def render_fingerprint_report(
 
         render_fingerprint_sensitive_intelligence(result.sensitive_intelligence, console=console)
 
-    _render_security_summary(result.detection, console=console)
+    _render_security_summary(
+        result.detection,
+        sensitive=result.sensitive_intelligence,
+        console=console,
+    )
 
 
 def _render_target_summary(
@@ -130,34 +143,54 @@ def _render_technology_detection(
     console.print()
 
 
-def _render_security_summary(detection: DetectionResult, *, console: Console) -> None:
-    """Render passive security findings from detection providers."""
-    findings = _collect_security_findings(detection)
+def _render_security_summary(
+    detection: DetectionResult,
+    *,
+    sensitive: object | None,
+    console: Console,
+) -> None:
+    """Render passive security findings from detection providers and sensitive intelligence."""
+    cve_findings = _collect_security_findings(detection)
+    sensitive_findings = []
+    if sensitive is not None:
+        from techspecter.sensitive_intelligence.models import SensitiveIntelligenceReport
+
+        if isinstance(sensitive, SensitiveIntelligenceReport):
+            sensitive_findings = filter_fingerprint_cli_findings(sensitive.findings)
+
     console.print("=" * _SECTION_WIDTH)
     console.print("[bold]Security Summary[/bold]")
     console.print("=" * _SECTION_WIDTH + "\n")
 
-    if not findings:
+    if not cve_findings and not sensitive_findings:
         console.print("[dim]No passive security findings reported.[/dim]\n")
         return
 
-    table = Table(show_header=True, header_style="bold", expand=True)
-    table.add_column("Library", overflow="fold")
-    table.add_column("Version", overflow="fold")
-    table.add_column("Severity", no_wrap=True)
-    table.add_column("CVEs", overflow="fold")
-    table.add_column("Source File", overflow="fold")
+    if sensitive_findings:
+        console.print("[bold]Sensitive Intelligence[/bold]\n")
+        for line in render_security_summary_lines(sensitive_findings):
+            console.print(line)
+        console.print("")
 
-    for item in findings:
-        table.add_row(
-            item.library,
-            item.installed_version,
-            item.severity or "unknown",
-            ", ".join(item.cve_ids) if item.cve_ids else "-",
-            item.source_file or "-",
-        )
-    console.print(table)
-    console.print()
+    if cve_findings:
+        console.print("[bold]Known Vulnerabilities[/bold]\n")
+        table = Table(show_header=True, header_style="bold", expand=True)
+        table.add_column("Library", overflow="fold")
+        table.add_column("Version", overflow="fold")
+        table.add_column("Severity", no_wrap=True)
+        table.add_column("CVEs", overflow="fold")
+        table.add_column("Source File", overflow="fold")
+
+        for item in cve_findings:
+            table.add_row(
+                item.library,
+                item.installed_version,
+                item.severity or "unknown",
+                ", ".join(item.cve_ids) if item.cve_ids else "-",
+                item.source_file or "-",
+            )
+        console.print(table)
+        console.print("")
 
 
 def _collect_security_findings(detection: DetectionResult) -> list[SecurityFinding]:

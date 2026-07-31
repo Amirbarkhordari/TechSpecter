@@ -114,21 +114,28 @@ Validated matches receive a small confidence boost; invalid matches are discarde
 
 ## Reporting
 
-### CLI section
+### Default CLI output
+
+The **Secret & Sensitive Intelligence** section uses dot-aligned summaries:
 
 ```
-==================================================
-Secret & Sensitive Intelligence
-==================================================
-
-Summary
-  Secrets: …
-  Credentials: …
-  Sensitive Configuration: …
-  Developer Artifacts: …
+Secrets ..................... 0
+Credentials ................. 0
+Sensitive Configuration ..... 3
+Developer Artifacts ......... 0
 ```
 
-Detailed blocks explain **what**, **where**, **why it matters**, **evidence**, and **recommendation**. User-controlled text is escaped to prevent Rich markup errors.
+Findings are **grouped by category** with compact list entries, followed by **Detailed Findings** blocks containing severity, confidence, source file, asset ID, line number, matched value, context snippet, and recommendation.
+
+Values are normalized (trimmed, control characters removed, max 100 characters with `...` truncation). Duplicate findings are merged with occurrence count and affected files.
+
+### Asset Inventory CLI
+
+Fingerprint scans show a concise asset summary by default. Use `--show-assets` or `--verbose` to print the full asset table. Failed downloads are grouped by reason (404, 403, Timeout, Connection Error, etc.).
+
+### Security Summary
+
+When sensitive findings exist, the Security Summary section reports them instead of printing "No passive security findings reported."
 
 ### Fingerprint CLI
 
@@ -147,7 +154,7 @@ The fingerprint command shows security-relevant findings only (secrets, credenti
 | `tests/test_sensitive_intelligence.py` | Core detectors, engine, export |
 | `tests/test_sensitive_rule_engine.py` | Rule engine, validators, JS intel, correlation |
 | `tests/test_fingerprint_cli_display.py` | Fingerprint CLI filters |
-| `tests/test_fingerprint_integration.py` | End-to-end fingerprint reporting |
+| `tests/test_cli_report_rendering.py` | CLI summaries, grouping, value trimming, security summary |
 
 Run:
 

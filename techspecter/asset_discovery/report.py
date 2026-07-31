@@ -8,18 +8,20 @@ import shutil
 from rich.console import Console
 from rich.table import Table
 
+from techspecter.asset_discovery.download_status import build_failure_breakdown
 from techspecter.asset_discovery.models import AssetCategory, AssetInventory, AssetRecord
+from techspecter.reporting.cli_format import format_metric_line
 from techspecter.reporting.models import ReportAssetEntry, ReportAssetInventory, ReportSection
 
 logger = logging.getLogger(__name__)
 
-_MAX_FINGERPRINT_ASSETS = 50
+_SECTION_WIDTH = 50
 
 _CATEGORY_LABELS: dict[AssetCategory, str] = {
     AssetCategory.JAVASCRIPT: "JavaScript",
     AssetCategory.CSS: "CSS",
     AssetCategory.JSON: "JSON",
-    AssetCategory.MAP: "Maps",
+    AssetCategory.MAP: "Source Maps",
     AssetCategory.MANIFEST: "Manifest",
     AssetCategory.WORKER: "Workers",
     AssetCategory.SERVICE_WORKER: "Service Workers",
@@ -31,64 +33,35 @@ _CATEGORY_LABELS: dict[AssetCategory, str] = {
     AssetCategory.UNKNOWN: "Other",
 }
 
+_SUMMARY_ROWS: tuple[tuple[str, str], ...] = (
+    ("javascript", "JavaScript"),
+    ("css", "CSS"),
+    ("json_count", "JSON"),
+    ("map_count", "Source Maps"),
+    ("manifest", "Manifest"),
+    ("worker", "Workers"),
+    ("service_worker", "Service Workers"),
+    ("font", "Fonts"),
+    ("wasm", "WASM"),
+    ("xml", "XML"),
+    ("text", "Text"),
+    ("image", "Images"),
+)
 
-def render_asset_inventory(inventory: AssetInventory, *, console: Console | None = None) -> None:
-    """Render the asset inventory summary and table to the console."""
+
+def render_asset_inventory(
+    inventory: AssetInventory,
+    *,
+    console: Console | None = None,
+    show_assets: bool = False,
+) -> None:
+    """Render the asset inventory summary and optional table."""
     output = console or Console()
-    summary = inventory.summary
-
-    output.print("\n[bold]" + "=" * 50 + "[/bold]")
-    output.print("[bold]Asset Inventory[/bold]")
-    output.print("[bold]" + "=" * 50 + "[/bold]\n")
-    output.print("[bold]Summary[/bold]\n")
-    output.print(f"JavaScript : {summary.javascript}")
-    output.print(f"CSS : {summary.css}")
-    output.print(f"JSON : {summary.json_count}")
-    output.print(f"Source Maps : {summary.map_count}")
-    output.print(f"Manifest : {summary.manifest}")
-    output.print(f"Workers : {summary.worker}")
-    output.print(f"Service Workers : {summary.service_worker}")
-    output.print(f"Fonts : {summary.font}")
-    output.print(f"WASM : {summary.wasm}")
-    output.print(f"XML : {summary.xml}")
-    output.print(f"TXT : {summary.text}")
-    output.print(f"Images : {summary.image}")
-    other = summary.unknown + summary.other
-    output.print(f"Other : {other}")
-    output.print(f"\n[bold]Total Assets : {summary.total_assets}[/bold]\n")
-
-    if not inventory.assets:
-        output.print("[dim]No assets discovered.[/dim]")
-        return
-
-    terminal_width = shutil.get_terminal_size(fallback=(120, 24)).columns
-    table = Table(title="Asset Inventory", expand=True, min_width=min(terminal_width, 120))
-    table.add_column("Category", no_wrap=True)
-    table.add_column("File Name", overflow="fold", max_width=max(20, terminal_width // 7))
-    table.add_column("Relative Path", overflow="fold", max_width=max(20, terminal_width // 6))
-    table.add_column("Extension", no_wrap=True)
-    table.add_column("Content-Type", overflow="fold", max_width=max(16, terminal_width // 8))
-    table.add_column("HTTP Status", no_wrap=True)
-    table.add_column("Size", no_wrap=True)
-    table.add_column("Referenced By", overflow="fold", max_width=max(16, terminal_width // 6))
-    table.add_column("Asset ID", overflow="fold", max_width=max(12, terminal_width // 10))
-    table.add_column("URL", overflow="fold")
-
-    for asset in inventory.assets:
-        table.add_row(
-            _category_label(asset.category),
-            asset.filename,
-            asset.relative_path or "-",
-            asset.extension or "-",
-            asset.content_type or "-",
-            _format_status(asset),
-            _format_size(asset.file_size),
-            _format_referenced_by(asset),
-            asset.asset_id,
-            asset.url,
-        )
-
-    output.print(table)
+    _render_inventory_header(output)
+    _render_category_summary(inventory, output=output)
+    _render_download_summary(inventory, output=output)
+    if show_assets:
+        _render_asset_table(inventory, output=output, detailed=True)
     logger.info("Rendered asset inventory with %d assets", len(inventory.assets))
 
 
@@ -96,33 +69,67 @@ def render_fingerprint_asset_inventory(
     inventory: AssetInventory,
     *,
     console: Console | None = None,
+    show_assets: bool = False,
 ) -> None:
     """Render a concise asset inventory for the fingerprint CLI."""
     output = console or Console()
-    summary = inventory.summary
+    _render_inventory_header(output)
+    _render_category_summary(inventory, output=output)
+    _render_download_summary(inventory, output=output)
+    if show_assets:
+        _render_asset_table(inventory, output=output, detailed=False)
+    logger.info("Rendered fingerprint asset inventory summary for %d assets", len(inventory.assets))
 
-    output.print("\n[bold]" + "=" * 50 + "[/bold]")
+
+def _render_inventory_header(output: Console) -> None:
+    output.print("\n" + "=" * _SECTION_WIDTH)
     output.print("[bold]Asset Inventory[/bold]")
-    output.print("[bold]" + "=" * 50 + "[/bold]\n")
-    output.print("[bold]Summary[/bold]\n")
-    output.print(f"JavaScript : {summary.javascript}")
-    output.print(f"CSS : {summary.css}")
-    output.print(f"JSON : {summary.json_count}")
-    output.print(f"Source Maps : {summary.map_count}")
-    output.print(f"Manifest : {summary.manifest}")
-    output.print(f"Workers : {summary.worker}")
-    output.print(f"Service Workers : {summary.service_worker}")
-    output.print(f"Fonts : {summary.font}")
-    output.print(f"WASM : {summary.wasm}")
-    output.print(f"XML : {summary.xml}")
-    output.print(f"TXT : {summary.text}")
-    output.print(f"Images : {summary.image}")
-    other = summary.unknown + summary.other
-    output.print(f"Other : {other}")
-    output.print(f"\n[bold]Total Assets : {summary.total_assets}[/bold]\n")
+    output.print("=" * _SECTION_WIDTH)
 
+
+def _render_category_summary(inventory: AssetInventory, *, output: Console) -> None:
+    summary = inventory.summary
+    output.print("\n[bold]Summary[/bold]\n")
+    for field_name, label in _SUMMARY_ROWS:
+        count = getattr(summary, field_name)
+        if count:
+            output.print(format_metric_line(label, count, width=24))
+    other = summary.unknown + summary.other
+    if other:
+        output.print(format_metric_line("Other", other, width=24))
+    output.print("")
+    output.print(format_metric_line("Total Assets", summary.total_assets, width=24))
+    output.print("")
+
+
+def _render_download_summary(inventory: AssetInventory, *, output: Console) -> None:
+    download_summary = inventory.download_summary
+    if download_summary.total_attempted == 0:
+        return
+    output.print("[bold]Download Summary[/bold]\n")
+    output.print(format_metric_line("Downloaded", download_summary.downloaded, width=24))
+    failed_total = (
+        download_summary.failed
+        + download_summary.timeout
+        + download_summary.forbidden
+        + download_summary.rate_limited
+    )
+    if failed_total:
+        output.print(format_metric_line("Failed", failed_total, width=24))
+    output.print(format_metric_line("Skipped", download_summary.skipped, width=24))
+    output.print(format_metric_line("Rate Limited", download_summary.rate_limited, width=24))
+    output.print("")
+
+    breakdown = build_failure_breakdown(inventory.assets)
+    if breakdown:
+        output.print("[bold]Failed Downloads[/bold]\n")
+        for reason, count in breakdown.items():
+            output.print(format_metric_line(reason, count, width=24))
+        output.print("")
+
+
+def _render_asset_table(inventory: AssetInventory, *, output: Console, detailed: bool) -> None:
     if not inventory.assets:
-        _render_download_summary(inventory, output=output)
         output.print("[dim]No assets discovered.[/dim]")
         return
 
@@ -134,42 +141,33 @@ def render_fingerprint_asset_inventory(
     table.add_column("Extension", no_wrap=True)
     table.add_column("Status", no_wrap=True)
     table.add_column("Size", no_wrap=True)
+    if detailed:
+        table.add_column("Content-Type", overflow="fold")
+        table.add_column("Referenced By", overflow="fold")
+        table.add_column("URL", overflow="fold")
     table.add_column("Asset ID", overflow="fold", max_width=max(12, terminal_width // 8))
 
-    displayed = inventory.assets[:_MAX_FINGERPRINT_ASSETS]
-    for asset in displayed:
-        table.add_row(
+    for asset in inventory.assets:
+        row = [
             _category_label(asset.category),
             asset.filename,
             asset.relative_path or "-",
             asset.extension or "-",
             _format_status(asset),
             _format_size(asset.file_size),
-            asset.asset_id,
-        )
+        ]
+        if detailed:
+            row.extend(
+                [
+                    asset.content_type or "-",
+                    _format_referenced_by(asset),
+                    asset.url,
+                ],
+            )
+        row.append(asset.asset_id)
+        table.add_row(*row)
 
     output.print(table)
-    remaining = len(inventory.assets) - len(displayed)
-    if remaining > 0:
-        output.print(f"[dim]... and {remaining} more assets[/dim]")
-    _render_download_summary(inventory, output=output)
-    logger.info("Rendered fingerprint asset inventory with %d assets", len(displayed))
-
-
-def _render_download_summary(inventory: AssetInventory, *, output: Console) -> None:
-    """Render concise asset download outcome counts."""
-    download_summary = inventory.download_summary
-    if download_summary.total_attempted == 0:
-        return
-    output.print("[bold]Asset Download Summary[/bold]")
-    output.print(f"  Downloaded: {download_summary.downloaded}")
-    output.print(f"  Failed: {download_summary.failed}")
-    output.print(f"  Skipped: {download_summary.skipped}")
-    output.print(f"  Rate Limited: {download_summary.rate_limited}")
-    if download_summary.timeout:
-        output.print(f"  Timeout: {download_summary.timeout}")
-    if download_summary.forbidden:
-        output.print(f"  Forbidden: {download_summary.forbidden}")
     output.print("")
 
 

@@ -77,11 +77,48 @@ def build_download_summary(assets: list[AssetRecord]) -> AssetDownloadSummary:
     return summary
 
 
+def build_failure_breakdown(assets: list[AssetRecord]) -> dict[str, int]:
+    """Group failed asset downloads by reason for CLI reporting."""
+    breakdown: dict[str, int] = {}
+    for asset in assets:
+        if asset.download_success:
+            continue
+        if asset.download_status == AssetDownloadStatus.DOWNLOADED:
+            continue
+        label = _failure_reason_label(asset)
+        breakdown[label] = breakdown.get(label, 0) + 1
+    return dict(sorted(breakdown.items(), key=lambda item: (-item[1], item[0])))
+
+
 def _status_from_message(message: str) -> int | None:
     match = _STATUS_PATTERN.search(message)
     if match is None:
         return None
     return int(match.group(1))
+
+
+def _failure_reason_label(asset: AssetRecord) -> str:
+    """Map an asset record to a human-readable failure reason."""
+    status = asset.download_status
+    if status == AssetDownloadStatus.TIMEOUT:
+        return "Timeout"
+    if status == AssetDownloadStatus.FORBIDDEN:
+        return "403"
+    if status == AssetDownloadStatus.RATE_LIMITED:
+        return "429"
+    if status == AssetDownloadStatus.SKIPPED:
+        return "Skipped"
+    if asset.http_status is not None:
+        return str(asset.http_status)
+    message = (asset.error_message or "").lower()
+    if any(token in message for token in ("timeout", "timed out")):
+        return "Timeout"
+    if any(
+        token in message
+        for token in ("connect", "connection", "dns", "getaddrinfo", "tls", "ssl", "reset")
+    ):
+        return "Connection Error"
+    return "Failed"
 
 
 def is_recoverable_download_error(exc: BaseException) -> bool:

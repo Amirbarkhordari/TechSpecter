@@ -40,12 +40,15 @@ techspecter fingerprint https://example.com
 The fingerprint command runs discovery, asset inventory, technology detection, technology
 intelligence, sensitive intelligence, and reporting in one pass. Console output includes,
 in order: Target Summary, Asset Inventory, Technology Detection, Technology Intelligence,
-Technology Evidence, Sensitive Data Intelligence, and Security Summary.
+Technology Evidence, Secret & Sensitive Intelligence, and Security Summary.
+
+By default, Asset Inventory shows a concise dot-aligned summary and download breakdown.
+Use `--show-assets` or `--verbose` to display the full asset table.
 
 The fingerprint CLI report focuses on security-relevant output. Informational findings such
 as emails, phone numbers, domains, URLs, IPs, and UUIDs are collected internally but are
-not printed to the terminal. Secrets, credentials, and security markers (TODO/FIXME/debug)
-are shown.
+not printed to the terminal. Secrets, credentials, sensitive configuration, and security
+markers (TODO/FIXME/debug) are shown grouped by category with detailed evidence blocks.
 
 ### Full passive analysis (HTTP + metadata + artifacts)
 

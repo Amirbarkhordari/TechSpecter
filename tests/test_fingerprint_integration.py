@@ -222,11 +222,11 @@ def test_fingerprint_report_section_order() -> None:
 
 
 def test_asset_inventory_report_includes_required_columns() -> None:
-    """Verify asset inventory table includes attribution columns."""
+    """Verify asset inventory table includes attribution columns when enabled."""
     result = _analysis_result()
     report = ReportService().generate_report(result.detection)
     console = Console(record=True, width=200)
-    render_fingerprint_report(result, report, console=console)
+    render_fingerprint_report(result, report, console=console, show_assets=True)
     output = console.export_text()
     assert "asset-main" in output
     assert "main.js" in output

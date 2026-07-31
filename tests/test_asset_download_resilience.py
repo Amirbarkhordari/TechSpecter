@@ -245,5 +245,5 @@ def test_fingerprint_completes_when_asset_download_fails() -> None:
     result = runner.invoke(app, ["fingerprint", "https://example.com"])
     assert result.exit_code == 0, result.stdout
     assert "Fingerprint analysis failed" not in result.stdout
-    assert "Asset Download Summary" in result.stdout
+    assert "Download Summary" in result.stdout
     assert "Technology Detection" in result.stdout
