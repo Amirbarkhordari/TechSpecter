@@ -9,6 +9,7 @@ from urllib.parse import urljoin, urlparse
 import httpx
 
 from techspecter.downloader.http_client import AsyncHttpClient
+from techspecter.exceptions import DownloaderError
 from techspecter.models.metadata import WellKnownResourceObservation
 
 logger = logging.getLogger(__name__)
@@ -107,7 +108,7 @@ class WellKnownResourceCollector:
                 available=available,
                 discovered_via=discovered_via,
             )
-        except httpx.HTTPError as exc:
+        except (httpx.HTTPError, DownloaderError) as exc:
             logger.debug("Well-known resource unavailable %s: %s", url, exc)
             return WellKnownResourceObservation(
                 resource_type=resource_type,

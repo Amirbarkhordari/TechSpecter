@@ -6,9 +6,11 @@ import logging
 from urllib.parse import urlparse, urlunparse
 
 from techspecter.asset_discovery.classifier import AssetClassifier
+from techspecter.asset_discovery.download_status import build_download_summary
 from techspecter.asset_discovery.hash import asset_id_from_url
 from techspecter.asset_discovery.models import (
     AssetCategory,
+    AssetDownloadStatus,
     AssetInventory,
     AssetInventorySummary,
     AssetRecord,
@@ -92,6 +94,7 @@ class AssetInventoryBuilder:
         response_time_ms: float | None,
         error_message: str | None,
         content: bytes | None = None,
+        download_status: AssetDownloadStatus | None = None,
     ) -> AssetRecord:
         """Update an inventory record with download metadata."""
         key = inventory_key(url)
@@ -130,6 +133,7 @@ class AssetInventoryBuilder:
                 "download_duration_ms": download_duration_ms,
                 "response_time_ms": response_time_ms,
                 "error_message": error_message,
+                "download_status": download_status,
                 "category": category if category != AssetCategory.UNKNOWN else record.category,
             },
         )
@@ -152,6 +156,7 @@ class AssetInventoryBuilder:
             target_url=target_url,
             assets=assets,
             summary=summary,
+            download_summary=build_download_summary(assets),
             elapsed_ms=elapsed_ms,
         )
 

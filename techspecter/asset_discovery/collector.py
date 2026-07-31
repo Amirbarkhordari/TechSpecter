@@ -7,12 +7,15 @@ import logging
 import time
 from dataclasses import dataclass, field
 
-import httpx
-
+from techspecter.asset_discovery.download_status import (
+    classify_download_outcome,
+    is_recoverable_download_error,
+)
 from techspecter.asset_discovery.hash import sha256_hex
 from techspecter.asset_discovery.inventory import AssetInventoryBuilder, inventory_key
 from techspecter.asset_discovery.models import AssetRecord
 from techspecter.downloader.http_client import AsyncHttpClient
+from techspecter.exceptions import DownloaderError
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +72,14 @@ class AssetCollector:
             async with semaphore:
                 await self._download_asset(builder, url)
 
-        await asyncio.gather(*(download_one(url) for url in pending))
+        results = await asyncio.gather(
+            *(download_one(url) for url in pending), return_exceptions=True
+        )
+        for item in results:
+            if isinstance(item, BaseException) and not is_recoverable_download_error(item):
+                raise item
+            if isinstance(item, BaseException):
+                logger.debug("Recovered unexpected asset download task failure: %s", item)
 
     async def _download_asset(self, builder: AssetInventoryBuilder, url: str) -> AssetRecord:
         """Download a single asset with graceful error handling."""
@@ -79,11 +89,17 @@ class AssetCollector:
             elapsed_ms = (time.perf_counter() - started) * 1000
             content = response.content
             if len(content) > self.config.max_file_size:
-                logger.warning(
+                logger.debug(
                     "Skipping asset %s: size %d exceeds limit %d",
                     url,
                     len(content),
                     self.config.max_file_size,
+                )
+                error_message = "File exceeds configured size limit"
+                status = classify_download_outcome(
+                    download_success=False,
+                    http_status=response.status_code,
+                    error_message=error_message,
                 )
                 return builder.upsert_download(
                     url=url,
@@ -95,7 +111,8 @@ class AssetCollector:
                     download_success=False,
                     download_duration_ms=elapsed_ms,
                     response_time_ms=elapsed_ms,
-                    error_message="File exceeds configured size limit",
+                    error_message=error_message,
+                    download_status=status,
                 )
 
             digest = sha256_hex(content)
@@ -109,6 +126,19 @@ class AssetCollector:
                 digest[:12],
             )
             success = 200 <= response.status_code < 400
+            failure_message = None if success else f"HTTP {response.status_code}"
+            status = classify_download_outcome(
+                download_success=success,
+                http_status=response.status_code,
+                error_message=failure_message,
+            )
+            if not success:
+                logger.warning(
+                    "Asset download failed for %s (%s): %s",
+                    url,
+                    status.value,
+                    failure_message,
+                )
             return builder.upsert_download(
                 url=url,
                 http_status=response.status_code,
@@ -119,30 +149,24 @@ class AssetCollector:
                 download_success=success,
                 download_duration_ms=elapsed_ms,
                 response_time_ms=elapsed_ms,
-                error_message=None if success else f"HTTP {response.status_code}",
+                error_message=failure_message,
+                download_status=status,
                 content=content,
             )
-        except httpx.TimeoutException as exc:
+        except Exception as exc:
             elapsed_ms = (time.perf_counter() - started) * 1000
-            logger.warning("Asset download timeout for %s: %s", url, exc)
-            return builder.upsert_download(
-                url=url,
-                http_status=None,
-                content_type=None,
-                encoding=None,
-                file_size=None,
-                sha256=None,
+            if not is_recoverable_download_error(exc):
+                raise
+            error_message = str(exc)
+            status = classify_download_outcome(
                 download_success=False,
-                download_duration_ms=elapsed_ms,
-                response_time_ms=elapsed_ms,
-                error_message="Request timeout",
+                error_message=error_message,
+                exc=exc,
             )
-        except httpx.HTTPError as exc:
-            elapsed_ms = (time.perf_counter() - started) * 1000
-            logger.warning("Asset download failed for %s: %s", url, exc)
+            logger.warning("Asset download failed for %s (%s): %s", url, status.value, exc)
             return builder.upsert_download(
                 url=url,
-                http_status=None,
+                http_status=_status_from_exception(exc),
                 content_type=None,
                 encoding=None,
                 file_size=None,
@@ -150,7 +174,8 @@ class AssetCollector:
                 download_success=False,
                 download_duration_ms=elapsed_ms,
                 response_time_ms=elapsed_ms,
-                error_message=str(exc),
+                error_message=error_message,
+                download_status=status,
             )
 
     def _maybe_cache_text(self, key: str, content: bytes, content_type: str | None) -> None:
@@ -163,3 +188,17 @@ class AssetCollector:
             self.downloaded_text[key] = content.decode("utf-8", errors="replace")
         except Exception:
             return
+
+
+def _status_from_exception(exc: BaseException) -> int | None:
+    """Extract an HTTP status code from a download exception when available."""
+    if isinstance(exc, DownloaderError):
+        from techspecter.asset_discovery.download_status import _status_from_message
+
+        return _status_from_message(str(exc))
+    response = getattr(exc, "response", None)
+    if response is not None:
+        status_code = getattr(response, "status_code", None)
+        if isinstance(status_code, int):
+            return status_code
+    return None

@@ -94,7 +94,7 @@ class JsDownloader:
                 )
             except (DownloaderError, httpx.HTTPError) as exc:
                 duration_ms = (time.perf_counter() - started) * 1000
-                logger.error("Failed to download JavaScript %s: %s", url, exc)
+                logger.debug("Failed to download JavaScript %s: %s", url, exc)
                 return DownloadResult(
                     url=script.url,
                     filename=filename,

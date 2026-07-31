@@ -28,6 +28,18 @@ class AssetCategory(StrEnum):
     UNKNOWN = "unknown"
 
 
+class AssetDownloadStatus(StrEnum):
+    """Outcome of an asset download attempt."""
+
+    DOWNLOADED = "downloaded"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+    TIMEOUT = "timeout"
+    FORBIDDEN = "forbidden"
+    RATE_LIMITED = "rate_limited"
+    NOT_ATTEMPTED = "not_attempted"
+
+
 class AssetDiscoverySource(StrEnum):
     """How an asset reference was discovered."""
 
@@ -74,6 +86,7 @@ class AssetRecord(TechSpecterModel):
     download_duration_ms: float | None = None
     response_time_ms: float | None = None
     error_message: str | None = None
+    download_status: AssetDownloadStatus | None = None
     discovered_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -119,12 +132,25 @@ class AssetInventorySummary(TechSpecterModel):
         self.total_assets += 1
 
 
+class AssetDownloadSummary(TechSpecterModel):
+    """Aggregated asset download outcome counts."""
+
+    downloaded: int = 0
+    failed: int = 0
+    skipped: int = 0
+    timeout: int = 0
+    forbidden: int = 0
+    rate_limited: int = 0
+    total_attempted: int = 0
+
+
 class AssetInventory(TechSpecterModel):
     """Complete passive asset inventory for a target."""
 
     target_url: str
     assets: list[AssetRecord] = Field(default_factory=list)
     summary: AssetInventorySummary = Field(default_factory=AssetInventorySummary)
+    download_summary: AssetDownloadSummary = Field(default_factory=AssetDownloadSummary)
     text_bodies: dict[str, str] = Field(default_factory=dict)
     elapsed_ms: float = 0.0
     started_at: datetime | None = None

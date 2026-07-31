@@ -94,10 +94,18 @@ class AssetDiscoveryPipeline:
         inventory = inventory.model_copy(update={"text_bodies": dict(collector.downloaded_text)})
         inventory.started_at = started_at
         inventory.completed_at = datetime.now(tz=UTC)
+        download_summary = inventory.download_summary
         logger.info(
-            "Asset discovery pipeline complete for %s: %d assets (%.0f ms)",
+            "Asset discovery pipeline complete for %s: %d assets "
+            "(downloaded=%d failed=%d skipped=%d timeout=%d forbidden=%d rate_limited=%d, %.0f ms)",
             base_url,
             inventory.summary.total_assets,
+            download_summary.downloaded,
+            download_summary.failed,
+            download_summary.skipped,
+            download_summary.timeout,
+            download_summary.forbidden,
+            download_summary.rate_limited,
             elapsed_ms,
         )
         return inventory

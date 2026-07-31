@@ -122,6 +122,7 @@ def render_fingerprint_asset_inventory(
     output.print(f"\n[bold]Total Assets : {summary.total_assets}[/bold]\n")
 
     if not inventory.assets:
+        _render_download_summary(inventory, output=output)
         output.print("[dim]No assets discovered.[/dim]")
         return
 
@@ -151,7 +152,25 @@ def render_fingerprint_asset_inventory(
     remaining = len(inventory.assets) - len(displayed)
     if remaining > 0:
         output.print(f"[dim]... and {remaining} more assets[/dim]")
+    _render_download_summary(inventory, output=output)
     logger.info("Rendered fingerprint asset inventory with %d assets", len(displayed))
+
+
+def _render_download_summary(inventory: AssetInventory, *, output: Console) -> None:
+    """Render concise asset download outcome counts."""
+    download_summary = inventory.download_summary
+    if download_summary.total_attempted == 0:
+        return
+    output.print("[bold]Asset Download Summary[/bold]")
+    output.print(f"  Downloaded: {download_summary.downloaded}")
+    output.print(f"  Failed: {download_summary.failed}")
+    output.print(f"  Skipped: {download_summary.skipped}")
+    output.print(f"  Rate Limited: {download_summary.rate_limited}")
+    if download_summary.timeout:
+        output.print(f"  Timeout: {download_summary.timeout}")
+    if download_summary.forbidden:
+        output.print(f"  Forbidden: {download_summary.forbidden}")
+    output.print("")
 
 
 def build_report_asset_inventory(inventory: AssetInventory) -> ReportAssetInventory:
@@ -216,6 +235,8 @@ def _format_size(size: int | None) -> str:
 
 def _format_status(asset: AssetRecord) -> str:
     """Format HTTP/download status."""
+    if asset.download_status is not None:
+        return asset.download_status.value.replace("_", " ").title()
     if asset.http_status is not None:
         return str(asset.http_status)
     if asset.download_success:
