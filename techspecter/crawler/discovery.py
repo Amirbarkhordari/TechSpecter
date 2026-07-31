@@ -36,11 +36,13 @@ def _rebuild_discovery_result_models() -> None:
     from techspecter.asset_discovery.models import AssetInventory
     from techspecter.javascript.index.javascript_index import JavaScriptIndex
     from techspecter.models.discovery import DiscoveryResult
+    from techspecter.sensitive_intelligence.models import SensitiveIntelligenceReport
 
     DiscoveryResult.model_rebuild(
         _types_namespace={
             "JavaScriptIndex": JavaScriptIndex,
             "AssetInventory": AssetInventory,
+            "SensitiveIntelligenceReport": SensitiveIntelligenceReport,
         },
     )
 
@@ -56,12 +58,14 @@ class DiscoveryPipelineConfig:
         settings: Application settings used to configure HTTP behavior.
         collect_metadata: Whether to collect passive metadata and well-known resources.
         collect_asset_inventory: Whether to build passive asset inventory (Phase 7.1).
+        collect_sensitive_intelligence: Whether to analyze assets for sensitive data (Phase 7.3).
         javascript_pipeline: JavaScript v2 pipeline configuration.
     """
 
     settings: Settings | None = None
     collect_metadata: bool = False
     collect_asset_inventory: bool = True
+    collect_sensitive_intelligence: bool = True
     javascript_pipeline: JavaScriptPipelineConfig | None = None
 
 
@@ -216,6 +220,12 @@ class DiscoveryPipeline:
                 started_at=started_at,
                 completed_at=datetime.now(tz=UTC),
             )
+
+            if self._config.collect_sensitive_intelligence:
+                from techspecter.sensitive_intelligence.engine import SensitiveIntelligenceEngine
+
+                sensitive_report = SensitiveIntelligenceEngine().build(result)
+                result = result.model_copy(update={"sensitive_intelligence": sensitive_report})
 
             logger.info(
                 "Discovery complete for %s: %d external, %d inline, %d downloaded, "

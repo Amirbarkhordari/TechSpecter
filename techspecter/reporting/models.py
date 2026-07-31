@@ -207,6 +207,38 @@ class ReportTechnologyIntelligence(TechSpecterModel):
     elapsed_ms: float = 0.0
 
 
+class ReportSensitiveFinding(TechSpecterModel):
+    """Export-ready sensitive data finding."""
+
+    finding_id: str
+    finding_type: str
+    subtype: str
+    severity: str
+    confidence: float = Field(ge=0.0, le=100.0)
+    confidence_level: str
+    matched_value: str
+    matched_pattern: str
+    detector_name: str
+    source_files: list[str] = Field(default_factory=list)
+    occurrence_count: int = 1
+    evidence_count: int = 0
+    line_numbers: list[int] = Field(default_factory=list)
+    byte_offsets: list[int] = Field(default_factory=list)
+    locations: list[dict[str, object]] = Field(default_factory=list)
+    evidence: str | None = None
+
+
+class ReportSensitiveIntelligence(TechSpecterModel):
+    """Export-ready sensitive intelligence for JSON/HTML/SARIF/SBOM exporters."""
+
+    target_url: str
+    summary: dict[str, int | float] = Field(default_factory=dict)
+    total_findings: int = 0
+    assets_analyzed: int = 0
+    findings: list[ReportSensitiveFinding] = Field(default_factory=list)
+    elapsed_ms: float = 0.0
+
+
 class Report(TechSpecterModel):
     """Complete scan report produced by the reporting engine."""
 
@@ -220,6 +252,7 @@ class Report(TechSpecterModel):
     sections: list[ReportSection] = Field(default_factory=list)
     asset_inventory: ReportAssetInventory | None = None
     technology_intelligence: ReportTechnologyIntelligence | None = None
+    sensitive_intelligence: ReportSensitiveIntelligence | None = None
 
 
 class ExportResult(TechSpecterModel):

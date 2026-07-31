@@ -91,6 +91,7 @@ class AssetDiscoveryPipeline:
         await self._recursive_expand(builder, collector, skip_urls=skip)
         elapsed_ms = (time.perf_counter() - started) * 1000
         inventory = builder.build(target_url=base_url, elapsed_ms=elapsed_ms)
+        inventory = inventory.model_copy(update={"text_bodies": dict(collector.downloaded_text)})
         inventory.started_at = started_at
         inventory.completed_at = datetime.now(tz=UTC)
         logger.info(

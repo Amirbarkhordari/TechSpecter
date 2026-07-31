@@ -125,6 +125,7 @@ class AssetInventory(TechSpecterModel):
     target_url: str
     assets: list[AssetRecord] = Field(default_factory=list)
     summary: AssetInventorySummary = Field(default_factory=AssetInventorySummary)
+    text_bodies: dict[str, str] = Field(default_factory=dict)
     elapsed_ms: float = 0.0
     started_at: datetime | None = None
     completed_at: datetime | None = None

@@ -15,6 +15,7 @@ from techspecter.models.metadata import MetadataDiscoveryObservation
 if TYPE_CHECKING:
     from techspecter.asset_discovery.models import AssetInventory
     from techspecter.javascript.index.javascript_index import JavaScriptIndex
+    from techspecter.sensitive_intelligence.models import SensitiveIntelligenceReport
 
 
 class Target(TechSpecterModel):
@@ -107,6 +108,7 @@ class DiscoveryResult(TechSpecterModel):
     artifact_observation: ArtifactDiscoveryObservation | None = None
     javascript_index: JavaScriptIndex | None = None
     asset_inventory: AssetInventory | None = None
+    sensitive_intelligence: SensitiveIntelligenceReport | None = None
     elapsed_ms: float = 0.0
     started_at: datetime | None = None
     completed_at: datetime | None = None

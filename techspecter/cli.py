@@ -440,8 +440,52 @@ def _render_discovery_result(result: DiscoveryResult) -> None:
 
         render_asset_inventory(result.asset_inventory, console=console)
 
+    if result.sensitive_intelligence is not None:
+        from techspecter.sensitive_intelligence.report import render_sensitive_intelligence
 
-@app.command("inventory")
+        render_sensitive_intelligence(result.sensitive_intelligence, console=console)
+
+
+@app.command("sensitive-intelligence")
+def sensitive_intelligence_command(
+    url: Annotated[str, typer.Argument(help="Target website URL to analyze.")],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output sensitive intelligence as JSON."),
+    ] = False,
+) -> None:
+    """Analyze discovered assets for sensitive data and secrets."""
+    try:
+        pipeline = DiscoveryPipeline(
+            DiscoveryPipelineConfig(
+                collect_metadata=True,
+                collect_asset_inventory=True,
+                collect_sensitive_intelligence=True,
+            ),
+        )
+        result = asyncio.run(pipeline.run(url))
+    except ValidationError as exc:
+        _handle_analysis_error(exc, label="Validation error", url=url)
+    except TechSpecterError as exc:
+        _handle_analysis_error(exc, label="Sensitive intelligence failed", url=url)
+
+    report = result.sensitive_intelligence
+    if report is None:
+        console.print("[yellow]No sensitive intelligence report was produced.[/yellow]")
+        raise typer.Exit(code=1)
+
+    if json_output:
+        payload = report.model_dump(mode="json")
+        console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        return
+
+    console.print(f"\n[bold]Target:[/bold] {result.target.url}")
+    console.print(f"[bold]Elapsed:[/bold] {result.elapsed_ms:.0f} ms")
+    from techspecter.sensitive_intelligence.report import render_sensitive_intelligence
+
+    render_sensitive_intelligence(report, console=console)
+
+
 def inventory_command(
     url: Annotated[str, typer.Argument(help="Target website URL to inventory.")],
     json_output: Annotated[
