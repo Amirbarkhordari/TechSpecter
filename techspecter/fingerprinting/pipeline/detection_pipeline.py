@@ -9,6 +9,7 @@ from techspecter.fingerprinting.context import MatchContext
 from techspecter.fingerprinting.detection.merger import TechnologyMerger
 from techspecter.fingerprinting.engine import FingerprintEngine
 from techspecter.fingerprinting.loader import SignatureLoader
+from techspecter.fingerprinting.match_quality import apply_match_quality_gate
 from techspecter.fingerprinting.models import DetectionResult, TechnologyMatch
 from techspecter.models.discovery import DiscoveryResult, DownloadResult, InlineScript
 from techspecter.versioning.engine import VersionDetectionEngine
@@ -77,14 +78,18 @@ class FingerprintPipeline:
             elapsed_ms=elapsed_ms,
         )
         detection = self._version_engine.enrich(detection, discovery)
+        confirmed, ignored = apply_match_quality_gate(detection.matches)
+        detection = detection.model_copy(update={"matches": confirmed, "ignored_matches": ignored})
         logger.debug(
             "Version detection enrichment complete for %s",
             target_url,
         )
         logger.info(
-            "Fingerprint detection complete for %s: %d technologies from %d scripts (%.0f ms)",
+            "Fingerprint detection complete for %s: %d confirmed technologies "
+            "(%d ignored weak matches) from %d scripts (%.0f ms)",
             target_url,
             len(detection.matches),
+            len(ignored),
             len(contexts),
             elapsed_ms,
         )

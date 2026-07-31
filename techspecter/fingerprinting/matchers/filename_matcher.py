@@ -41,6 +41,8 @@ class FilenameMatcher(PatternMatcher):
         """Detect common webpack/vite chunk and vendor naming conventions."""
         if value not in {"chunk", "vendor", "bundle"}:
             return False
+        if value == "chunk":
+            return any("webpack" in target for target in targets)
         return any(any(hint in target for hint in _CHUNK_HINTS) for target in targets)
 
     def _compile_regex(self, expression: str) -> re.Pattern[str]:

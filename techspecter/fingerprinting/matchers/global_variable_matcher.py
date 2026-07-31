@@ -28,6 +28,9 @@ class GlobalVariableMatcher(PatternMatcher):
 
     def matches(self, pattern: FingerprintPattern, context: MatchContext) -> bool:
         """Return whether the global variable appears in the JavaScript content."""
+        if len(pattern.pattern.strip()) <= 2:
+            return False
+
         if pattern.pattern in _BOOTSTRAP_MARKERS and pattern.pattern in context.content:
             return True
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 
+from techspecter.fingerprinting.match_quality import apply_match_quality_gate
 from techspecter.fingerprinting.models import (
     DetectionResult,
     SecurityFinding,
@@ -63,9 +64,10 @@ class ProviderMerger:
 
         merged_matches.sort(key=lambda item: (-item.confidence, item.technology.name.lower()))
 
-        evidence_total = sum(item.evidence_count for item in merged_matches)
+        confirmed, ignored = apply_match_quality_gate(merged_matches)
+        evidence_total = sum(item.evidence_count for item in confirmed)
         summary = MergeSummary(
-            technologies_merged=len(merged_matches),
+            technologies_merged=len(confirmed),
             providers_succeeded=succeeded,
             providers_failed=failed,
             evidence_items_total=evidence_total,
@@ -86,7 +88,8 @@ class ProviderMerger:
 
         return DetectionResult(
             target_url=target_url,
-            matches=merged_matches,
+            matches=confirmed,
+            ignored_matches=ignored,
             scripts_analyzed=scripts_analyzed,
             elapsed_ms=elapsed_ms,
         )
@@ -141,6 +144,13 @@ class ProviderMerger:
             provider_metadata["rejected_versions"] = list(version_outcome.rejected_versions)
 
         source_url, filename, matched_resources = self._collect_provenance(matches)
+        if filename is None and structured_evidence:
+            for item in structured_evidence:
+                if item.detail:
+                    filename = item.detail.split("/")[-1]
+                    break
+        if source_url is None and matched_resources:
+            source_url = matched_resources[0]
 
         return TechnologyMatch(
             technology=Technology(

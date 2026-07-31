@@ -28,9 +28,9 @@
       "weight": 30
     },
     {
-      "matcher": "filename",
-      "pattern": "chunk",
-      "weight": 15
+      "matcher": "string",
+      "pattern": "webpackChunk",
+      "weight": 35
     }
   ],
   "version_patterns": []

@@ -7,7 +7,7 @@ from techspecter.fingerprinting.models import UNKNOWN_VERSION, Technology, Techn
 from techspecter.providers.confidence import ProviderConfidenceEngine
 from techspecter.providers.manager import ProviderManager
 from techspecter.providers.merger import ProviderMerger
-from techspecter.providers.models import ProviderDetectionResult, ProviderMatch, ProviderTarget
+from techspecter.providers.models import ProviderDetectionResult, ProviderEvidenceItem, ProviderMatch, ProviderTarget
 from techspecter.providers.normalizer import ProviderNormalizer
 from techspecter.providers.version_resolver import ProviderVersionResolver
 
@@ -29,6 +29,19 @@ def _provider_match(
         version=version,
         confidence=confidence,
         evidence=evidence or ["runtime:ReactDOM.createRoot"],
+        evidence_items=[
+            ProviderEvidenceItem(
+                source=provider,
+                category="runtime",
+                detail="ReactDOM.createRoot",
+                location="https://example.com/framework.js",
+                detection_method=f"{provider}-method",
+            )
+        ],
+        metadata={
+            "filename": "framework.js",
+            "source_url": "https://example.com/framework.js",
+        },
         provider=provider,
         detection_method=f"{provider}-method",
     )

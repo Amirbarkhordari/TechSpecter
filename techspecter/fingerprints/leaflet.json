@@ -23,9 +23,9 @@
       "weight": 30
     },
     {
-      "matcher": "global",
-      "pattern": "L",
-      "weight": 20
+      "matcher": "string",
+      "pattern": "leaflet.js",
+      "weight": 30
     }
   ],
   "version_patterns": []

@@ -11,6 +11,7 @@ from techspecter.fingerprinting.models import (
     DetectionResult,
     FingerprintAnalysisResult,
     SecurityFinding,
+    TechnologyMatch,
 )
 from techspecter.reporting.cli_display import count_fingerprint_security_findings
 from techspecter.reporting.models import Report
@@ -52,7 +53,11 @@ def render_fingerprint_report(
         )
 
     _render_technology_detection(
-        report, console=console, group_by_category=group_by_category, verbose=verbose
+        report,
+        detection=result.detection,
+        console=console,
+        group_by_category=group_by_category,
+        verbose=verbose,
     )
 
     if result.technology_intelligence is not None:
@@ -118,6 +123,7 @@ def _render_target_summary(
 def _render_technology_detection(
     report: Report,
     *,
+    detection: DetectionResult,
     console: Console,
     group_by_category: bool,
     verbose: bool,
@@ -128,7 +134,9 @@ def _render_technology_detection(
     console.print("=" * _SECTION_WIDTH + "\n")
 
     if not report.technologies:
-        console.print("[yellow]No JavaScript technologies detected.[/yellow]\n")
+        console.print("[yellow]No confirmed JavaScript technologies detected.[/yellow]\n")
+        if verbose and detection.ignored_matches:
+            _render_ignored_matches(detection.ignored_matches, console=console)
         return
 
     render_report(
@@ -140,7 +148,33 @@ def _render_technology_detection(
         skip_header=True,
         cli_mode=True,
     )
+    if verbose and detection.ignored_matches:
+        _render_ignored_matches(detection.ignored_matches, console=console)
     console.print()
+
+
+def _render_ignored_matches(
+    ignored: list[TechnologyMatch],
+    *,
+    console: Console,
+) -> None:
+    """Render weak matches filtered from confirmed output (verbose/debug only)."""
+    console.print("[dim]Ignored / Weak Matches[/dim]\n")
+    table = Table(show_header=True, header_style="bold dim")
+    table.add_column("Technology")
+    table.add_column("Source", overflow="fold")
+    table.add_column("Confidence")
+    table.add_column("Reason", overflow="fold")
+    for match in ignored:
+        source = match.filename or match.source_url or "-"
+        reason = match.detection_reason or ", ".join(match.matched_patterns[:2]) or "-"
+        table.add_row(
+            match.technology.name,
+            source,
+            f"{match.confidence:.1f}",
+            reason,
+        )
+    console.print(table)
 
 
 def _render_security_summary(

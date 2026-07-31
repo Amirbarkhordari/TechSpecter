@@ -19,13 +19,18 @@
     },
     {
       "matcher": "string",
-      "pattern": "Bootstrap",
-      "weight": 25
+      "pattern": "data-bs-toggle",
+      "weight": 30
     },
     {
-      "matcher": "global",
-      "pattern": "bootstrap",
-      "weight": 20
+      "matcher": "string",
+      "pattern": "bootstrap.min.css",
+      "weight": 30
+    },
+    {
+      "matcher": "regex",
+      "pattern": "Bootstrap(?:\\s|\\.)v?[0-9]",
+      "weight": 25
     }
   ],
   "version_patterns": []

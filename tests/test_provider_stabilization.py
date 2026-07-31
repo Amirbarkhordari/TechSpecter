@@ -28,6 +28,19 @@ def _match(**kwargs: object) -> ProviderMatch:
         "version": "19.1.0",
         "confidence": 85.0,
         "evidence": ["runtime:ReactDOM.createRoot"],
+        "evidence_items": [
+            ProviderEvidenceItem(
+                source="techspecter",
+                category="runtime",
+                detail="ReactDOM.createRoot",
+                location="https://example.com/framework.js",
+                detection_method="fingerprint-engine",
+            )
+        ],
+        "metadata": {
+            "filename": "framework.js",
+            "source_url": "https://example.com/framework.js",
+        },
         "provider": "techspecter",
         "detection_method": "fingerprint-engine",
     }

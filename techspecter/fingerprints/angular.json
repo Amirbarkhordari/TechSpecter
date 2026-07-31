@@ -24,14 +24,14 @@
       "weight": 35
     },
     {
-      "matcher": "global",
-      "pattern": "ng",
-      "weight": 25
-    },
-    {
       "matcher": "regex",
       "pattern": "angular\\.module",
       "weight": 30
+    },
+    {
+      "matcher": "regex",
+      "pattern": "ɵɵdefineComponent",
+      "weight": 35
     }
   ],
   "version_patterns": [

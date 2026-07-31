@@ -123,6 +123,7 @@ class DetectionResult(TechSpecterModel):
 
     target_url: str
     matches: list[TechnologyMatch] = Field(default_factory=list)
+    ignored_matches: list[TechnologyMatch] = Field(default_factory=list)
     scripts_analyzed: int = 0
     elapsed_ms: float = 0.0
 

@@ -102,15 +102,20 @@ def _render_table(
     *,
     console: Console,
     verbose: bool,
-    title: str | None = "Detected Technologies",
+    title: str | None = "Confirmed Technologies",
     cli_mode: bool = False,
 ) -> None:
     """Render a Rich table of technologies."""
     table = Table(title=title)
     table.add_column("Technology")
-    table.add_column("Category")
-    table.add_column("Version")
-    table.add_column("Confidence")
+    if cli_mode:
+        table.add_column("Version")
+        table.add_column("Source", overflow="fold")
+        table.add_column("Confidence")
+    else:
+        table.add_column("Category")
+        table.add_column("Version")
+        table.add_column("Confidence")
     if not cli_mode:
         table.add_column("Detected By")
         table.add_column("Evidence")
@@ -118,12 +123,21 @@ def _render_table(
         table.add_column("Details")
 
     for technology in technologies:
-        row = [
-            technology.name,
-            technology.category,
-            technology.version,
-            f"{technology.confidence:.1f}",
-        ]
+        source = technology.source_file or "-"
+        if cli_mode:
+            row = [
+                technology.name,
+                technology.version,
+                source,
+                f"{technology.confidence:.1f}",
+            ]
+        else:
+            row = [
+                technology.name,
+                technology.category,
+                technology.version,
+                f"{technology.confidence:.1f}",
+            ]
         if not cli_mode:
             detected_by = ", ".join(technology.detected_by) if technology.detected_by else "-"
             row.extend(

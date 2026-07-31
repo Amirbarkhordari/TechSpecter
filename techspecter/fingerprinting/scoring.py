@@ -32,7 +32,7 @@ class MatchEvidence:
 class ConfidenceScorer:
     """Calculate normalized confidence scores for technology matches."""
 
-    min_confidence: float = 20.0
+    min_confidence: float = 50.0
     matcher_multipliers: dict[str, float] = field(default_factory=lambda: dict(MATCHER_MULTIPLIERS))
 
     def score(self, fingerprint: Fingerprint, evidence: MatchEvidence, version: str) -> float:
@@ -50,7 +50,7 @@ class ConfidenceScorer:
             return min(100.0, fingerprint.confidence)
 
         normalized = (earned / max_possible) * 100.0
-        blended = (normalized + fingerprint.confidence) / 2.0
+        blended = (normalized * 0.75) + (fingerprint.confidence * 0.25)
         adjusted = self._apply_match_quality_rules(blended, evidence)
         return round(min(100.0, max(0.0, adjusted)), 2)
 
@@ -65,9 +65,15 @@ class ConfidenceScorer:
 
     def _apply_match_quality_rules(self, score: float, evidence: MatchEvidence) -> float:
         """Adjust score based on match quality heuristics."""
+        from techspecter.fingerprinting.match_quality import is_weak_pattern
+
         matchers = {pattern.matcher for pattern in evidence.matched_patterns}
         if len(evidence.matched_patterns) == 1 and matchers == {"filename"}:
-            return score * 0.75
+            return score * 0.65
+        if len(evidence.matched_patterns) == 1:
+            pattern = evidence.matched_patterns[0]
+            if is_weak_pattern(pattern.matcher, pattern.pattern):
+                return score * 0.45
         if len(evidence.matched_patterns) >= 2:
             return min(100.0, score * 1.05)
         return score
