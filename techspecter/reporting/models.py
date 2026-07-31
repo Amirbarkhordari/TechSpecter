@@ -158,6 +158,55 @@ class ReportAssetInventory(TechSpecterModel):
     elapsed_ms: float = 0.0
 
 
+class ReportTechnologyEvidence(TechSpecterModel):
+    """Export-ready technology evidence entry."""
+
+    evidence_id: str
+    evidence_type: str
+    matched_pattern: str | None = None
+    matched_text: str | None = None
+    source_file: str | None = None
+    source_url: str | None = None
+    source_asset_id: str | None = None
+    line_number: int | None = Field(default=None, ge=1)
+    byte_offset: int | None = Field(default=None, ge=0)
+    confidence: float = Field(ge=0.0, le=100.0)
+    detector_name: str
+    discovery_method: str = "unknown"
+
+
+class ReportTechnologyIntelligenceEntry(TechSpecterModel):
+    """Export-ready technology intelligence record."""
+
+    technology_id: str
+    name: str
+    category: str
+    version: str
+    confidence: float = Field(ge=0.0, le=100.0)
+    files_found: int = 0
+    evidence_count: int = 0
+    relationship_count: int = 0
+    detectors: list[str] = Field(default_factory=list)
+    found_in_files: list[str] = Field(default_factory=list)
+    found_in_asset_ids: list[str] = Field(default_factory=list)
+    version_source: str | None = None
+    version_attribution: dict[str, object] | None = None
+    evidence: list[ReportTechnologyEvidence] = Field(default_factory=list)
+    relationships: list[dict[str, object]] = Field(default_factory=list)
+
+
+class ReportTechnologyIntelligence(TechSpecterModel):
+    """Export-ready technology intelligence for JSON/HTML/SARIF exporters."""
+
+    target_url: str
+    total_technologies: int = 0
+    total_evidence: int = 0
+    total_assets_referenced: int = 0
+    technologies: list[ReportTechnologyIntelligenceEntry] = Field(default_factory=list)
+    relationships: list[dict[str, object]] = Field(default_factory=list)
+    elapsed_ms: float = 0.0
+
+
 class Report(TechSpecterModel):
     """Complete scan report produced by the reporting engine."""
 
@@ -170,6 +219,7 @@ class Report(TechSpecterModel):
     groups: list[TechnologyGroup] = Field(default_factory=list)
     sections: list[ReportSection] = Field(default_factory=list)
     asset_inventory: ReportAssetInventory | None = None
+    technology_intelligence: ReportTechnologyIntelligence | None = None
 
 
 class ExportResult(TechSpecterModel):

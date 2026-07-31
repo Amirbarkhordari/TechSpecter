@@ -5,10 +5,13 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from techspecter.configuration.models import ProvidersConfig
 from techspecter.crawler.discovery import DiscoveryPipeline
+from techspecter.fingerprinting.compatibility import FingerprintCompatibilityLayer
 from techspecter.fingerprinting.models import FingerprintAnalysisResult
+from techspecter.fingerprinting.rebuild import rebuild_fingerprint_analysis_models  # noqa: F401
 from techspecter.providers.manager import ProviderManager
 from techspecter.providers.merger import ProviderMerger
 from techspecter.providers.models import (
@@ -18,6 +21,10 @@ from techspecter.providers.models import (
     ProviderTarget,
     UnifiedDetectionResult,
 )
+from techspecter.technology_intelligence.engine import TechnologyIntelligenceEngine
+
+if TYPE_CHECKING:
+    from techspecter.fingerprinting.evidence.models import EvidenceCollection
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +37,9 @@ class UnifiedDetectionService:
     provider_manager: ProviderManager | None = None
     merger: ProviderMerger = field(default_factory=ProviderMerger)
     providers_config: ProvidersConfig = field(default_factory=ProvidersConfig)
+    intelligence_engine: TechnologyIntelligenceEngine | None = None
+    compatibility_layer: FingerprintCompatibilityLayer | None = None
+    collect_evidence: bool = True
 
     async def analyze_url(
         self,
@@ -75,6 +85,16 @@ class UnifiedDetectionService:
             merge_summary=merge_summary,
         )
 
+        evidence_collection: EvidenceCollection | None = None
+        if self.collect_evidence:
+            evidence_collection = self._compatibility().collect_evidence(discovery)
+
+        intelligence = self._intelligence().build(
+            discovery,
+            merged,
+            evidence_collection=evidence_collection,
+        )
+
         return FingerprintAnalysisResult(
             target_url=target.url,
             discovery_elapsed_ms=discovery_elapsed_ms,
@@ -85,6 +105,7 @@ class UnifiedDetectionService:
                 "failed_providers": unified.failed_providers,
                 "merge_summary": merge_summary.model_dump() if merge_summary else {},
             },
+            technology_intelligence=intelligence,
         )
 
     def build_unified_result(
@@ -120,3 +141,15 @@ class UnifiedDetectionService:
         if self.provider_manager is None:
             self.provider_manager = ProviderManager(config=self.providers_config)
         return self.provider_manager
+
+    def _intelligence(self) -> TechnologyIntelligenceEngine:
+        """Return technology intelligence engine."""
+        if self.intelligence_engine is None:
+            self.intelligence_engine = TechnologyIntelligenceEngine()
+        return self.intelligence_engine
+
+    def _compatibility(self) -> FingerprintCompatibilityLayer:
+        """Return fingerprint compatibility layer for evidence collection."""
+        if self.compatibility_layer is None:
+            self.compatibility_layer = FingerprintCompatibilityLayer()
+        return self.compatibility_layer

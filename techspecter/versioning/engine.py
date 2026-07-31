@@ -260,3 +260,10 @@ def _collect_resources(discovery: DiscoveryResult) -> list[JavaScriptResourceCon
         len(resources),
     )
     return resources
+
+
+def collect_javascript_resources(
+    discovery: DiscoveryResult,
+) -> list[JavaScriptResourceContent]:
+    """Collect JavaScript resources from a discovery result."""
+    return _collect_resources(discovery)

@@ -767,6 +767,11 @@ def fingerprint_command(
         verbose=verbose_output,
     )
 
+    if result.technology_intelligence is not None:
+        from techspecter.technology_intelligence.report import render_technology_intelligence
+
+        render_technology_intelligence(result.technology_intelligence, console=console)
+
     if compare_wappalyzer:
         console.print("\n[bold]Running Wappalyzer comparison benchmark…[/bold]")
         run_benchmark(

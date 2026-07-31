@@ -10,6 +10,13 @@ from techspecter.configuration.manager import ConfigurationManager, set_configur
 from techspecter.utils.logging import reset_logging
 
 
+@pytest.fixture(autouse=True, scope="session")
+def rebuild_pydantic_forward_refs() -> None:
+    """Ensure Pydantic forward references are resolved before model use."""
+    import techspecter.crawler.discovery  # noqa: F401
+    import techspecter.fingerprinting.rebuild  # noqa: F401
+
+
 @pytest.fixture(autouse=True)
 def isolate_logging() -> None:
     """Reset logging handlers after each test to avoid cross-test interference."""

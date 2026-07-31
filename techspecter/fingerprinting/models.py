@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import ConfigDict, Field
 
 from techspecter.models.base import TechSpecterModel
+
+if TYPE_CHECKING:
+    from techspecter.technology_intelligence.models import TechnologyIntelligenceReport
 
 MatcherType = Literal["string", "regex", "filename", "sourcemap", "global"]
 VersionSource = Literal["inline", "global", "metadata", "sourcemap", "minified", "bundle"]
@@ -130,3 +133,4 @@ class FingerprintAnalysisResult(TechSpecterModel):
     detection: DetectionResult
     elapsed_ms: float = 0.0
     provider_diagnostics: dict[str, object] = Field(default_factory=dict)
+    technology_intelligence: TechnologyIntelligenceReport | None = None
