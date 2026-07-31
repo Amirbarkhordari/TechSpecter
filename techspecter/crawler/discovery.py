@@ -6,6 +6,7 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from techspecter.config import Settings, get_settings
 from techspecter.crawler.metadata_collector import WellKnownResourceCollector
@@ -24,7 +25,27 @@ from techspecter.parser.html_parser import HtmlScriptParser
 from techspecter.utils.url import validate_url
 from techspecter.utils.validation import build_target
 
+if TYPE_CHECKING:
+    from techspecter.asset_discovery.pipeline import AssetDiscoveryPipeline
+
 logger = logging.getLogger(__name__)
+
+
+def _rebuild_discovery_result_models() -> None:
+    """Resolve forward references on DiscoveryResult."""
+    from techspecter.asset_discovery.models import AssetInventory
+    from techspecter.javascript.index.javascript_index import JavaScriptIndex
+    from techspecter.models.discovery import DiscoveryResult
+
+    DiscoveryResult.model_rebuild(
+        _types_namespace={
+            "JavaScriptIndex": JavaScriptIndex,
+            "AssetInventory": AssetInventory,
+        },
+    )
+
+
+_rebuild_discovery_result_models()
 
 
 @dataclass(slots=True)
@@ -34,11 +55,13 @@ class DiscoveryPipelineConfig:
     Attributes:
         settings: Application settings used to configure HTTP behavior.
         collect_metadata: Whether to collect passive metadata and well-known resources.
+        collect_asset_inventory: Whether to build passive asset inventory (Phase 7.1).
         javascript_pipeline: JavaScript v2 pipeline configuration.
     """
 
     settings: Settings | None = None
     collect_metadata: bool = False
+    collect_asset_inventory: bool = True
     javascript_pipeline: JavaScriptPipelineConfig | None = None
 
 
@@ -53,6 +76,7 @@ class DiscoveryPipeline:
         html_parser: HtmlScriptParser | None = None,
         metadata_parser: HtmlMetadataParser | None = None,
         javascript_pipeline: JavaScriptPipeline | None = None,
+        asset_pipeline: AssetDiscoveryPipeline | None = None,
     ) -> None:
         """Initialize the discovery pipeline.
 
@@ -62,6 +86,7 @@ class DiscoveryPipeline:
             html_parser: Optional HTML parser for dependency injection.
             metadata_parser: Optional HTML metadata parser for dependency injection.
             javascript_pipeline: Optional JavaScript v2 pipeline for dependency injection.
+            asset_pipeline: Optional asset discovery pipeline for dependency injection.
         """
         self._config = config or DiscoveryPipelineConfig()
         self._settings = self._config.settings or get_settings()
@@ -73,6 +98,7 @@ class DiscoveryPipeline:
             max_concurrency=self._settings.max_concurrency,
         )
         self._javascript_pipeline = javascript_pipeline or JavaScriptPipeline(config=js_config)
+        self._asset_pipeline = asset_pipeline
 
     async def run(self, target_url: str) -> DiscoveryResult:
         """Execute the JavaScript discovery pipeline.
@@ -152,11 +178,40 @@ class DiscoveryPipeline:
                 elapsed_ms=html_document.elapsed_ms,
             )
 
+            asset_inventory = None
+            if self._config.collect_asset_inventory:
+                from techspecter.asset_discovery.pipeline import AssetDiscoveryPipeline
+                from techspecter.javascript.index.javascript_index import JavaScriptIndex
+
+                asset_pipeline = self._asset_pipeline or AssetDiscoveryPipeline()
+                pre_downloaded: frozenset[str] = frozenset()
+                if isinstance(pipeline_result.index, JavaScriptIndex):
+                    from techspecter.asset_discovery.inventory import inventory_key
+
+                    pre_downloaded = frozenset(
+                        inventory_key(str(resource.url))
+                        for resource in pipeline_result.index.all_resources()
+                        if resource.download_success and not resource.inline
+                    )
+                link_header = html_document.headers.get("link") or html_document.headers.get(
+                    "Link",
+                )
+                asset_inventory = await asset_pipeline.run(
+                    base_url=html_document.url,
+                    html=html_document.content,
+                    client=client,
+                    javascript_index=pipeline_result.index,
+                    metadata_observation=metadata_observation,
+                    http_link_header=link_header,
+                    pre_downloaded_keys=pre_downloaded,
+                )
+
             result = to_discovery_result(
                 target=target,
                 pipeline_result=pipeline_result,
                 http_response=http_response,
                 metadata_observation=metadata_observation,
+                asset_inventory=asset_inventory,
                 elapsed_ms=elapsed_ms,
                 started_at=started_at,
                 completed_at=datetime.now(tz=UTC),

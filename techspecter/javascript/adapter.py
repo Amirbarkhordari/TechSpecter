@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from techspecter.javascript.index.javascript_index import JavaScriptIndex, JavaScriptPipelineResult
+from techspecter.javascript.index.javascript_index import JavaScriptPipelineResult
 from techspecter.models.discovery import (
     DiscoveryResult,
     DownloadResult,
@@ -15,7 +16,8 @@ from techspecter.models.discovery import (
 from techspecter.models.http import HttpResponseObservation
 from techspecter.models.metadata import MetadataDiscoveryObservation
 
-DiscoveryResult.model_rebuild(_types_namespace={"JavaScriptIndex": JavaScriptIndex})
+if TYPE_CHECKING:
+    from techspecter.asset_discovery.models import AssetInventory
 
 
 def to_discovery_result(
@@ -24,6 +26,7 @@ def to_discovery_result(
     pipeline_result: JavaScriptPipelineResult,
     http_response: HttpResponseObservation | None = None,
     metadata_observation: MetadataDiscoveryObservation | None = None,
+    asset_inventory: AssetInventory | None = None,
     elapsed_ms: float = 0.0,
     started_at: datetime | None = None,
     completed_at: datetime | None = None,
@@ -75,6 +78,7 @@ def to_discovery_result(
         http_response=http_response,
         metadata_observation=metadata_observation,
         javascript_index=index,
+        asset_inventory=asset_inventory,
         elapsed_ms=elapsed_ms,
         started_at=started_at,
         completed_at=completed_at,

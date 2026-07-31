@@ -30,7 +30,7 @@ from techspecter.configuration.manager import (
     get_configuration_manager,
     set_configuration_manager,
 )
-from techspecter.crawler.discovery import DiscoveryPipeline
+from techspecter.crawler.discovery import DiscoveryPipeline, DiscoveryPipelineConfig
 from techspecter.exceptions import ReportError, TechSpecterError, ValidationError
 from techspecter.fingerprinting.models import FingerprintAnalysisResult
 from techspecter.models.discovery import DiscoveryResult
@@ -434,6 +434,62 @@ def _render_discovery_result(result: DiscoveryResult) -> None:
 
     if result.inline_scripts:
         console.print(f"\n[bold]Inline Scripts:[/bold] {len(result.inline_scripts)} found")
+
+    if result.asset_inventory is not None:
+        from techspecter.asset_discovery.report import render_asset_inventory
+
+        render_asset_inventory(result.asset_inventory, console=console)
+
+
+@app.command("inventory")
+def inventory_command(
+    url: Annotated[str, typer.Argument(help="Target website URL to inventory.")],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output asset inventory as JSON."),
+    ] = False,
+    no_download: Annotated[
+        bool,
+        typer.Option("--no-download", help="Discover assets without downloading bodies."),
+    ] = False,
+) -> None:
+    """Discover and inventory all publicly referenced website assets."""
+    from techspecter.asset_discovery.pipeline import (
+        AssetDiscoveryPipeline,
+        AssetDiscoveryPipelineConfig,
+    )
+    from techspecter.asset_discovery.report import render_asset_inventory
+
+    try:
+        asset_pipeline = AssetDiscoveryPipeline(
+            config=AssetDiscoveryPipelineConfig(download_assets=not no_download),
+        )
+        pipeline = DiscoveryPipeline(
+            DiscoveryPipelineConfig(
+                collect_metadata=True,
+                collect_asset_inventory=True,
+            ),
+            asset_pipeline=asset_pipeline,
+        )
+        result = asyncio.run(pipeline.run(url))
+    except ValidationError as exc:
+        _handle_analysis_error(exc, label="Validation error", url=url)
+    except TechSpecterError as exc:
+        _handle_analysis_error(exc, label="Inventory failed", url=url)
+
+    inventory = result.asset_inventory
+    if inventory is None:
+        console.print("[yellow]No asset inventory was produced.[/yellow]")
+        raise typer.Exit(code=1)
+
+    if json_output:
+        payload = inventory.model_dump(mode="json")
+        console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        return
+
+    console.print(f"\n[bold]Target:[/bold] {result.target.url}")
+    console.print(f"[bold]Elapsed:[/bold] {result.elapsed_ms:.0f} ms")
+    render_asset_inventory(inventory, console=console)
 
 
 @app.command("doctor")

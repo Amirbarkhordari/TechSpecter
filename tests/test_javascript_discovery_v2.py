@@ -20,6 +20,7 @@ from techspecter.javascript.models import (
 from techspecter.javascript.normalization.pipeline import JavaScriptNormalizationPipeline
 from techspecter.javascript.pipeline.config import JavaScriptPipelineConfig
 from techspecter.javascript.pipeline.pipeline import JavaScriptPipeline
+from tests.http_fixtures import mock_well_known_http_requests
 
 
 @pytest.fixture(autouse=True)
@@ -200,6 +201,10 @@ async def test_discovery_pipeline_v2_backward_compat() -> None:
             text="console.log('app');\n//# sourceMappingURL=app.js.map",
         )
     )
+    respx.get("https://example.com/app.js.map").mock(
+        return_value=httpx.Response(404, text="Not Found"),
+    )
+    mock_well_known_http_requests()
 
     pipeline = DiscoveryPipeline()
     result = await pipeline.run("example.com")
@@ -228,6 +233,7 @@ async def test_duplicate_content_skipped_in_pipeline() -> None:
     respx.get("https://example.com/").mock(return_value=httpx.Response(200, text=html))
     respx.get("https://example.com/a.js").mock(return_value=httpx.Response(200, text=same_content))
     respx.get("https://example.com/b.js").mock(return_value=httpx.Response(200, text=same_content))
+    mock_well_known_http_requests()
 
     pipeline = DiscoveryPipeline()
     result = await pipeline.run("https://example.com/")
@@ -250,6 +256,7 @@ async def test_ast_preparation_populates_metadata() -> None:
     respx.get("https://example.com/module.js").mock(
         return_value=httpx.Response(200, text=module_js)
     )
+    mock_well_known_http_requests()
 
     pipeline = DiscoveryPipeline()
     result = await pipeline.run("https://example.com/")

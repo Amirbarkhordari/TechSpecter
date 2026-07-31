@@ -126,6 +126,7 @@ See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) and [examples/](examples/).
 | [Developer Guide](docs/DEVELOPER.md) | API and analyzer authoring |
 | [JavaScript Discovery](docs/JAVASCRIPT_DISCOVERY.md) | Phase 5.7 discovery and preprocessing |
 | [Version Detection](docs/VERSION_DETECTION.md) | Phase 6 JavaScript version engine |
+| [Asset Discovery](docs/ASSET_DISCOVERY.md) | Phase 7.1 asset inventory engine |
 | [Plugin SDK](docs/PLUGIN_SDK.md) | Plugin development |
 | [Migration Guide](docs/MIGRATION.md) | Version upgrades |
 | [Release Notes](docs/RELEASE_NOTES.md) | v1.0.0-rc1 notes |

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-import techspecter.javascript.adapter  # noqa: F401 — rebuild DiscoveryResult forward refs
+import techspecter.crawler.discovery  # noqa: F401 — rebuild DiscoveryResult forward refs
 from techspecter.fingerprinting.models import (
     UNKNOWN_VERSION,
     DetectionResult,

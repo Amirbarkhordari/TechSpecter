@@ -16,6 +16,7 @@ from techspecter.models.discovery import (
     ScriptResource,
     Target,
 )
+from tests.http_fixtures import mock_well_known_http_requests
 
 runner = CliRunner()
 
@@ -88,6 +89,7 @@ def test_discover_command_integration_with_mocked_http() -> None:
     respx.get("https://example.com/app.js").mock(
         return_value=httpx.Response(200, text="console.log('ok');")
     )
+    mock_well_known_http_requests()
 
     result = runner.invoke(app, ["discover", "https://example.com"])
     assert result.exit_code == 0

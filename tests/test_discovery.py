@@ -8,6 +8,7 @@ import respx
 
 from techspecter.crawler.discovery import DiscoveryPipeline
 from techspecter.exceptions import ValidationError
+from tests.http_fixtures import mock_well_known_http_requests
 
 
 @pytest.mark.asyncio
@@ -36,6 +37,10 @@ async def test_discovery_pipeline_end_to_end() -> None:
             text="console.log('app');\n//# sourceMappingURL=app.js.map",
         )
     )
+    respx.get("https://example.com/app.js.map").mock(
+        return_value=httpx.Response(404, text="Not Found"),
+    )
+    mock_well_known_http_requests()
 
     pipeline = DiscoveryPipeline()
     result = await pipeline.run("example.com")

@@ -130,6 +130,34 @@ class ReportSection(TechSpecterModel):
     metadata: dict[str, object] = Field(default_factory=dict)
 
 
+class ReportAssetEntry(TechSpecterModel):
+    """Export-ready asset inventory entry."""
+
+    asset_id: str
+    url: str
+    filename: str
+    extension: str | None = None
+    category: str
+    content_type: str | None = None
+    mime_type: str | None = None
+    http_status: int | None = None
+    file_size: int | None = None
+    sha256: str | None = None
+    download_success: bool = False
+    referenced_by: str | None = None
+    discovery_sources: list[str] = Field(default_factory=list)
+
+
+class ReportAssetInventory(TechSpecterModel):
+    """Export-ready asset inventory for JSON/HTML/SARIF exporters."""
+
+    target_url: str
+    summary: dict[str, int]
+    total_assets: int = 0
+    assets: list[ReportAssetEntry] = Field(default_factory=list)
+    elapsed_ms: float = 0.0
+
+
 class Report(TechSpecterModel):
     """Complete scan report produced by the reporting engine."""
 
@@ -141,6 +169,7 @@ class Report(TechSpecterModel):
     findings: list[ReportFinding] = Field(default_factory=list)
     groups: list[TechnologyGroup] = Field(default_factory=list)
     sections: list[ReportSection] = Field(default_factory=list)
+    asset_inventory: ReportAssetInventory | None = None
 
 
 class ExportResult(TechSpecterModel):

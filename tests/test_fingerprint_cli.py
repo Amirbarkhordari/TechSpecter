@@ -15,6 +15,7 @@ from techspecter.fingerprints.models import (
     Technology,
     TechnologyMatch,
 )
+from tests.http_fixtures import mock_well_known_http_requests
 
 runner = CliRunner()
 
@@ -139,6 +140,7 @@ def test_fingerprint_command_integration_with_mocked_http() -> None:
             text='React.version="18.2.0"; React.createElement("div");',
         )
     )
+    mock_well_known_http_requests()
     result = runner.invoke(app, ["fingerprint", "https://example.com"])
     assert result.exit_code == 0
     assert "React" in result.stdout

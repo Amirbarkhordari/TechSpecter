@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from urllib.parse import urljoin
+
+import httpx
+import respx
+
+from techspecter.crawler.metadata_collector import WELL_KNOWN_PATHS
 from techspecter.models.discovery import DiscoveryResult, Target
 from techspecter.models.http import HttpCookieObservation, HttpRedirectHop, HttpResponseObservation
 
@@ -17,7 +23,7 @@ def sample_http_observation(**overrides: object) -> HttpResponseObservation:
             "content-type": "text/html; charset=utf-8",
             "content-length": "1234",
             "cache-control": "no-cache",
-            "set-cookie": "session=abc; Path=/; HttpOnly; Secure",
+            "set-cookie": "session=abc; Path=/; Secure; HttpOnly",
             "content-security-policy": "default-src 'self'",
             "strict-transport-security": "max-age=31536000",
             "access-control-allow-origin": "https://example.com",
@@ -33,7 +39,7 @@ def sample_http_observation(**overrides: object) -> HttpResponseObservation:
                 path="/",
                 secure=True,
                 httponly=True,
-                raw="session=abc; Path=/; HttpOnly; Secure",
+                raw="session=abc; Path=/; Secure; HttpOnly",
             )
         ],
         "redirects": [
@@ -61,3 +67,10 @@ def sample_discovery_with_http(**overrides: object) -> DiscoveryResult:
     }
     data.update(overrides)
     return DiscoveryResult(**data)  # type: ignore[arg-type]
+
+
+def mock_well_known_http_requests(origin: str = "https://example.com") -> None:
+    """Mock passive well-known resource requests with 404 responses."""
+    for path in WELL_KNOWN_PATHS.values():
+        url = urljoin(origin, path)
+        respx.get(url).mock(return_value=httpx.Response(404, text="Not Found"))

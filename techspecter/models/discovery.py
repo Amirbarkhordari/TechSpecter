@@ -13,6 +13,7 @@ from techspecter.models.http import HttpResponseObservation
 from techspecter.models.metadata import MetadataDiscoveryObservation
 
 if TYPE_CHECKING:
+    from techspecter.asset_discovery.models import AssetInventory
     from techspecter.javascript.index.javascript_index import JavaScriptIndex
 
 
@@ -105,6 +106,7 @@ class DiscoveryResult(TechSpecterModel):
     metadata_observation: MetadataDiscoveryObservation | None = None
     artifact_observation: ArtifactDiscoveryObservation | None = None
     javascript_index: JavaScriptIndex | None = None
+    asset_inventory: AssetInventory | None = None
     elapsed_ms: float = 0.0
     started_at: datetime | None = None
     completed_at: datetime | None = None
