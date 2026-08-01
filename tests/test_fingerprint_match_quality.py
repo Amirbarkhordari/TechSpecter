@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from techspecter.fingerprinting.context import MatchContext
+from techspecter.fingerprinting.detection.merger import TechnologyMerger
 from techspecter.fingerprinting.engine import FingerprintEngine
 from techspecter.fingerprinting.loader import SignatureLoader
-from techspecter.fingerprinting.detection.merger import TechnologyMerger
 from techspecter.fingerprinting.match_attribution import (
     apply_match_attribution,
     is_valid_detection_candidate,

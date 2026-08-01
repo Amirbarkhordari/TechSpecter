@@ -28,7 +28,7 @@ class Settings:
     """
 
     app_name: str = "TechSpecter"
-    version: str = "0.7.0"
+    version: str = "1.0.0rc1"
     debug: bool = False
     user_agent: str = DEFAULT_USER_AGENT
     request_timeout: float = 30.0

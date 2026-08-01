@@ -8,7 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Nothing yet.
+- `py.typed` marker for PEP 561 inline type-checking support
+- pytest-cov coverage reporting in CI workflow
+- `_export_or_display_analysis_report()` CLI helper to deduplicate report export logic
+
+### Changed
+- CLI `doctor --json` suppresses INFO logging to produce clean JSON output
+- `FingerprintEngine._priority_for()` uses dict lookup (O(1)) instead of linear scan (O(n))
+- Settings.version default updated from `0.7.0` to `1.0.0rc1`
+
+### Fixed
+- 14 Ruff lint errors: unused imports, unsorted import blocks, long lines, SIM103 violations
+- 8 MyPy errors: added `bs4.*` ignore_missing_imports override in pyproject.toml
+- Failing `test_doctor_json_output` caused by INFO log lines leaking into JSON stdout
+- Redundant return patterns in `match_quality.py` and `match_attribution.py`
 
 ## [1.0.0-rc1] - 2026-07-28
 

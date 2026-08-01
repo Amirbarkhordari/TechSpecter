@@ -549,12 +549,18 @@ def doctor_command(
     from techspecter.plugins.developer.diagnostics import environment_diagnostics
     from techspecter.plugins.manager import PluginManager
 
+    if json_output:
+        logging.disable(logging.INFO)
+
     manager = get_configuration_manager()
     env = environment_diagnostics()
     plugin_manager = PluginManager()
     plugin_manager.load_plugins(load_builtins=True)
     plugin_summary = plugin_manager.load_summary()
     plugin_manager.shutdown()
+
+    if json_output:
+        logging.disable(logging.NOTSET)
 
     payload: dict[str, object] = {
         "status": "ok",
@@ -931,6 +937,56 @@ def _render_analysis_summary(
         console.print(f"[dim]... and {len(result.findings) - 50} more findings[/dim]")
 
 
+def _export_or_display_analysis_report(
+    result: AnalysisResult,
+    *,
+    report_format: OutputFormat | None,
+    output: str | None,
+    title: str = "HTTP Analysis Findings",
+) -> None:
+    """Export an analysis result to a file or render a console summary.
+
+    Shared by analyze, metadata, and artifacts commands to avoid
+    duplicating the report format / export path / error handling logic.
+    """
+    from techspecter.configuration.manager import get_configuration_manager
+
+    active_config = get_configuration_manager().config
+    report_service = ReportService()
+    selected_format = (
+        report_format.value if report_format is not None else active_config.reporting.default_format
+    )
+    export_path = output
+    if export_path is None and active_config.reporting.filename:
+        export_path = str(
+            Path(active_config.reporting.output_directory) / active_config.reporting.filename
+        )
+
+    try:
+        if selected_format is not None:
+            if not active_config.reporting.is_format_enabled(selected_format):
+                console.print(
+                    f"[red]Report format '{selected_format}' is disabled by configuration.[/red]"
+                )
+                raise typer.Exit(code=1)
+            export_result = report_service.generate_and_export_from_analysis(
+                result,
+                selected_format,  # type: ignore[arg-type]
+                output_path=export_path,
+                scan_duration_ms=result.elapsed_ms,
+            )
+            if export_path is None:
+                console.print(export_result.content)
+            else:
+                console.print(f"[green]Report written to[/green] {export_result.output_path}")
+            return
+
+        _render_analysis_summary(result, title=title)
+    except ReportError as exc:
+        console.print(f"[red]Report generation failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+
 @app.command("analyze")
 def analyze_command(
     url: Annotated[str, typer.Argument(help="Target website URL to analyze passively.")],
@@ -1024,39 +1080,11 @@ def analyze_command(
         console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
         return
 
-    report_service = ReportService()
-    selected_format = (
-        report_format.value if report_format is not None else active_config.reporting.default_format
+    _export_or_display_analysis_report(
+        result,
+        report_format=report_format,
+        output=output,
     )
-    export_path = output
-    if export_path is None and active_config.reporting.filename:
-        export_path = str(
-            Path(active_config.reporting.output_directory) / active_config.reporting.filename
-        )
-
-    try:
-        if selected_format is not None:
-            if not active_config.reporting.is_format_enabled(selected_format):
-                console.print(
-                    f"[red]Report format '{selected_format}' is disabled by configuration.[/red]"
-                )
-                raise typer.Exit(code=1)
-            export_result = report_service.generate_and_export_from_analysis(
-                result,
-                selected_format,  # type: ignore[arg-type]
-                output_path=export_path,
-                scan_duration_ms=result.elapsed_ms,
-            )
-            if export_path is None:
-                console.print(export_result.content)
-            else:
-                console.print(f"[green]Report written to[/green] {export_result.output_path}")
-            return
-
-        _render_analysis_summary(result)
-    except ReportError as exc:
-        console.print(f"[red]Report generation failed:[/red] {exc}")
-        raise typer.Exit(code=1) from exc
 
 
 def _run_metadata_analysis(
@@ -1136,39 +1164,12 @@ def _run_metadata_analysis(
         console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
         return
 
-    report_service = ReportService()
-    selected_format = (
-        report_format.value if report_format is not None else active_config.reporting.default_format
+    _export_or_display_analysis_report(
+        result,
+        report_format=report_format,
+        output=output,
+        title="Metadata Analysis Findings",
     )
-    export_path = output
-    if export_path is None and active_config.reporting.filename:
-        export_path = str(
-            Path(active_config.reporting.output_directory) / active_config.reporting.filename
-        )
-
-    try:
-        if selected_format is not None:
-            if not active_config.reporting.is_format_enabled(selected_format):
-                console.print(
-                    f"[red]Report format '{selected_format}' is disabled by configuration.[/red]"
-                )
-                raise typer.Exit(code=1)
-            export_result = report_service.generate_and_export_from_analysis(
-                result,
-                selected_format,  # type: ignore[arg-type]
-                output_path=export_path,
-                scan_duration_ms=result.elapsed_ms,
-            )
-            if export_path is None:
-                console.print(export_result.content)
-            else:
-                console.print(f"[green]Report written to[/green] {export_result.output_path}")
-            return
-
-        _render_analysis_summary(result, title="Metadata Analysis Findings")
-    except ReportError as exc:
-        console.print(f"[red]Report generation failed:[/red] {exc}")
-        raise typer.Exit(code=1) from exc
 
 
 @app.command("metadata")
@@ -1363,39 +1364,12 @@ def _run_artifact_analysis(
         console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
         return
 
-    report_service = ReportService()
-    selected_format = (
-        report_format.value if report_format is not None else active_config.reporting.default_format
+    _export_or_display_analysis_report(
+        result,
+        report_format=report_format,
+        output=output,
+        title="Artifact Analysis Findings",
     )
-    export_path = output
-    if export_path is None and active_config.reporting.filename:
-        export_path = str(
-            Path(active_config.reporting.output_directory) / active_config.reporting.filename
-        )
-
-    try:
-        if selected_format is not None:
-            if not active_config.reporting.is_format_enabled(selected_format):
-                console.print(
-                    f"[red]Report format '{selected_format}' is disabled by configuration.[/red]"
-                )
-                raise typer.Exit(code=1)
-            export_result = report_service.generate_and_export_from_analysis(
-                result,
-                selected_format,  # type: ignore[arg-type]
-                output_path=export_path,
-                scan_duration_ms=result.elapsed_ms,
-            )
-            if export_path is None:
-                console.print(export_result.content)
-            else:
-                console.print(f"[green]Report written to[/green] {export_result.output_path}")
-            return
-
-        _render_analysis_summary(result, title="Artifact Analysis Findings")
-    except ReportError as exc:
-        console.print(f"[red]Report generation failed:[/red] {exc}")
-        raise typer.Exit(code=1) from exc
 
 
 @app.command("artifacts")

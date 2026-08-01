@@ -152,9 +152,11 @@ def has_attributed_evidence(match: TechnologyMatch) -> bool:
         match.source_url.startswith("http://") or match.source_url.startswith("https://")
     ):
         return True
-    if match.source_url and match.source_url.startswith("inline://") and match.evidence:
-        return True
-    return False
+    return bool(
+        match.source_url
+        and match.source_url.startswith("inline://")
+        and match.evidence
+    )
 
 
 def has_structured_evidence(match: TechnologyMatch) -> bool:
