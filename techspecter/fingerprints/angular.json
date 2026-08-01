@@ -24,6 +24,16 @@
       "weight": 35
     },
     {
+      "matcher": "string",
+      "pattern": "@angular/platform-browser",
+      "weight": 38
+    },
+    {
+      "matcher": "string",
+      "pattern": "platformBrowserDynamic",
+      "weight": 35
+    },
+    {
       "matcher": "regex",
       "pattern": "angular\\.module",
       "weight": 30
@@ -32,6 +42,11 @@
       "matcher": "regex",
       "pattern": "ɵɵdefineComponent",
       "weight": 35
+    },
+    {
+      "matcher": "regex",
+      "pattern": "ngDevMode",
+      "weight": 32
     }
   ],
   "version_patterns": [

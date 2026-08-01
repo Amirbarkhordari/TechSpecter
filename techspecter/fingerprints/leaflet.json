@@ -19,7 +19,17 @@
     },
     {
       "matcher": "string",
-      "pattern": "L.map(",
+      "pattern": "L.tileLayer(",
+      "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "L.Icon.Default",
+      "weight": 32
+    },
+    {
+      "matcher": "string",
+      "pattern": "leaflet.css",
       "weight": 30
     },
     {

@@ -1,0 +1,50 @@
+{
+  "id": "angularjs",
+  "name": "AngularJS",
+  "category": "framework",
+  "website": "https://angularjs.org",
+  "description": "Legacy JavaScript MVC framework (1.x)",
+  "priority": 80,
+  "confidence": 78,
+  "tags": [
+    "javascript",
+    "ui",
+    "framework",
+    "frontend",
+    "legacy"
+  ],
+  "patterns": [
+    {
+      "matcher": "filename",
+      "pattern": "angular",
+      "weight": 20
+    },
+    {
+      "matcher": "regex",
+      "pattern": "angular\\.module\\(",
+      "weight": 40
+    },
+    {
+      "matcher": "string",
+      "pattern": "ng-app",
+      "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "angular.js",
+      "weight": 30
+    },
+    {
+      "matcher": "string",
+      "pattern": "$scope",
+      "weight": 28
+    }
+  ],
+  "version_patterns": [
+    {
+      "pattern": "angular\\.version\\s*=\\s*[\"\\']([0-9][0-9a-zA-Z.+-_]*)[\"\\']",
+      "weight": 25,
+      "source": "global"
+    }
+  ]
+}

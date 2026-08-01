@@ -67,7 +67,17 @@ class ConfidenceScorer:
 
     def _apply_match_quality_rules(self, score: float, evidence: MatchEvidence) -> float:
         """Adjust score based on match quality heuristics."""
-        from techspecter.fingerprinting.match_quality import is_weak_pattern
+        from techspecter.fingerprinting.match_quality import is_strong_pattern, is_weak_pattern
+
+        strong_count = sum(
+            1
+            for pattern in evidence.matched_patterns
+            if is_strong_pattern(pattern.matcher, pattern.pattern)
+        )
+        if strong_count >= 2:
+            return min(100.0, score * 1.12)
+        if strong_count == 1:
+            return min(100.0, score * 1.08)
 
         matchers = {pattern.matcher for pattern in evidence.matched_patterns}
         if len(evidence.matched_patterns) == 1 and matchers == {"filename"}:

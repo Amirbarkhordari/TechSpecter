@@ -25,8 +25,23 @@
     },
     {
       "matcher": "string",
+      "pattern": "@mui/icons-material",
+      "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "@mui/system",
+      "weight": 32
+    },
+    {
+      "matcher": "string",
       "pattern": "MuiThemeProvider",
       "weight": 30
+    },
+    {
+      "matcher": "string",
+      "pattern": "StyledEngineProvider",
+      "weight": 28
     }
   ],
   "version_patterns": []

@@ -26,6 +26,21 @@
       "matcher": "regex",
       "pattern": "@tailwind ",
       "weight": 30
+    },
+    {
+      "matcher": "string",
+      "pattern": "tailwind.config",
+      "weight": 32
+    },
+    {
+      "matcher": "regex",
+      "pattern": "@layer utilities",
+      "weight": 28
+    },
+    {
+      "matcher": "string",
+      "pattern": "__tailwindcss_version__",
+      "weight": 35
     }
   ],
   "version_patterns": []

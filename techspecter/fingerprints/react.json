@@ -29,6 +29,21 @@
       "weight": 40
     },
     {
+      "matcher": "string",
+      "pattern": "ReactDOM.createRoot",
+      "weight": 42
+    },
+    {
+      "matcher": "string",
+      "pattern": "react.production.min",
+      "weight": 38
+    },
+    {
+      "matcher": "string",
+      "pattern": "react/jsx-runtime",
+      "weight": 40
+    },
+    {
       "matcher": "global",
       "pattern": "React",
       "weight": 30
@@ -37,6 +52,11 @@
       "matcher": "regex",
       "pattern": "reconcilerVersion\\s*:\\s*\"[\\d.]",
       "weight": 45
+    },
+    {
+      "matcher": "regex",
+      "pattern": "React\\.version\\s*=\\s*[\"\\'][\\d.]",
+      "weight": 38
     }
   ],
   "version_patterns": [

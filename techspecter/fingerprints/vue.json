@@ -24,9 +24,29 @@
       "weight": 40
     },
     {
+      "matcher": "string",
+      "pattern": "defineComponent",
+      "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "__VUE__",
+      "weight": 40
+    },
+    {
+      "matcher": "string",
+      "pattern": "vue/dist/vue",
+      "weight": 35
+    },
+    {
       "matcher": "global",
       "pattern": "Vue",
       "weight": 30
+    },
+    {
+      "matcher": "regex",
+      "pattern": "Vue\\.version\\s*=\\s*[\"\\'][\\d.]",
+      "weight": 40
     }
   ],
   "version_patterns": [

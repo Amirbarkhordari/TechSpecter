@@ -21,6 +21,21 @@
       "matcher": "string",
       "pattern": "TURBOPACK",
       "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "__turbopack_load__",
+      "weight": 38
+    },
+    {
+      "matcher": "string",
+      "pattern": "turbopack-runtime",
+      "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "next/dist/compiled/@vercel/turbopack",
+      "weight": 40
     }
   ],
   "version_patterns": []

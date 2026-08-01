@@ -21,8 +21,13 @@ WEAK_PATTERN_KEYS: frozenset[tuple[str, str]] = frozenset(
         ("global", "ng"),
         ("global", "l"),
         ("global", "bootstrap"),
+        ("global", "vue"),
+        ("global", "angular"),
         ("string", "bootstrap"),
+        ("string", "l.map("),
+        ("string", "$scope"),
         ("filename", "chunk"),
+        ("filename", "bundle"),
     }
 )
 
@@ -30,23 +35,53 @@ WEAK_PATTERN_KEYS: frozenset[tuple[str, str]] = frozenset(
 STRONG_PATTERN_KEYS: frozenset[tuple[str, str]] = frozenset(
     {
         ("string", "__webpack_require__"),
+        ("string", "__webpack_modules__"),
         ("string", "@angular/core"),
+        ("string", "@angular/platform-browser"),
         ("string", "@mui/material"),
+        ("string", "@mui/icons-material"),
         ("regex", "angular\\.module"),
+        ("regex", "angular\\.module\\("),
         ("regex", "ɵɵdefinecomponent"),
         ("regex", "reconcilerversion\\s*:\\s*\"[\\d.]"),
+        ("regex", "react\\.version\\s*=\\s*[\"\\'][\\d.]"),
+        ("regex", "vue\\.version\\s*=\\s*[\"\\'][\\d.]"),
         ("regex", "window\\.next\\s*=\\s*\\{"),
         ("string", "reactdom"),
+        ("string", "reactdom.createroot"),
         ("string", "react.createelement"),
         ("string", "react.production.min"),
+        ("string", "react/jsx-runtime"),
         ("string", "__next_data__"),
+        ("string", "self.__next_data__"),
         ("string", "nextversion"),
         ("string", "next/dist"),
         ("string", "turbopack"),
+        ("string", "__turbopack_load__"),
+        ("string", "turbopack-runtime"),
         ("string", "muithemeprovider"),
+        ("string", "vue.createapp"),
+        ("string", "__vue__"),
+        ("string", "definecomponent"),
+        ("string", "__nuxt__"),
+        ("string", "import.meta.hot"),
+        ("string", "__vite__"),
+        ("string", "/@vite/client"),
+        ("string", "data-bs-toggle"),
+        ("string", "data-bs-theme"),
+        ("string", "bootstrap.bundle.min"),
+        ("string", "bootstrap.min.css"),
+        ("string", "tailwind.config"),
+        ("string", "__tailwindcss_version__"),
+        ("regex", "@tailwind "),
+        ("string", "webpackchunk"),
+        ("string", "sveltecomponent"),
+        ("string", "l.tilelayer("),
+        ("string", "l.icon.default"),
         ("global", "webpackbootstrap"),
         ("global", "__next_data__"),
         ("global", "react"),
+        ("global", "__nuxt__"),
     }
 )
 
@@ -65,6 +100,8 @@ def is_weak_pattern(matcher: str, pattern: str) -> bool:
     if matcher == "filename" and pattern.lower() == "chunk":
         return True
     if matcher == "string" and pattern.lower() == "bootstrap":
+        return True
+    if matcher == "global" and pattern.lower() in {"vue", "angular"}:
         return True
     return False
 
@@ -86,10 +123,25 @@ def is_strong_pattern(matcher: str, pattern: str) -> bool:
         or pattern.startswith("@")
         or "version" in pattern.lower()
         or ".production." in pattern.lower()
-        or pattern.lower() in {"react.createelement", "nextversion", "turbopack"}
+        or pattern.lower()
+        in {
+            "react.createelement",
+            "reactdom.createroot",
+            "nextversion",
+            "turbopack",
+            "vue.createapp",
+            "definecomponent",
+            "import.meta.hot",
+            "data-bs-toggle",
+            "bootstrap.bundle.min",
+            "tailwind.config",
+            "__tailwindcss_version__",
+            "webpackchunk",
+            "__turbopack_load__",
+        }
     ):
         return True
-    if matcher == "global" and pattern in {"React", "__NEXT_DATA__"}:
+    if matcher == "global" and pattern in {"React", "__NEXT_DATA__", "__NUXT__"}:
         return True
     return False
 

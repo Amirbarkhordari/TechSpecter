@@ -23,6 +23,11 @@
       "weight": 40
     },
     {
+      "matcher": "string",
+      "pattern": "__webpack_modules__",
+      "weight": 38
+    },
+    {
       "matcher": "global",
       "pattern": "webpackBootstrap",
       "weight": 30
@@ -31,6 +36,11 @@
       "matcher": "string",
       "pattern": "webpackChunk",
       "weight": 35
+    },
+    {
+      "matcher": "regex",
+      "pattern": "webpackJsonp",
+      "weight": 32
     }
   ],
   "version_patterns": []

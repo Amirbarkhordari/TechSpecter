@@ -23,9 +23,24 @@
       "weight": 30
     },
     {
+      "matcher": "string",
+      "pattern": "__vite__",
+      "weight": 38
+    },
+    {
+      "matcher": "string",
+      "pattern": "/@vite/client",
+      "weight": 35
+    },
+    {
       "matcher": "global",
       "pattern": "viteBootstrap",
       "weight": 30
+    },
+    {
+      "matcher": "string",
+      "pattern": "vite/dynamic-import-helper",
+      "weight": 32
     }
   ],
   "version_patterns": []

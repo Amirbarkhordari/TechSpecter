@@ -24,6 +24,11 @@
       "weight": 45
     },
     {
+      "matcher": "string",
+      "pattern": "self.__NEXT_DATA__",
+      "weight": 42
+    },
+    {
       "matcher": "regex",
       "pattern": "/_next/static/",
       "weight": 30
@@ -42,6 +47,16 @@
       "matcher": "string",
       "pattern": "nextVersion",
       "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "next/dist",
+      "weight": 38
+    },
+    {
+      "matcher": "string",
+      "pattern": "next/router",
+      "weight": 32
     }
   ],
   "version_patterns": [
@@ -49,6 +64,11 @@
       "pattern": "window\\.next\\s*=\\s*\\{[^}]*version\\s*:\\s*\"([\\d.]+(?:[-+][\\w.-]+)?)\"",
       "weight": 30,
       "source": "global"
+    },
+    {
+      "pattern": "nextVersion\\s*[:=]\\s*[\"\\']([\\d.]+(?:[-+][\\w.-]+)?)[\"\\']",
+      "weight": 28,
+      "source": "metadata"
     }
   ]
 }
