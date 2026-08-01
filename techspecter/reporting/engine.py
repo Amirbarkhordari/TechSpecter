@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from techspecter import __version__
 from techspecter.analysis.models.finding import Finding
 from techspecter.analysis.results.analysis_result import AnalysisResult
+from techspecter.fingerprinting.debug_diagnostics import evidence_summary
 from techspecter.fingerprinting.models import UNKNOWN_VERSION, DetectionResult, TechnologyMatch
 from techspecter.providers.summaries import summary_group_for_category
 from techspecter.reporting.artifact_sections import build_artifact_report_sections
@@ -188,7 +189,7 @@ class ReportEngine:
 
 def _map_technology(match: TechnologyMatch) -> ReportTechnology:
     """Map a technology match to a report technology entry."""
-    source_file = match.filename or match.source_url
+    source_file = match.source_file or match.filename or match.source_url
     evidence = [
         ReportEvidence(
             matched_file=source_file,
@@ -225,6 +226,7 @@ def _map_technology(match: TechnologyMatch) -> ReportTechnology:
         version_source=match.version_source,
         version_confidence=match.version_confidence,
         evidence_count=match.evidence_count or len(match.matched_patterns),
+        evidence_summary=evidence_summary(match),
         detection_reason=match.detection_reason,
         detected_by=list(match.providers),
         detection_methods=list(match.detection_methods),

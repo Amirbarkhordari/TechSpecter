@@ -35,6 +35,7 @@ def render_fingerprint_report(
     group_by_category: bool = False,
     verbose: bool = False,
     show_assets: bool = False,
+    debug_fingerprint: bool = False,
 ) -> None:
     """Render the complete fingerprint report in the required section order."""
     if compact:
@@ -58,6 +59,7 @@ def render_fingerprint_report(
         console=console,
         group_by_category=group_by_category,
         verbose=verbose,
+        debug_fingerprint=debug_fingerprint,
     )
 
     if result.technology_intelligence is not None:
@@ -127,6 +129,7 @@ def _render_technology_detection(
     console: Console,
     group_by_category: bool,
     verbose: bool,
+    debug_fingerprint: bool = False,
 ) -> None:
     """Render technology detection section."""
     console.print("=" * _SECTION_WIDTH)
@@ -150,6 +153,10 @@ def _render_technology_detection(
     )
     if verbose and detection.ignored_matches:
         _render_ignored_matches(detection.ignored_matches, console=console)
+    if debug_fingerprint:
+        from techspecter.fingerprinting.debug_diagnostics import render_debug_fingerprint_report
+
+        render_debug_fingerprint_report(detection, console=console)
     console.print()
 
 

@@ -67,6 +67,7 @@ class ReportTechnology(TechSpecterModel):
     version_source: str | None = None
     version_confidence: float | None = Field(default=None, ge=0.0, le=100.0)
     evidence_count: int = 0
+    evidence_summary: str | None = None
     detection_reason: str | None = None
     detected_by: list[str] = Field(default_factory=list)
     detection_methods: list[str] = Field(default_factory=list)

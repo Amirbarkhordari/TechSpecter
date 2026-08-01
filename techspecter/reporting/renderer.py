@@ -111,6 +111,7 @@ def _render_table(
     if cli_mode:
         table.add_column("Version")
         table.add_column("Source", overflow="fold")
+        table.add_column("Evidence", overflow="fold")
         table.add_column("Confidence")
     else:
         table.add_column("Category")
@@ -129,6 +130,7 @@ def _render_table(
                 technology.name,
                 technology.version,
                 source,
+                technology.evidence_summary or technology.detection_reason or "-",
                 f"{technology.confidence:.1f}",
             ]
         else:

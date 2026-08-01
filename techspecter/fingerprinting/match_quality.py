@@ -78,6 +78,9 @@ STRONG_PATTERN_KEYS: frozenset[tuple[str, str]] = frozenset(
         ("string", "sveltecomponent"),
         ("string", "l.tilelayer("),
         ("string", "l.icon.default"),
+        ("string", "wp-content/themes"),
+        ("string", "wp-includes/js"),
+        ("string", "wp-json/wp/v2"),
         ("global", "webpackbootstrap"),
         ("global", "__next_data__"),
         ("global", "react"),
@@ -210,6 +213,46 @@ class MatchQualityGate:
         if medium_or_high == 1 and match.confidence >= self.high_confidence:
             return True
         return False
+
+    def rejection_reason(self, match: TechnologyMatch) -> str:
+        """Return a human-readable reason when a match is not confirmed."""
+        if not has_structured_evidence(match):
+            return "rejected: no matcher-produced evidence"
+        if not has_attributed_evidence(match):
+            return "rejected: missing analyzed asset source attribution"
+        if match.confidence < self.medium_confidence:
+            return f"rejected: confidence {match.confidence:.1f} below {self.medium_confidence:.0f}"
+
+        patterns = self._collect_patterns(match)
+        if not patterns:
+            return "rejected: no structured pattern evidence available"
+
+        if self._has_resolved_version(match):
+            return "confirmed via resolved version evidence"
+
+        tiers = [evidence_tier(item) for item in patterns]
+        if "high" in tiers:
+            return "confirmed via strong runtime/signature evidence"
+
+        non_weak = [
+            item for item in patterns if not is_weak_pattern(item.matcher, item.pattern)
+        ]
+        if not non_weak:
+            weak = ", ".join(f"{item.matcher}:{item.pattern}" for item in patterns[:3])
+            return f"rejected: only weak indicators matched ({weak})"
+
+        medium_or_high = sum(1 for tier in tiers if tier in {"high", "medium"})
+        if medium_or_high >= 2:
+            return "confirmed via multiple supporting indicators"
+        if medium_or_high == 1 and match.confidence >= self.high_confidence:
+            return "confirmed via medium evidence with high confidence"
+        if len(match.providers) >= 2 and match.confidence >= self.medium_confidence:
+            return "confirmed via multi-provider agreement"
+
+        return (
+            "rejected: insufficient evidence strength "
+            f"(tiers={','.join(tiers) or 'none'}, confidence={match.confidence:.1f})"
+        )
 
     def partition(
         self,

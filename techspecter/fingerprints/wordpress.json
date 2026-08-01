@@ -1,0 +1,48 @@
+{
+  "id": "wordpress",
+  "name": "WordPress",
+  "category": "cms",
+  "website": "https://wordpress.org",
+  "description": "Open-source content management system",
+  "priority": 90,
+  "confidence": 82,
+  "tags": [
+    "cms",
+    "php",
+    "website"
+  ],
+  "patterns": [
+    {
+      "matcher": "string",
+      "pattern": "wp-content/themes",
+      "weight": 38
+    },
+    {
+      "matcher": "string",
+      "pattern": "wp-includes/js",
+      "weight": 38
+    },
+    {
+      "matcher": "string",
+      "pattern": "wp-json/wp/v2",
+      "weight": 35
+    },
+    {
+      "matcher": "regex",
+      "pattern": "/wp-content/plugins/",
+      "weight": 35
+    },
+    {
+      "matcher": "string",
+      "pattern": "wp-emoji-release.min.js",
+      "weight": 32
+    }
+  ],
+  "version_patterns": [
+    {
+      "pattern": "content=\"WordPress\\s+([0-9][0-9a-zA-Z.+-_]*)\"",
+      "weight": 25,
+      "source": "metadata"
+    }
+  ]
+}

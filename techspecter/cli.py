@@ -648,6 +648,13 @@ def fingerprint_command(
         bool,
         typer.Option("--verbose-output", help="Include matched pattern evidence in output."),
     ] = False,
+    debug_fingerprint: Annotated[
+        bool,
+        typer.Option(
+            "--debug-fingerprint",
+            help="Show fingerprint detection diagnostics (confirmed/rejected decisions).",
+        ),
+    ] = False,
     show_assets: Annotated[
         bool,
         typer.Option("--show-assets", help="Display the full asset inventory table."),
@@ -823,6 +830,7 @@ def fingerprint_command(
         group_by_category=group_by_category,
         verbose=verbose_output or verbose,
         show_assets=show_assets or verbose,
+        debug_fingerprint=debug_fingerprint,
     )
 
     if compare_wappalyzer:

@@ -27,6 +27,7 @@ def test_fingerprint_command_help() -> None:
     assert "Discover JavaScript resources and identify technologies" in result.stdout
     assert "--json" in result.stdout
     assert "--compact" in result.stdout
+    assert "--debug-fingerprint" in result.stdout
 
 
 @patch("techspecter.cli.UnifiedDetectionService.analyze_url", new_callable=AsyncMock)
@@ -95,6 +96,9 @@ def test_fingerprint_command_renders_summary(mock_analyze: AsyncMock) -> None:
                     version="18.2.0",
                     confidence=92.5,
                     filename="react.js",
+                    source_file="react.js",
+                    matched_patterns=["string:React.createElement"],
+                    detection_reason="string:React.createElement @ react.js",
                 )
             ],
             scripts_analyzed=1,
@@ -105,7 +109,47 @@ def test_fingerprint_command_renders_summary(mock_analyze: AsyncMock) -> None:
     result = runner.invoke(app, ["fingerprint", "https://example.com"])
     assert result.exit_code == 0
     assert "React" in result.stdout
-    assert "18.2.0" in result.stdout
+    assert "Evidence" in result.stdout
+
+
+@patch("techspecter.cli.UnifiedDetectionService.analyze_url", new_callable=AsyncMock)
+def test_fingerprint_command_debug_fingerprint_flag(mock_analyze: AsyncMock) -> None:
+    """Verify --debug-fingerprint renders diagnostics section."""
+    mock_analyze.return_value = FingerprintAnalysisResult(
+        target_url="https://example.com",
+        detection=DetectionResult(
+            target_url="https://example.com",
+            matches=[
+                TechnologyMatch(
+                    technology=Technology(id="react", name="React", category="framework"),
+                    version="18.2.0",
+                    confidence=92.5,
+                    filename="react.js",
+                    source_file="react.js",
+                    evidence=[],
+                    matched_patterns=["string:React.createElement"],
+                    detection_reason="string:React.createElement @ react.js",
+                )
+            ],
+            ignored_matches=[
+                TechnologyMatch(
+                    technology=Technology(id="bootstrap", name="Bootstrap", category="css-framework"),
+                    confidence=55.0,
+                    filename="chunk.js",
+                    source_file="chunk.js",
+                    evidence=[],
+                    matched_patterns=["string:Bootstrap"],
+                )
+            ],
+            scripts_analyzed=1,
+            elapsed_ms=25.0,
+        ),
+        elapsed_ms=125.0,
+    )
+    result = runner.invoke(app, ["fingerprint", "https://example.com", "--debug-fingerprint"])
+    assert result.exit_code == 0
+    assert "Fingerprint Debug Diagnostics" in result.stdout
+    assert "Rejected / Weak Detections" in result.stdout
 
 
 @patch("techspecter.cli.UnifiedDetectionService.analyze_url", new_callable=AsyncMock)

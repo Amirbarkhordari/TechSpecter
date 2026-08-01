@@ -59,7 +59,16 @@ TechSpecter exists to automate that **passive reconnaissance** — collecting th
 
 ### Technology detection
 
-Identify frameworks, libraries, build tools, and UI kits from JavaScript bundles, HTML, and network evidence. The built-in signature database covers 64 technologies. Optional [Wappalyzer](https://github.com/wappalyzer/wappalyzer) and [Retire.js](https://github.com/RetireJS/retire.js) providers add results when their CLI tools are available; the scan continues if they are not installed.
+Identify frameworks, libraries, build tools, and UI kits from JavaScript bundles, CSS, HTML, and other discovered assets. Every confirmed technology requires **evidence and source attribution** — TechSpecter never displays a default technology list.
+
+The bundled signature database covers **65+ technologies**. Optional [Wappalyzer](https://github.com/wappalyzer/wappalyzer) and [Retire.js](https://github.com/RetireJS/retire.js) providers add results when their CLI tools are available.
+
+```bash
+techspecter fingerprint https://example.com
+techspecter fingerprint https://example.com --debug-fingerprint   # detection diagnostics
+```
+
+See [docs/TECHNOLOGY_DETECTION.md](docs/TECHNOLOGY_DETECTION.md) for the evidence model, confidence scoring, and debug mode.
 
 ### Asset discovery
 
@@ -399,6 +408,8 @@ More examples: [docs/QUICKSTART.md](docs/QUICKSTART.md)
 | `--show-assets` | `fingerprint` | Display full asset inventory table |
 | `--min-confidence <n>` | `fingerprint` | Filter detections below confidence threshold |
 | `--provider <name>` | `fingerprint` | Enable provider: `techspecter`, `wappalyzer`, `retirejs`, `all` (external tools required for wappalyzer/retirejs) |
+| `--verbose-output` | `fingerprint` | Show ignored weak matches |
+| `--debug-fingerprint` | `fingerprint` | Explain confirmed/rejected detection decisions |
 | `--debug` | Global | Enable debug logging |
 | `--quiet` / `-q` | Global | Minimal console output |
 
