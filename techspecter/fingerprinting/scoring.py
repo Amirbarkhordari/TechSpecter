@@ -25,34 +25,36 @@ class MatchEvidence:
     """Evidence collected during fingerprint matching."""
 
     matched_patterns: list[FingerprintPattern]
-    version_pattern: VersionPattern | None = None
+    version_pattern: None | VersionPattern = None
 
 
 @dataclass(slots=True)
 class ConfidenceScorer:
     """Calculate normalized confidence scores for technology matches."""
 
-    min_confidence: float = 50.0
+    min_confidence: float = 45.0
     matcher_multipliers: dict[str, float] = field(default_factory=lambda: dict(MATCHER_MULTIPLIERS))
 
     def score(self, fingerprint: Fingerprint, evidence: MatchEvidence, version: str) -> float:
-        """Calculate a normalized confidence score from 0 to 100."""
-        earned = sum(self._weighted_pattern_score(pattern) for pattern in evidence.matched_patterns)
-        max_possible = sum(
-            self._weighted_pattern_score(pattern) for pattern in fingerprint.patterns
+        """Calculate a confidence score from matched evidence strength."""
+        matched_weight = sum(
+            self._weighted_pattern_score(pattern) for pattern in evidence.matched_patterns
         )
+        if matched_weight <= 0:
+            return 0.0
+
+        # Score from matched evidence only — not diluted by unmatched signature patterns.
+        score = min(100.0, matched_weight * 1.15)
 
         if evidence.version_pattern is not None and version != UNKNOWN_VERSION:
-            earned += evidence.version_pattern.weight * 1.2
-            max_possible += sum(item.weight for item in fingerprint.version_patterns) * 1.2
+            score = min(100.0, score + min(20.0, evidence.version_pattern.weight * 0.6))
 
-        if max_possible <= 0:
-            return min(100.0, fingerprint.confidence)
+        if len(evidence.matched_patterns) >= 2:
+            score = min(100.0, score * 1.08)
 
-        normalized = (earned / max_possible) * 100.0
-        blended = (normalized * 0.75) + (fingerprint.confidence * 0.25)
-        adjusted = self._apply_match_quality_rules(blended, evidence)
-        return round(min(100.0, max(0.0, adjusted)), 2)
+        adjusted = self._apply_match_quality_rules(score, evidence)
+        blended = (adjusted * 0.82) + (fingerprint.confidence * 0.18)
+        return round(min(100.0, max(0.0, blended)), 2)
 
     def passes_threshold(self, confidence: float) -> bool:
         """Return whether a confidence score meets the minimum threshold."""
@@ -73,7 +75,5 @@ class ConfidenceScorer:
         if len(evidence.matched_patterns) == 1:
             pattern = evidence.matched_patterns[0]
             if is_weak_pattern(pattern.matcher, pattern.pattern):
-                return score * 0.45
-        if len(evidence.matched_patterns) >= 2:
-            return min(100.0, score * 1.05)
+                return score * 0.4
         return score

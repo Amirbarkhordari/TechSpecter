@@ -84,6 +84,7 @@ class VersionDetectionEngine:
         return DetectionResult(
             target_url=detection.target_url,
             matches=enriched_matches,
+            ignored_matches=detection.ignored_matches,
             scripts_analyzed=detection.scripts_analyzed,
             elapsed_ms=detection.elapsed_ms,
         )

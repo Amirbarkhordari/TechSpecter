@@ -79,6 +79,8 @@ class FingerprintPipeline:
         )
         detection = self._version_engine.enrich(detection, discovery)
         confirmed, ignored = apply_match_quality_gate(detection.matches)
+        prior_ignored = list(detection.ignored_matches)
+        ignored.extend(prior_ignored)
         detection = detection.model_copy(update={"matches": confirmed, "ignored_matches": ignored})
         logger.debug(
             "Version detection enrichment complete for %s",

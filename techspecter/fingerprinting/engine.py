@@ -14,7 +14,7 @@ from techspecter.fingerprinting.models import (
     Technology,
     TechnologyMatch,
 )
-from techspecter.fingerprinting.match_quality import MatchQualityGate, build_detection_reason
+from techspecter.fingerprinting.match_quality import build_detection_reason
 from techspecter.fingerprinting.scoring import ConfidenceScorer, MatchEvidence
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,6 @@ class FingerprintEngine:
         self._matcher_registry = matcher_registry or build_default_registry()
         self._version_extractor = version_extractor or VersionExtractor()
         self._confidence_scorer = confidence_scorer or ConfidenceScorer()
-        self._quality_gate = MatchQualityGate()
 
     @property
     def fingerprints(self) -> list[Fingerprint]:
@@ -79,16 +78,6 @@ class FingerprintEngine:
                     "Skipping weak detection for '%s' (confidence %.1f)",
                     fingerprint.id,
                     confidence,
-                )
-                continue
-            if not self._quality_gate.is_confirmable_evidence(
-                evidence,
-                confidence=confidence,
-                version=version,
-            ):
-                logger.debug(
-                    "Skipping unconfirmed detection for '%s' (insufficient evidence)",
-                    fingerprint.id,
                 )
                 continue
 

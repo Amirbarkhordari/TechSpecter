@@ -10,7 +10,7 @@ from techspecter.fingerprinting.detection.models import (
     VersionResolution,
     technology_match_from_evaluation,
 )
-from techspecter.fingerprinting.models import TechnologyMatch
+from techspecter.fingerprinting.models import PatternEvidence, TechnologyMatch
 
 
 @dataclass(slots=True)
@@ -79,6 +79,8 @@ class TechnologyMerger:
         """Merge multiple matches for one technology."""
         primary = max(matches, key=lambda item: item.confidence)
         patterns: set[str] = set()
+        evidence_items: list[PatternEvidence] = []
+        seen_evidence: set[tuple[str, str]] = set()
         evidence_ids: set[str] = set()
         resources: set[str] = set()
         rejected: set[str] = set()
@@ -90,11 +92,21 @@ class TechnologyMerger:
             patterns.update(match.matched_patterns)
             evidence_ids.update(match.supporting_evidence_ids)
             resources.update(match.matched_resources)
+            if match.filename:
+                resources.add(match.filename)
+            if match.source_url:
+                resources.add(match.source_url)
             rejected.update(match.rejected_version_candidates)
             if match.version_source:
                 sources.add(match.version_source)
             if match.detection_reason:
                 reasons.add(match.detection_reason)
+            for item in match.evidence:
+                key = (item.matcher, item.pattern)
+                if key in seen_evidence:
+                    continue
+                seen_evidence.add(key)
+                evidence_items.append(item)
             for key, value in match.confidence_breakdown.items():
                 breakdown[key] = max(breakdown.get(key, 0.0), value)
 
@@ -106,8 +118,9 @@ class TechnologyMerger:
             update={
                 "confidence": round(confidence, 1),
                 "matched_patterns": sorted(patterns),
+                "evidence": evidence_items,
                 "supporting_evidence_ids": sorted(evidence_ids),
-                "evidence_count": len(evidence_ids),
+                "evidence_count": len(evidence_items) or len(evidence_ids),
                 "matched_resources": sorted(resources),
                 "rejected_version_candidates": sorted(rejected),
                 "evidence_sources": sorted(sources),

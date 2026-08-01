@@ -32,7 +32,23 @@
       "matcher": "global",
       "pattern": "__NEXT_DATA__",
       "weight": 35
+    },
+    {
+      "matcher": "regex",
+      "pattern": "window\\.next\\s*=\\s*\\{",
+      "weight": 40
+    },
+    {
+      "matcher": "string",
+      "pattern": "nextVersion",
+      "weight": 35
     }
   ],
-  "version_patterns": []
+  "version_patterns": [
+    {
+      "pattern": "window\\.next\\s*=\\s*\\{[^}]*version\\s*:\\s*\"([\\d.]+(?:[-+][\\w.-]+)?)\"",
+      "weight": 30,
+      "source": "global"
+    }
+  ]
 }

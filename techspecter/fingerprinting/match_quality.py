@@ -26,13 +26,22 @@ STRONG_PATTERN_KEYS: frozenset[tuple[str, str]] = frozenset(
     {
         ("string", "__webpack_require__"),
         ("string", "@angular/core"),
+        ("string", "@mui/material"),
         ("regex", "angular\\.module"),
         ("regex", "ɵɵdefinecomponent"),
+        ("regex", "reconcilerversion\\s*:\\s*\"[\\d.]"),
+        ("regex", "window\\.next\\s*=\\s*\\{"),
         ("string", "reactdom"),
+        ("string", "react.createelement"),
         ("string", "react.production.min"),
+        ("string", "__next_data__"),
+        ("string", "nextversion"),
         ("string", "next/dist"),
         ("string", "turbopack"),
+        ("string", "muithemeprovider"),
         ("global", "webpackbootstrap"),
+        ("global", "__next_data__"),
+        ("global", "react"),
     }
 )
 
@@ -60,14 +69,22 @@ def is_strong_pattern(matcher: str, pattern: str) -> bool:
     key = _pattern_key(matcher, pattern)
     if key in STRONG_PATTERN_KEYS:
         return True
-    if matcher == "regex" and pattern.startswith("__"):
+    if matcher == "regex" and (
+        pattern.startswith("__")
+        or "reconcilerversion" in pattern.lower()
+        or "window\\.next" in pattern.lower()
+        or "/_next/static/" in pattern.lower()
+    ):
         return True
     if matcher == "string" and (
         pattern.startswith("__")
         or pattern.startswith("@")
         or "version" in pattern.lower()
         or ".production." in pattern.lower()
+        or pattern.lower() in {"react.createelement", "nextversion", "turbopack"}
     ):
+        return True
+    if matcher == "global" and pattern in {"React", "__NEXT_DATA__"}:
         return True
     return False
 
@@ -81,6 +98,17 @@ def is_strong_evidence(item: PatternEvidence) -> bool:
     if item.matcher == "regex" and item.weight >= 25.0:
         return True
     return False
+
+
+def evidence_tier(item: PatternEvidence) -> str:
+    """Classify evidence as high, medium, or low confidence."""
+    if is_weak_pattern(item.matcher, item.pattern):
+        return "low"
+    if is_strong_evidence(item):
+        return "high"
+    if item.weight >= 30.0:
+        return "medium"
+    return "low"
 
 
 @dataclass(slots=True)
@@ -104,27 +132,25 @@ class MatchQualityGate:
         if self._has_resolved_version(match):
             return True
 
-        strong_patterns = [item for item in patterns if is_strong_evidence(item)]
-        if strong_patterns:
+        tiers = [evidence_tier(item) for item in patterns]
+        if "high" in tiers:
             return True
-
-        if len(match.providers) >= 2 and match.confidence >= self.medium_confidence:
-            non_weak = [
-                item for item in patterns if not is_weak_pattern(item.matcher, item.pattern)
-            ]
-            if non_weak:
-                return True
 
         non_weak = [
             item for item in patterns if not is_weak_pattern(item.matcher, item.pattern)
         ]
         if not non_weak:
             return False
-        if len(non_weak) >= 2:
+
+        if len(match.providers) >= 2 and match.confidence >= self.medium_confidence:
             return True
-        if len(non_weak) == 1 and match.confidence >= self.high_confidence:
+
+        medium_or_high = sum(1 for tier in tiers if tier in {"high", "medium"})
+        if medium_or_high >= 2:
             return True
-        return len(non_weak) == 1 and non_weak[0].weight >= 30.0
+        if medium_or_high == 1 and match.confidence >= self.high_confidence:
+            return True
+        return False
 
     def partition(
         self,
@@ -140,33 +166,6 @@ class MatchQualityGate:
                 ignored.append(match)
         return confirmed, ignored
 
-    def is_confirmable_evidence(
-        self,
-        evidence: MatchEvidence,
-        *,
-        confidence: float,
-        version: str,
-    ) -> bool:
-        """Return True when raw engine evidence meets confirmation rules."""
-        if not evidence.matched_patterns:
-            return False
-        if confidence < self.medium_confidence:
-            return False
-        if version != UNKNOWN_VERSION:
-            return True
-        if any(is_strong_pattern(item.matcher, item.pattern) for item in evidence.matched_patterns):
-            return True
-        non_weak = [
-            item
-            for item in evidence.matched_patterns
-            if not is_weak_pattern(item.matcher, item.pattern)
-        ]
-        if not non_weak:
-            return False
-        if len(non_weak) >= 2:
-            return True
-        return len(non_weak) == 1 and non_weak[0].weight >= 30.0
-
     def _has_valid_source(self, match: TechnologyMatch) -> bool:
         filename = (match.filename or "").strip()
         if filename and filename.lower() not in {"unknown", ""}:
@@ -176,17 +175,15 @@ class MatchQualityGate:
         source_url = (match.source_url or "").strip()
         if source_url.startswith("http://") or source_url.startswith("https://"):
             return True
-        for item in match.evidence:
-            if item.detail and item.detail.lower() not in {"unknown", "-"}:
-                if item.matcher in {"runtime", "javascript", "string", "regex", "filename"}:
-                    return True
+        if source_url.startswith("inline://"):
+            return bool(match.evidence or match.matched_patterns)
         return False
 
     def _has_resolved_version(self, match: TechnologyMatch) -> bool:
         if match.version == UNKNOWN_VERSION:
             return False
         version_confidence = match.version_confidence
-        if version_confidence is not None and version_confidence >= 60.0:
+        if version_confidence is not None and version_confidence >= 50.0:
             return True
         return match.confidence >= self.high_confidence
 

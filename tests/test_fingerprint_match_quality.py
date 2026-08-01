@@ -161,6 +161,56 @@ def test_engine_detects_webpack_with_runtime_marker() -> None:
     assert any(item.technology.id == "webpack" for item in matches)
 
 
+def test_nextjs_runtime_evidence_creates_detection() -> None:
+    """Next.js runtime markers should produce a confirmed detection."""
+    engine = FingerprintEngine(SignatureLoader().load_all())
+    context = MatchContext(
+        content='window.next={version:"16.2.10",appDir:true};',
+        filename="0-s5ec5safvjx.js",
+        url="https://example.com/_next/static/chunks/0-s5ec5safvjx.js",
+    )
+    matches = engine.detect(context)
+    nextjs = next((item for item in matches if item.technology.id == "nextjs"), None)
+    assert nextjs is not None
+    assert nextjs.filename == "0-s5ec5safvjx.js"
+    gate = MatchQualityGate()
+    assert gate.is_confirmed(nextjs) is True
+
+
+def test_react_reconciler_version_creates_detection() -> None:
+    """React reconcilerVersion evidence should produce a confirmed detection."""
+    engine = FingerprintEngine(SignatureLoader().load_all())
+    context = MatchContext(
+        content='reconcilerVersion:"19.0.0",React.createElement("div");',
+        filename="0-s5ec5safvjx.js",
+        url="https://example.com/0-s5ec5safvjx.js",
+    )
+    matches = engine.detect(context)
+    react = next((item for item in matches if item.technology.id == "react"), None)
+    assert react is not None
+    assert react.version == "19.0.0"
+    gate = MatchQualityGate()
+    assert gate.is_confirmed(react) is True
+
+
+def test_source_attribution_is_mandatory() -> None:
+    """Confirmed detections must include a discovered asset source."""
+    gate = MatchQualityGate()
+    react = _match(
+        tech_id="react",
+        name="React",
+        filename="framework.js",
+        confidence=90.0,
+        patterns=[("regex", "reconcilerVersion\\s*:\\s*\"[\\d.]", 45.0)],
+        version="19.0.0",
+    )
+    react.version_confidence = 95.0
+    assert gate.is_confirmed(react) is True
+    react.filename = None
+    react.source_url = None
+    assert gate.is_confirmed(react) is False
+
+
 def test_pipeline_stores_ignored_weak_matches() -> None:
     """Pipeline should separate confirmed and ignored matches."""
     discovery = DiscoveryResult(
