@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 
+from techspecter.fingerprinting.match_attribution import apply_match_attribution
 from techspecter.fingerprinting.match_quality import apply_match_quality_gate
 from techspecter.fingerprinting.models import (
     DetectionResult,
@@ -152,37 +153,40 @@ class ProviderMerger:
         if source_url is None and matched_resources:
             source_url = matched_resources[0]
 
-        return TechnologyMatch(
-            technology=Technology(
-                id=tech_id,
-                name=primary.name,
-                category=category,
+        return apply_match_attribution(
+            TechnologyMatch(
+                technology=Technology(
+                    id=tech_id,
+                    name=primary.name,
+                    category=category,
+                ),
+                version=version_outcome.version,
+                confidence=confidence,
+                matched_patterns=evidence_strings[:20],
+                detection_reason="; ".join(evidence_strings[:5]) if evidence_strings else None,
+                version_source=version_outcome.source_provider,
+                version_reason=version_outcome.reason,
+                version_confidence=version_outcome.confidence,
+                evidence_count=len(structured_evidence) or len(evidence_strings),
+                evidence_sources=detection_methods,
+                evidence=structured_evidence[:20],
+                source_url=source_url,
+                filename=filename,
+                source_file=filename,
+                matched_resources=matched_resources,
+                confidence_breakdown={
+                    "provider_agreement": confidence_breakdown.provider_agreement,
+                    "base_confidence": confidence_breakdown.base_confidence,
+                    "evidence_bonus": confidence_breakdown.evidence_bonus,
+                    "quality_bonus": confidence_breakdown.quality_bonus,
+                    "final": confidence_breakdown.final,
+                },
+                providers=providers,
+                detection_methods=detection_methods,
+                provider_metadata=provider_metadata,
+                security_findings=security_findings,
+                rejected_version_candidates=list(version_outcome.rejected_versions),
             ),
-            version=version_outcome.version,
-            confidence=confidence,
-            matched_patterns=evidence_strings[:20],
-            detection_reason="; ".join(evidence_strings[:5]) if evidence_strings else None,
-            version_source=version_outcome.source_provider,
-            version_reason=version_outcome.reason,
-            version_confidence=version_outcome.confidence,
-            evidence_count=len(evidence_strings),
-            evidence_sources=detection_methods,
-            evidence=structured_evidence[:20],
-            source_url=source_url,
-            filename=filename,
-            matched_resources=matched_resources,
-            confidence_breakdown={
-                "provider_agreement": confidence_breakdown.provider_agreement,
-                "base_confidence": confidence_breakdown.base_confidence,
-                "evidence_bonus": confidence_breakdown.evidence_bonus,
-                "quality_bonus": confidence_breakdown.quality_bonus,
-                "final": confidence_breakdown.final,
-            },
-            providers=providers,
-            detection_methods=detection_methods,
-            provider_metadata=provider_metadata,
-            security_findings=security_findings,
-            rejected_version_candidates=list(version_outcome.rejected_versions),
         )
 
     def _select_primary_match(self, matches: list[ProviderMatch]) -> ProviderMatch:

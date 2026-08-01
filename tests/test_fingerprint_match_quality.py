@@ -5,6 +5,12 @@ from __future__ import annotations
 from techspecter.fingerprinting.context import MatchContext
 from techspecter.fingerprinting.engine import FingerprintEngine
 from techspecter.fingerprinting.loader import SignatureLoader
+from techspecter.fingerprinting.detection.merger import TechnologyMerger
+from techspecter.fingerprinting.match_attribution import (
+    apply_match_attribution,
+    is_valid_detection_candidate,
+    merge_evidence_items,
+)
 from techspecter.fingerprinting.match_quality import MatchQualityGate, is_weak_pattern
 from techspecter.fingerprinting.models import (
     UNKNOWN_VERSION,
@@ -26,7 +32,13 @@ def _match(
     version: str = UNKNOWN_VERSION,
 ) -> TechnologyMatch:
     evidence = [
-        PatternEvidence(matcher=matcher, pattern=pattern, weight=weight)
+        PatternEvidence(
+            matcher=matcher,
+            pattern=pattern,
+            weight=weight,
+            source_file=filename,
+            matched_value=pattern,
+        )
         for matcher, pattern, weight in patterns
     ]
     return TechnologyMatch(
@@ -34,6 +46,7 @@ def _match(
         version=version,
         confidence=confidence,
         filename=filename,
+        source_file=filename,
         source_url=f"https://example.com/{filename}",
         evidence=evidence,
         matched_patterns=[f"{item.matcher}:{item.pattern}" for item in evidence],
@@ -118,6 +131,7 @@ def test_unknown_source_files_are_rejected() -> None:
         patterns=[("string", "react", 35.0)],
     )
     unknown.filename = "unknown"
+    unknown.source_file = "unknown"
     unknown.source_url = None
     assert gate.is_confirmed(unknown) is False
 
@@ -207,6 +221,7 @@ def test_source_attribution_is_mandatory() -> None:
     react.version_confidence = 95.0
     assert gate.is_confirmed(react) is True
     react.filename = None
+    react.source_file = None
     react.source_url = None
     assert gate.is_confirmed(react) is False
 
@@ -235,3 +250,136 @@ def test_pipeline_stores_ignored_weak_matches() -> None:
     assert "angular" not in confirmed_ids
     assert "bootstrap" not in confirmed_ids
     assert result.ignored_matches or not confirmed_ids
+
+
+def test_detection_without_source_is_rejected() -> None:
+    """Detections must reference an analyzed asset source."""
+    gate = MatchQualityGate()
+    match = TechnologyMatch(
+        technology=Technology(id="react", name="React", category="framework"),
+        confidence=90.0,
+        evidence=[
+            PatternEvidence(
+                matcher="string",
+                pattern="React.createElement",
+                weight=45.0,
+            ),
+        ],
+        matched_patterns=["string:React.createElement"],
+    )
+    assert is_valid_detection_candidate(match) is False
+    assert gate.is_confirmed(match) is False
+
+
+def test_detection_with_valid_evidence_is_accepted() -> None:
+    """Structured evidence tied to a source asset should confirm."""
+    gate = MatchQualityGate()
+    match = _match(
+        tech_id="react",
+        name="React",
+        filename="framework.js",
+        confidence=85.0,
+        patterns=[("string", "React.createElement", 45.0)],
+        version="19.0.0",
+    )
+    match = apply_match_attribution(match)
+    assert is_valid_detection_candidate(match) is True
+    assert gate.is_confirmed(match) is True
+    assert match.source_file == "framework.js"
+    assert match.primary_matcher == "string"
+    assert match.matched_value == "React.createElement"
+
+
+def test_multiple_evidence_items_merge_correctly() -> None:
+    """Merger should combine evidence from multiple asset matches."""
+    tech = Technology(id="react", name="React", category="framework")
+    runtime = TechnologyMatch(
+        technology=tech,
+        version="Unknown",
+        confidence=72.0,
+        filename="runtime.js",
+        source_file="runtime.js",
+        source_url="https://example.com/runtime.js",
+        evidence=[
+            PatternEvidence(
+                matcher="string",
+                pattern="React.createElement",
+                weight=40.0,
+                source_file="runtime.js",
+                evidence_type="runtime_marker",
+                matched_value="React.createElement",
+            ),
+        ],
+        matched_patterns=["string:React.createElement"],
+    )
+    version = TechnologyMatch(
+        technology=tech,
+        version="19.0.0",
+        confidence=80.0,
+        filename="bundle.js",
+        source_file="bundle.js",
+        source_url="https://example.com/bundle.js",
+        version_confidence=95.0,
+        evidence=[
+            PatternEvidence(
+                matcher="version",
+                pattern="reconcilerVersion\\s*:\\s*\"[\\d.]",
+                weight=45.0,
+                source_file="bundle.js",
+                evidence_type="version_marker",
+                matched_value="19.0.0",
+            ),
+        ],
+        matched_patterns=["version:reconcilerVersion"],
+    )
+    signature = TechnologyMatch(
+        technology=tech,
+        version="Unknown",
+        confidence=65.0,
+        filename="vendor.js",
+        source_file="vendor.js",
+        source_url="https://example.com/vendor.js",
+        evidence=[
+            PatternEvidence(
+                matcher="string",
+                pattern="react.production.min",
+                weight=35.0,
+                source_file="vendor.js",
+                evidence_type="bundle_signature",
+                matched_value="react.production.min",
+            ),
+        ],
+        matched_patterns=["string:react.production.min"],
+    )
+    merged = TechnologyMerger().merge_matches([runtime, version, signature])
+    assert len(merged) == 1
+    combined = merged[0]
+    assert combined.version == "19.0.0"
+    assert len(combined.evidence) == 3
+    assert combined.evidence_count == 3
+    assert combined.source_file in {"runtime.js", "bundle.js", "vendor.js"}
+    assert combined.primary_matcher is not None
+    assert combined.matched_value is not None
+    merged_items = merge_evidence_items(
+        runtime.evidence + version.evidence + signature.evidence,
+    )
+    assert len(merged_items) == 3
+
+
+def test_source_attribution_remains_available_after_merge() -> None:
+    """Merged detections must retain matcher and source attribution."""
+    engine = FingerprintEngine(SignatureLoader().load_all())
+    context = MatchContext(
+        content='window.next={version:"16.2.10"}; reconcilerVersion:"19.0.0";',
+        filename="0-s5ec5safvjx.js",
+        url="https://example.com/0-s5ec5safvjx.js",
+        asset_id="abc123",
+    )
+    matches = engine.detect(context)
+    merged = TechnologyMerger().merge_matches(matches)
+    for match in merged:
+        assert match.source_file == "0-s5ec5safvjx.js"
+        assert match.asset_id == "abc123"
+        for item in match.evidence:
+            assert item.source_file == "0-s5ec5safvjx.js"
+            assert item.asset_id == "abc123"

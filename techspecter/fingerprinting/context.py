@@ -13,3 +13,4 @@ class MatchContext:
     filename: str
     url: str
     source_map_url: str | None = None
+    asset_id: str | None = None

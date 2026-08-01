@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from techspecter.asset_discovery.hash import asset_id_from_url
 from techspecter.fingerprinting.models import PatternEvidence
 from techspecter.providers.models import ProviderEvidenceItem, ProviderMatch
 
@@ -51,6 +52,10 @@ class ProviderEvidenceAggregator:
                     pattern=_resolve_pattern(item),
                     weight=_EVIDENCE_CATEGORY_WEIGHTS.get(item.category, 50.0),
                     detail=_resolve_detail(item),
+                    source_file=_resolve_source_file(item),
+                    asset_id=_resolve_asset_id(item),
+                    evidence_type=item.category,
+                    matched_value=_resolve_detail(item),
                 ),
             )
         return strings, structured
@@ -144,6 +149,24 @@ def _resolve_detail(item: ProviderEvidenceItem) -> str | None:
     if pattern and not _looks_internal(pattern):
         return pattern
     return item.detail
+
+
+def _resolve_source_file(item: ProviderEvidenceItem) -> str | None:
+    """Extract the analyzed asset filename from provider evidence."""
+    if item.location:
+        return item.location.rsplit("/", 1)[-1]
+    return None
+
+
+def _resolve_asset_id(item: ProviderEvidenceItem) -> str | None:
+    """Derive a stable asset identifier from provider evidence location."""
+    if item.location and (
+        item.location.startswith("http://") or item.location.startswith("https://")
+    ):
+        return asset_id_from_url(item.location)
+    if item.location:
+        return asset_id_from_url(item.location)
+    return None
 
 
 def _looks_internal(value: str) -> bool:

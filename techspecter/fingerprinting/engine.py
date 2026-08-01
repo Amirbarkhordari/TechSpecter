@@ -8,11 +8,16 @@ from techspecter.fingerprinting.context import MatchContext
 from techspecter.fingerprinting.extractor import VersionExtractor
 from techspecter.fingerprinting.matchers.base import MatcherRegistry, build_default_registry
 from techspecter.fingerprinting.models import (
+    UNKNOWN_VERSION,
     Fingerprint,
     FingerprintPattern,
-    PatternEvidence,
     Technology,
     TechnologyMatch,
+)
+from techspecter.fingerprinting.match_attribution import (
+    apply_match_attribution,
+    build_pattern_evidence,
+    build_version_evidence,
 )
 from techspecter.fingerprinting.match_quality import build_detection_reason
 from techspecter.fingerprinting.scoring import ConfidenceScorer, MatchEvidence
@@ -89,6 +94,21 @@ class FingerprintEngine:
                 description=fingerprint.description,
                 tags=fingerprint.tags,
             )
+            evidence_items = [
+                build_pattern_evidence(pattern, context)
+                for pattern in evidence.matched_patterns
+            ]
+            if version != UNKNOWN_VERSION and version_pattern is not None:
+                evidence_items.append(
+                    build_version_evidence(
+                        matcher="version",
+                        pattern=version_pattern.pattern,
+                        matched_value=version,
+                        context=context,
+                        weight=version_pattern.weight,
+                    ),
+                )
+
             match = TechnologyMatch(
                 technology=technology,
                 version=version,
@@ -98,18 +118,13 @@ class FingerprintEngine:
                 ],
                 source_url=context.url,
                 filename=context.filename,
-                evidence=[
-                    PatternEvidence(
-                        matcher=pattern.matcher,
-                        pattern=pattern.pattern,
-                        weight=pattern.weight,
-                        detail=context.filename if pattern.matcher == "filename" else None,
-                    )
-                    for pattern in evidence.matched_patterns
-                ],
+                source_file=context.filename,
+                asset_id=context.asset_id,
+                evidence=evidence_items,
             )
-            match.detection_reason = build_detection_reason(match)
-            match.evidence_count = len(match.evidence)
+            match = apply_match_attribution(match)
+            if not match.detection_reason:
+                match.detection_reason = build_detection_reason(match)
             matches.append(match)
             logger.info(
                 "Detected technology '%s' version '%s' (confidence %.1f)",

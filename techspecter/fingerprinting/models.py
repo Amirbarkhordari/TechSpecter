@@ -78,6 +78,10 @@ class PatternEvidence(TechSpecterModel):
     pattern: str
     weight: float = Field(ge=0.0, le=100.0)
     detail: str | None = None
+    source_file: str | None = None
+    asset_id: str | None = None
+    evidence_type: str = "fingerprint_pattern"
+    matched_value: str | None = None
 
 
 class SecurityFinding(TechSpecterModel):
@@ -101,6 +105,11 @@ class TechnologyMatch(TechSpecterModel):
     matched_patterns: list[str] = Field(default_factory=list)
     source_url: str | None = None
     filename: str | None = None
+    source_file: str | None = None
+    asset_id: str | None = None
+    primary_matcher: str | None = None
+    primary_pattern: str | None = None
+    matched_value: str | None = None
     evidence: list[PatternEvidence] = Field(default_factory=list)
     detection_reason: str | None = None
     version_source: str | None = None

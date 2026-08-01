@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 
+from techspecter.asset_discovery.hash import asset_id_from_url
 from techspecter.fingerprinting.context import MatchContext
 from techspecter.fingerprinting.detection.merger import TechnologyMerger
 from techspecter.fingerprinting.engine import FingerprintEngine
@@ -122,6 +123,7 @@ def _context_from_download(download: DownloadResult) -> MatchContext | None:
         filename=download.filename,
         url=str(download.url),
         source_map_url=download.source_map_url,
+        asset_id=asset_id_from_url(str(download.url)),
     )
 
 
@@ -132,4 +134,5 @@ def _context_from_inline(inline: InlineScript) -> MatchContext:
         filename=f"inline-script-{inline.index}.js",
         url=f"inline://script/{inline.index}",
         source_map_url=inline.source_map_url,
+        asset_id=asset_id_from_url(f"inline://script/{inline.index}"),
     )

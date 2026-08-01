@@ -10,6 +10,11 @@ from techspecter.fingerprinting.detection.models import (
     VersionResolution,
     technology_match_from_evaluation,
 )
+from techspecter.fingerprinting.match_attribution import (
+    apply_match_attribution,
+    merge_evidence_items,
+    select_best_version_match,
+)
 from techspecter.fingerprinting.models import PatternEvidence, TechnologyMatch
 
 
@@ -26,7 +31,7 @@ class TechnologyMerger:
         merged: list[TechnologyMatch] = []
         for _tech_id, items in grouped.items():
             if len(items) == 1:
-                merged.append(items[0])
+                merged.append(apply_match_attribution(items[0]))
                 continue
             merged.append(self._merge_group(items))
         return sorted(merged, key=lambda item: (-item.confidence, item.technology.name.lower()))
@@ -78,11 +83,13 @@ class TechnologyMerger:
     def _merge_group(self, matches: list[TechnologyMatch]) -> TechnologyMatch:
         """Merge multiple matches for one technology."""
         primary = max(matches, key=lambda item: item.confidence)
+        version_match = select_best_version_match(matches)
+
         patterns: set[str] = set()
-        evidence_items: list[PatternEvidence] = []
-        seen_evidence: set[tuple[str, str]] = set()
+        collected_evidence: list[PatternEvidence] = []
         evidence_ids: set[str] = set()
         resources: set[str] = set()
+        asset_ids: set[str] = set()
         rejected: set[str] = set()
         sources: set[str] = set()
         reasons: set[str] = set()
@@ -90,46 +97,62 @@ class TechnologyMerger:
 
         for match in matches:
             patterns.update(match.matched_patterns)
+            collected_evidence.extend(match.evidence)
             evidence_ids.update(match.supporting_evidence_ids)
             resources.update(match.matched_resources)
             if match.filename:
                 resources.add(match.filename)
             if match.source_url:
                 resources.add(match.source_url)
+            if match.source_file:
+                resources.add(match.source_file)
+            if match.asset_id:
+                asset_ids.add(match.asset_id)
             rejected.update(match.rejected_version_candidates)
             if match.version_source:
                 sources.add(match.version_source)
             if match.detection_reason:
                 reasons.add(match.detection_reason)
-            for item in match.evidence:
-                key = (item.matcher, item.pattern)
-                if key in seen_evidence:
-                    continue
-                seen_evidence.add(key)
-                evidence_items.append(item)
             for key, value in match.confidence_breakdown.items():
                 breakdown[key] = max(breakdown.get(key, 0.0), value)
 
+        evidence_items = merge_evidence_items(collected_evidence)
         confidence = min(
             100.0,
             primary.confidence + min(10.0, (len(matches) - 1) * 2.0),
         )
-        return primary.model_copy(
-            update={
-                "confidence": round(confidence, 1),
-                "matched_patterns": sorted(patterns),
-                "evidence": evidence_items,
-                "supporting_evidence_ids": sorted(evidence_ids),
-                "evidence_count": len(evidence_items) or len(evidence_ids),
-                "matched_resources": sorted(resources),
-                "rejected_version_candidates": sorted(rejected),
-                "evidence_sources": sorted(sources),
-                "confidence_breakdown": breakdown,
-                "detection_reason": (
-                    "; ".join(sorted(reasons)) if reasons else primary.detection_reason
-                ),
-            },
-        )
+
+        updates: dict[str, object] = {
+            "confidence": round(confidence, 1),
+            "matched_patterns": sorted(patterns),
+            "evidence": evidence_items,
+            "supporting_evidence_ids": sorted(evidence_ids),
+            "evidence_count": len(evidence_items) or len(evidence_ids),
+            "matched_resources": sorted(resources),
+            "rejected_version_candidates": sorted(rejected),
+            "evidence_sources": sorted(sources),
+            "confidence_breakdown": breakdown,
+            "detection_reason": (
+                "; ".join(sorted(reasons)) if reasons else primary.detection_reason
+            ),
+            "asset_id": primary.asset_id or next(iter(asset_ids), None),
+            "filename": primary.filename,
+            "source_file": primary.source_file or primary.filename,
+            "source_url": primary.source_url,
+        }
+
+        if version_match is not None:
+            updates.update(
+                {
+                    "version": version_match.version,
+                    "version_source": version_match.version_source,
+                    "version_reason": version_match.version_reason,
+                    "version_confidence": version_match.version_confidence,
+                },
+            )
+
+        merged = primary.model_copy(update=updates)
+        return apply_match_attribution(merged)
 
     def _merge_evaluations(
         self,

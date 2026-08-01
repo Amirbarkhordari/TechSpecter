@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from techspecter.fingerprinting.match_attribution import (
+    has_attributed_evidence,
+    has_structured_evidence,
+    is_valid_detection_candidate,
+)
 from techspecter.fingerprinting.models import UNKNOWN_VERSION, PatternEvidence, TechnologyMatch
 from techspecter.fingerprinting.scoring import MatchEvidence
 
@@ -120,6 +125,8 @@ class MatchQualityGate:
 
     def is_confirmed(self, match: TechnologyMatch) -> bool:
         """Return True when a match should appear in confirmed output."""
+        if not is_valid_detection_candidate(match):
+            return False
         if not self._has_valid_source(match):
             return False
         if match.confidence < self.medium_confidence:
@@ -167,17 +174,7 @@ class MatchQualityGate:
         return confirmed, ignored
 
     def _has_valid_source(self, match: TechnologyMatch) -> bool:
-        filename = (match.filename or "").strip()
-        if filename and filename.lower() not in {"unknown", ""}:
-            return True
-        if match.matched_resources:
-            return True
-        source_url = (match.source_url or "").strip()
-        if source_url.startswith("http://") or source_url.startswith("https://"):
-            return True
-        if source_url.startswith("inline://"):
-            return bool(match.evidence or match.matched_patterns)
-        return False
+        return has_attributed_evidence(match)
 
     def _has_resolved_version(self, match: TechnologyMatch) -> bool:
         if match.version == UNKNOWN_VERSION:
@@ -190,7 +187,10 @@ class MatchQualityGate:
     def _collect_patterns(self, match: TechnologyMatch) -> list[PatternEvidence]:
         if match.evidence:
             return list(match.evidence)
+        if not has_structured_evidence(match):
+            return []
         parsed: list[PatternEvidence] = []
+        source_file = match.source_file or match.filename
         for entry in match.matched_patterns:
             matcher, _, pattern = entry.partition(":")
             if not matcher or not pattern:
@@ -200,7 +200,9 @@ class MatchQualityGate:
                     matcher=matcher,
                     pattern=pattern,
                     weight=10.0,
-                    detail=match.filename,
+                    detail=source_file,
+                    source_file=source_file,
+                    asset_id=match.asset_id,
                 )
             )
         return parsed
