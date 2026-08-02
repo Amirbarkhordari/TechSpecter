@@ -133,7 +133,9 @@ def test_fingerprint_command_debug_fingerprint_flag(mock_analyze: AsyncMock) -> 
             ],
             ignored_matches=[
                 TechnologyMatch(
-                    technology=Technology(id="bootstrap", name="Bootstrap", category="css-framework"),
+                    technology=Technology(
+                        id="bootstrap", name="Bootstrap", category="css-framework"
+                    ),
                     confidence=55.0,
                     filename="chunk.js",
                     source_file="chunk.js",

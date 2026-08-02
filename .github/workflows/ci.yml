@@ -42,7 +42,7 @@ jobs:
         run: mypy techspecter
 
       - name: Pytest
-        run: python -m pytest -v
+        run: python -m pytest -v --cov=techspecter --cov-report=term-missing
 
   test:
     name: Integration tests on ${{ matrix.os }}

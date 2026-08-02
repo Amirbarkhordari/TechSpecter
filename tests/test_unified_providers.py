@@ -7,7 +7,12 @@ from techspecter.fingerprinting.models import UNKNOWN_VERSION, Technology, Techn
 from techspecter.providers.confidence import ProviderConfidenceEngine
 from techspecter.providers.manager import ProviderManager
 from techspecter.providers.merger import ProviderMerger
-from techspecter.providers.models import ProviderDetectionResult, ProviderEvidenceItem, ProviderMatch, ProviderTarget
+from techspecter.providers.models import (
+    ProviderDetectionResult,
+    ProviderEvidenceItem,
+    ProviderMatch,
+    ProviderTarget,
+)
 from techspecter.providers.normalizer import ProviderNormalizer
 from techspecter.providers.version_resolver import ProviderVersionResolver
 

@@ -6,6 +6,12 @@ import logging
 
 from techspecter.fingerprinting.context import MatchContext
 from techspecter.fingerprinting.extractor import VersionExtractor
+from techspecter.fingerprinting.match_attribution import (
+    apply_match_attribution,
+    build_pattern_evidence,
+    build_version_evidence,
+)
+from techspecter.fingerprinting.match_quality import build_detection_reason
 from techspecter.fingerprinting.matchers.base import MatcherRegistry, build_default_registry
 from techspecter.fingerprinting.models import (
     UNKNOWN_VERSION,
@@ -14,12 +20,6 @@ from techspecter.fingerprinting.models import (
     Technology,
     TechnologyMatch,
 )
-from techspecter.fingerprinting.match_attribution import (
-    apply_match_attribution,
-    build_pattern_evidence,
-    build_version_evidence,
-)
-from techspecter.fingerprinting.match_quality import build_detection_reason
 from techspecter.fingerprinting.scoring import ConfidenceScorer, MatchEvidence
 
 logger = logging.getLogger(__name__)
@@ -48,6 +48,9 @@ class FingerprintEngine:
         self._matcher_registry = matcher_registry or build_default_registry()
         self._version_extractor = version_extractor or VersionExtractor()
         self._confidence_scorer = confidence_scorer or ConfidenceScorer()
+        self._priority_map: dict[str, int] = {
+            fp.id: fp.priority for fp in self._fingerprints
+        }
 
     @property
     def fingerprints(self) -> list[Fingerprint]:
@@ -179,7 +182,4 @@ class FingerprintEngine:
         Returns:
             Priority value, or zero when not found.
         """
-        for fingerprint in self._fingerprints:
-            if fingerprint.id == technology_id:
-                return fingerprint.priority
-        return 0
+        return self._priority_map.get(technology_id, 0)

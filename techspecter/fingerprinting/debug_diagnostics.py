@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from rich.console import Console
 from rich.table import Table
 
-from techspecter.fingerprinting.match_quality import MatchQualityGate, evidence_tier, is_weak_pattern
+from techspecter.fingerprinting.match_quality import MatchQualityGate, evidence_tier
 from techspecter.fingerprinting.models import DetectionResult, TechnologyMatch
 
 

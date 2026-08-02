@@ -10,7 +10,6 @@ from techspecter.fingerprinting.match_attribution import (
     is_valid_detection_candidate,
 )
 from techspecter.fingerprinting.models import UNKNOWN_VERSION, PatternEvidence, TechnologyMatch
-from techspecter.fingerprinting.scoring import MatchEvidence
 
 MEDIUM_CONFIDENCE_THRESHOLD = 50.0
 HIGH_CONFIDENCE_THRESHOLD = 70.0
@@ -104,9 +103,7 @@ def is_weak_pattern(matcher: str, pattern: str) -> bool:
         return True
     if matcher == "string" and pattern.lower() == "bootstrap":
         return True
-    if matcher == "global" and pattern.lower() in {"vue", "angular"}:
-        return True
-    return False
+    return matcher == "global" and pattern.lower() in {"vue", "angular"}
 
 
 def is_strong_pattern(matcher: str, pattern: str) -> bool:
@@ -144,9 +141,7 @@ def is_strong_pattern(matcher: str, pattern: str) -> bool:
         }
     ):
         return True
-    if matcher == "global" and pattern in {"React", "__NEXT_DATA__", "__NUXT__"}:
-        return True
-    return False
+    return matcher == "global" and pattern in {"React", "__NEXT_DATA__", "__NUXT__"}
 
 
 def is_strong_evidence(item: PatternEvidence) -> bool:
@@ -155,9 +150,7 @@ def is_strong_evidence(item: PatternEvidence) -> bool:
         return True
     if item.matcher in {"runtime", "javascript", "html"} and item.weight >= 70.0:
         return True
-    if item.matcher == "regex" and item.weight >= 25.0:
-        return True
-    return False
+    return item.matcher == "regex" and item.weight >= 25.0
 
 
 def evidence_tier(item: PatternEvidence) -> str:
@@ -210,9 +203,7 @@ class MatchQualityGate:
         medium_or_high = sum(1 for tier in tiers if tier in {"high", "medium"})
         if medium_or_high >= 2:
             return True
-        if medium_or_high == 1 and match.confidence >= self.high_confidence:
-            return True
-        return False
+        return medium_or_high == 1 and match.confidence >= self.high_confidence
 
     def rejection_reason(self, match: TechnologyMatch) -> str:
         """Return a human-readable reason when a match is not confirmed."""
