@@ -11,6 +11,7 @@ from techspecter.fingerprinting.detection.version.priorities import (
 )
 from techspecter.fingerprinting.evidence.models import Evidence, EvidenceType
 from techspecter.fingerprinting.signatures.models import TechnologySignature
+from techspecter.versioning.ownership import version_evidence_relevant
 from techspecter.versioning.validator import validate_and_normalize
 
 _VERSION_RE = re.compile(r"^\d{1,4}(?:\.\d{1,4}){0,3}(?:[-+][\w.-]+)?$")
@@ -26,6 +27,7 @@ class VersionCandidate:
     version: str
     source: str
     priority: float
+    technology_id: str | None = None
     evidence_id: str | None = None
     resource: str | None = None
     extractor_id: str | None = None
@@ -41,12 +43,14 @@ class VersionCandidateCollector:
         signature: TechnologySignature,
         *,
         evidence_items: tuple[Evidence, ...],
+        matched_evidence_ids: frozenset[str] | None = None,
         matched_resources: frozenset[str] | None = None,
     ) -> tuple[VersionCandidate, ...]:
         """Gather all version candidates without filtering by selection."""
         candidates: list[VersionCandidate] = []
         seen: set[tuple[str, str, str | None]] = set()
-        resources = matched_resources or frozenset()
+        _ = matched_resources
+        owned_evidence_ids = matched_evidence_ids or frozenset()
 
         for item in evidence_items:
             self._collect_from_evidence(
@@ -54,13 +58,19 @@ class VersionCandidateCollector:
                 item,
                 candidates,
                 seen,
-                resources=resources,
+                matched_evidence_ids=owned_evidence_ids,
             )
 
         for spec in signature.version_extractors:
             if not spec.enabled:
                 continue
             for item in evidence_items:
+                if not version_evidence_relevant(
+                    signature.id,
+                    item,
+                    matched_evidence_ids=owned_evidence_ids,
+                ):
+                    continue
                 self._collect_from_extractor(
                     signature,
                     spec,
@@ -78,10 +88,14 @@ class VersionCandidateCollector:
         candidates: list[VersionCandidate],
         seen: set[tuple[str, str, str | None]],
         *,
-        resources: frozenset[str],
+        matched_evidence_ids: frozenset[str],
     ) -> None:
         """Extract version candidates from a single evidence item."""
-        if not self._evidence_relevant(signature, item, resources=resources):
+        if not version_evidence_relevant(
+            signature.id,
+            item,
+            matched_evidence_ids=matched_evidence_ids,
+        ):
             return
 
         source = str(item.metadata.get("origin", item.category or ""))
@@ -93,6 +107,7 @@ class VersionCandidateCollector:
             self._add_candidate(
                 candidates,
                 seen,
+                technology_id=signature.id,
                 version=metadata_version,
                 source=source,
                 evidence_id=item.id,
@@ -108,6 +123,7 @@ class VersionCandidateCollector:
             self._add_candidate(
                 candidates,
                 seen,
+                technology_id=signature.id,
                 version=value,
                 source=source,
                 evidence_id=item.id,
@@ -120,6 +136,7 @@ class VersionCandidateCollector:
             self._add_candidate(
                 candidates,
                 seen,
+                technology_id=signature.id,
                 version=match.group(1),
                 source="package",
                 evidence_id=item.id,
@@ -159,14 +176,13 @@ class VersionCandidateCollector:
         if not isinstance(spec, VersionExtractorSpec):
             return
         haystack = (item.matched_value or "") + " " + str(item.metadata)
-        if not self._haystack_relevant(signature, haystack, item):
-            return
         for match in re.finditer(spec.pattern, haystack, re.IGNORECASE):
             version = match.group(1) if match.lastindex else match.group(0)
             priority = priority_for_source(spec.source) * (spec.weight / 100.0)
             self._add_candidate(
                 candidates,
                 seen,
+                technology_id=signature.id,
                 version=version,
                 source=spec.source,
                 priority_override=priority,
@@ -199,6 +215,7 @@ class VersionCandidateCollector:
             self._add_candidate(
                 candidates,
                 seen,
+                technology_id=signature.id,
                 version=version,
                 source=spec.source,
                 priority_override=priority,
@@ -213,6 +230,7 @@ class VersionCandidateCollector:
         candidates: list[VersionCandidate],
         seen: set[tuple[str, str, str | None]],
         *,
+        technology_id: str,
         version: str,
         source: str,
         evidence_id: str | None = None,
@@ -237,6 +255,7 @@ class VersionCandidateCollector:
                 version=normalized,
                 source=source,
                 priority=priority,
+                technology_id=technology_id,
                 evidence_id=evidence_id,
                 resource=resource,
                 extractor_id=extractor_id,
@@ -244,57 +263,7 @@ class VersionCandidateCollector:
             ),
         )
 
-    def _evidence_relevant(
-        self,
-        signature: TechnologySignature,
-        item: Evidence,
-        *,
-        resources: frozenset[str],
-    ) -> bool:
-        """Return whether evidence may contain version data for the technology."""
-        if item.technology and item.technology.lower() == signature.id.lower():
-            return True
-        metadata_tech = str(item.metadata.get("technology", "")).lower()
-        if metadata_tech and metadata_tech == signature.id.lower():
-            return True
-        runtime_family = str(item.metadata.get("runtime_family", "")).lower()
-        if runtime_family and runtime_family == signature.id.lower():
-            return True
-        package_hint = str(item.metadata.get("package", item.matched_value or "")).lower()
-        identifiers = _technology_identifiers(signature)
-        if any(identifier in package_hint for identifier in identifiers):
-            return True
-        resource = item.url or item.file
-        if resources and resource and resource in resources:
-            return True
-        if item.evidence_type == EvidenceType.VERSION_CANDIDATE and resources:
-            resource = item.url or item.file
-            return resource is None or resource in resources or not resources
-        haystack = ((item.matched_value or "") + " " + str(item.metadata)).lower()
-        return any(identifier in haystack for identifier in identifiers)
-
-    def _haystack_relevant(
-        self,
-        signature: TechnologySignature,
-        haystack: str,
-        item: Evidence,
-    ) -> bool:
-        """Return whether extractor haystack is linked to the technology."""
-        if self._evidence_relevant(signature, item, resources=frozenset()):
-            return True
-        lowered = haystack.lower()
-        return any(identifier in lowered for identifier in _technology_identifiers(signature))
-
 
 def normalize_version(raw: str) -> str | None:
     """Normalize and validate a version string."""
     return validate_and_normalize(raw)
-
-
-def _technology_identifiers(signature: TechnologySignature) -> tuple[str, ...]:
-    """Return lowercase identifiers used to link evidence to a technology."""
-    names = {signature.id.lower(), signature.name.lower()}
-    names.update(alias.lower() for alias in signature.aliases)
-    if signature.vendor:
-        names.add(signature.vendor.lower())
-    return tuple(names)

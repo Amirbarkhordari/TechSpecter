@@ -197,7 +197,10 @@ class VersionDetectionEngine:
             )
             return match
 
-        result = self.detect_for_technology(match.technology.id, resources)
+        result = self.detect_for_technology(
+            match.technology.id,
+            resources_for_match(match, resources),
+        )
         if result is None:
             return match
 
@@ -287,6 +290,49 @@ def collect_javascript_resources(
 ) -> list[JavaScriptResourceContent]:
     """Collect JavaScript resources from a discovery result."""
     return _collect_resources(discovery)
+
+
+def resources_for_match(
+    match: TechnologyMatch,
+    resources: list[JavaScriptResourceContent],
+) -> list[JavaScriptResourceContent]:
+    """Limit version extraction to assets that contributed to the technology match."""
+    scope_urls: set[str] = set()
+    scope_filenames: set[str] = set()
+
+    if match.source_url:
+        scope_urls.add(match.source_url.strip())
+    if match.filename:
+        scope_filenames.add(match.filename.strip())
+    if match.source_file:
+        scope_filenames.add(match.source_file.strip())
+
+    for resource in match.matched_resources:
+        value = resource.strip()
+        if not value:
+            continue
+        if "://" in value or value.startswith("/"):
+            scope_urls.add(value)
+        else:
+            scope_filenames.add(value.rsplit("/", 1)[-1])
+
+    for item in match.evidence:
+        if item.source_file:
+            scope_filenames.add(item.source_file.strip())
+
+    if not scope_urls and not scope_filenames:
+        return []
+
+    scoped: list[JavaScriptResourceContent] = []
+    seen: set[tuple[str, str]] = set()
+    for resource in resources:
+        key = (resource.url, resource.filename)
+        if key in seen:
+            continue
+        if resource.url in scope_urls or resource.filename in scope_filenames:
+            seen.add(key)
+            scoped.append(resource)
+    return scoped
 
 
 def _sanitize_match_version(match: TechnologyMatch) -> TechnologyMatch:

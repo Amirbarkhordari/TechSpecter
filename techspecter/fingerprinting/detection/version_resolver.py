@@ -40,9 +40,11 @@ class VersionResolutionEngine:
                 (*(match.evidence.url or match.evidence.file for match in matched_rules),),
             ),
         )
+        matched_evidence_ids = frozenset(match.evidence.id for match in matched_rules)
         candidates = self.collector.collect(
             signature,
             evidence_items=evidence_items,
+            matched_evidence_ids=matched_evidence_ids,
             matched_resources=resources,
         )
         if not candidates:

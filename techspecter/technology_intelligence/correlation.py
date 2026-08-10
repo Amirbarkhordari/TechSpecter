@@ -32,6 +32,7 @@ class EvidenceCorrelationEngine:
         match: TechnologyMatch,
         evidence: list[TechnologyEvidenceRecord],
         *,
+        version: str | None = None,
         version_attribution: object | None = None,
         detectors: list[str] | None = None,
     ) -> TechnologyIntelligenceEntry:
@@ -63,7 +64,7 @@ class EvidenceCorrelationEngine:
 
         entry = TechnologyIntelligenceEntry(
             technology=match.technology,
-            version=match.version,
+            version=version if version is not None else match.version,
             confidence=confidence,
             evidence=correlated,
             version_attribution=version_attribution,  # type: ignore[arg-type]

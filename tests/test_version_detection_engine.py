@@ -175,6 +175,8 @@ def test_engine_enrich_detection_result() -> None:
                 technology=Technology(id="bootstrap", name="Bootstrap", category="css-framework"),
                 version=UNKNOWN_VERSION,
                 confidence=80.0,
+                filename="bootstrap.min.js",
+                source_url="https://example.com/bootstrap.min.js",
             ),
         ],
     )

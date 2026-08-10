@@ -99,7 +99,7 @@ def test_react_resolves_version_from_same_resource_candidate() -> None:
             metadata={"runtime_family": "react"},
         ),
         _evidence(evidence_type=EvidenceType.PACKAGE_REFERENCE, value="react"),
-        _evidence(evidence_type=EvidenceType.VERSION_CANDIDATE, value="19.1.0"),
+        _evidence(evidence_type=EvidenceType.VERSION_CANDIDATE, value="19.1.0", metadata={"technology": "react"}),
     )
     result = EvidenceDetectionPipeline().detect(collection)
     match = next(item for item in result.detection.matches if item.technology.id == "react")
@@ -275,6 +275,7 @@ def test_source_map_package_path_version() -> None:
     candidates = VersionCandidateCollector().collect(
         react,
         evidence_items=collection.items,
+        matched_evidence_ids=frozenset(item.id for item in collection.items),
         matched_resources=frozenset({"https://example.com/app.js"}),
     )
     assert any(item.version == "19.1.0" for item in candidates)

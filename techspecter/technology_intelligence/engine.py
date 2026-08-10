@@ -19,7 +19,11 @@ from techspecter.technology_intelligence.evidence import (
     version_evidence_records,
 )
 from techspecter.technology_intelligence.models import TechnologyIntelligenceReport
-from techspecter.versioning.engine import VersionDetectionEngine, collect_javascript_resources
+from techspecter.versioning.engine import (
+    VersionDetectionEngine,
+    collect_javascript_resources,
+    resources_for_match,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +69,7 @@ class TechnologyIntelligenceEngine:
 
             version_result = self.version_engine.detect_for_technology(
                 match.technology.id,
-                resources,
+                resources_for_match(match, resources),
             )
             if version_result is not None:
                 evidence.extend(
@@ -75,16 +79,21 @@ class TechnologyIntelligenceEngine:
                         attributor=attributor,
                     ),
                 )
-
             version_attr = build_version_attribution(
                 match,
                 version_result,
                 attributor=attributor,
             )
+            resolved_version = (
+                version_attr.detected_version
+                if version_attr is not None
+                else match.version
+            )
 
             entry = self.correlation_engine.correlate(
                 match,
                 evidence,
+                version=resolved_version,
                 version_attribution=version_attr,
                 detectors=match.providers or ["techspecter"],
             )
