@@ -100,6 +100,8 @@ class TechnologyMatch(TechSpecterModel):
     """A detected technology match for a JavaScript resource."""
 
     technology: Technology
+    detection_basis: str | None = None
+    """How the match was established (e.g. ``evidence``). Registry membership alone is insufficient."""
     version: str = UNKNOWN_VERSION
     confidence: float = Field(ge=0.0, le=100.0)
     matched_patterns: list[str] = Field(default_factory=list)

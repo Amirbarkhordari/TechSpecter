@@ -1,4 +1,9 @@
-"""Evidence-based detection pipeline."""
+"""Evidence-based detection pipeline.
+
+Evaluates technology signatures from the knowledge catalog against collected
+evidence. Signatures provide detection rules; a technology appears in output
+only when evidence satisfies those rules — never from catalog membership alone.
+"""
 
 from __future__ import annotations
 

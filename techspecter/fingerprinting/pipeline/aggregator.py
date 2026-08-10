@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from techspecter.fingerprinting.detection.knowledge import assert_evidence_collection_purity
 from techspecter.fingerprinting.evidence.models import (
     Evidence,
     EvidenceCollection,
@@ -20,6 +21,11 @@ def aggregate_evidence(
     elapsed_ms: float,
 ) -> EvidenceCollection:
     """Aggregate evidence items into an immutable collection."""
+    for item in items:
+        assert_evidence_collection_purity(
+            technology=item.technology,
+            collector=item.collector,
+        )
     deduped = _dedupe_evidence(items)
     summary = summarize_evidence(deduped)
     logger.debug(

@@ -6,6 +6,7 @@ import logging
 
 from techspecter.fingerprinting.context import MatchContext
 from techspecter.fingerprinting.extractor import VersionExtractor
+from techspecter.fingerprinting.detection.knowledge import annotate_detection_basis
 from techspecter.fingerprinting.match_attribution import (
     apply_match_attribution,
     build_pattern_evidence,
@@ -128,6 +129,7 @@ class FingerprintEngine:
             match = apply_match_attribution(match)
             if not match.detection_reason:
                 match.detection_reason = build_detection_reason(match)
+            match = annotate_detection_basis(match)
             matches.append(match)
             logger.info(
                 "Detected technology '%s' version '%s' (confidence %.1f)",

@@ -106,6 +106,7 @@ def technology_match_from_evaluation(
     evidence_sources = sorted(
         {match.evidence.source.value for match in evaluation.matched_rules},
     )
+    from techspecter.fingerprinting.detection.knowledge import DetectionBasis
     from techspecter.fingerprinting.match_attribution import apply_match_attribution
     from techspecter.fingerprinting.models import PatternEvidence
 
@@ -160,5 +161,6 @@ def technology_match_from_evaluation(
         confidence_breakdown=dict(breakdown.components),
         providers=["techspecter"],
         detection_methods=["evidence-engine"],
+        detection_basis=DetectionBasis.EVIDENCE,
     )
     return apply_match_attribution(match)

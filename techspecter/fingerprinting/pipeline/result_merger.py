@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from techspecter.fingerprinting.detection.knowledge import reject_evidence_less_matches
 from techspecter.fingerprinting.detection.merger import TechnologyMerger
 from techspecter.fingerprinting.match_attribution import apply_match_attribution
 from techspecter.fingerprinting.match_quality import MatchQualityGate, apply_match_quality_gate
@@ -16,7 +17,11 @@ def merge_detection_results(
     *results: DetectionResult,
     apply_quality_gate: bool = True,
 ) -> DetectionResult:
-    """Merge multiple detection results into one confirmed output."""
+    """Merge multiple detection results into one confirmed output.
+
+    Candidates without valid evidence are rejected. Catalog membership is not
+    used as a whitelist for which technology IDs may appear.
+    """
     if not results:
         raise ValueError("At least one detection result is required")
 
@@ -30,7 +35,16 @@ def merge_detection_results(
         raw_matches.extend(result.matches)
         prior_ignored.extend(result.ignored_matches)
 
-    attributed = [apply_match_attribution(match) for match in raw_matches]
+    evidence_backed, evidence_less = reject_evidence_less_matches(raw_matches)
+    if evidence_less:
+        logger.debug(
+            "Detection merge for %s: rejected %d evidence-less candidates",
+            target_url,
+            len(evidence_less),
+        )
+    prior_ignored.extend(evidence_less)
+
+    attributed = [apply_match_attribution(match) for match in evidence_backed]
     merged = TechnologyMerger().merge_matches(attributed)
 
     logger.info(

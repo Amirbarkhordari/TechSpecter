@@ -1,4 +1,8 @@
-"""Fingerprint signature loader."""
+"""Fingerprint signature loader (technology knowledge catalog).
+
+Loads JSON fingerprint definitions used as detection rules. Catalog membership
+does not produce detections — only evidence matching these patterns does.
+"""
 
 from __future__ import annotations
 

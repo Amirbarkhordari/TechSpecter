@@ -1,4 +1,4 @@
-"""Technology signature registry."""
+"""Technology signature registry (knowledge catalog, not detection whitelist)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SignatureRegistry:
-    """Registry for technology signatures and plugin-provided rules."""
+    """Knowledge catalog for technology signatures and plugin-provided rules.
+
+    Provides patterns, metadata, and version rules for technologies TechSpecter
+    understands. Detection only emits a technology when evidence matches a
+    signature rule — catalog membership alone never creates a match.
+    """
 
     loader: TechnologySignatureLoader = field(default_factory=TechnologySignatureLoader)
     _custom_signatures: list[TechnologySignature] = field(default_factory=list)
@@ -28,7 +33,10 @@ class SignatureRegistry:
         self._custom_signatures.append(signature)
 
     def resolve(self) -> list[TechnologySignature]:
-        """Return merged built-in and custom signatures sorted by priority."""
+        """Return merged built-in, custom, and plugin-provided signatures."""
+        from techspecter.fingerprinting.detection.plugins import detection_extension_registry
+
+        detection_extension_registry.apply_rule_plugins(self)
         loaded = {signature.id: signature for signature in self.loader.load_all()}
         for signature in self._custom_signatures:
             loaded[signature.id] = signature

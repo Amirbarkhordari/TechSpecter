@@ -129,6 +129,36 @@ Exporter (json | markdown | html | csv | sarif)
 
 Technology findings are mapped to both `ReportTechnology` (backward compatible) and `ReportFinding` (generic).
 
+## Fingerprinting: Knowledge Catalog vs Evidence-Driven Detection
+
+TechSpecter separates **technology knowledge** from **technology detection**:
+
+| Concept | Role |
+|---|---|
+| **Knowledge catalog** | JSON fingerprints (`techspecter/fingerprints/`) and signature catalog provide patterns, metadata, version rules, and matcher definitions |
+| **Evidence collection** | Analyzers observe target assets and emit technology-agnostic `Evidence` |
+| **Detection** | Technologies appear in output only when evidence satisfies signature rules |
+
+The registry is **not** a hard whitelist of allowed output technologies. Catalog membership alone never produces a confirmed match. A technology absent from the catalog is not rejected merely for being unknown — it lacks predefined signatures until added. Detection quality gates evaluate **evidence strength**, not catalog membership.
+
+```
+Target assets
+    ↓
+Evidence collection (technology=None)
+    ↓
+Signature / fingerprint evaluation (knowledge catalog)
+    ↓
+Evidence-backed TechnologyMatch (detection_basis=evidence)
+    ↓
+Quality gate (evidence strength, not registry membership)
+    ↓
+Provider merge + Technology Intelligence
+    ↓
+Reporting
+```
+
+Each `TechnologyMatch` retains provenance: source file, matcher, matched pattern/value, structured evidence, and optional version attribution scoped per technology.
+
 ## Configuration Architecture
 
 TechSpecter uses a layered configuration model managed by `ConfigurationManager`:

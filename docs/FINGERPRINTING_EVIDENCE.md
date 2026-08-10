@@ -1,6 +1,21 @@
-# Next-Generation Fingerprinting Engine — Phase 1 Architecture
+# Next-Generation Fingerprinting Engine — Evidence Architecture
 
-This document describes the evidence-based fingerprinting foundation introduced in Phase 1. Technology detection, confidence scoring, and version extraction remain in the legacy engine until later phases.
+This document describes the evidence-based fingerprinting architecture. Technology
+detection is **evidence-driven**: the knowledge catalog provides signatures and
+rules, but confirmed detections require matcher-produced evidence in analyzed
+assets.
+
+## Registry vs Detection
+
+| Layer | Purpose |
+|---|---|
+| **Knowledge catalog** | Signatures, patterns, metadata, version rules (`fingerprints/`, `signatures/catalog/`) |
+| **Evidence collection** | Passive observation of target assets — collectors never assign technologies |
+| **Detection** | Evaluate signatures against evidence; emit matches only when rules match |
+
+The catalog is **not** a whitelist of technologies allowed in output. Registry
+membership alone never creates a detection. Quality gates filter on evidence
+strength, not whether a technology is registered.
 
 ## Goals
 
@@ -43,6 +58,11 @@ flowchart TD
 
     DR --> LP[FingerprintPipeline - legacy]
     LP --> DET[DetectionResult]
+
+    EC --> EDP[EvidenceDetectionPipeline]
+    EDP --> DET2[Evidence-backed DetectionResult]
+    DET2 --> MERGE[merge_detection_results]
+    DET --> MERGE
 ```
 
 ## Evidence Model
