@@ -75,23 +75,76 @@ BUNDLE_MARKER_MAP: dict[str, tuple[str, str, str]] = {
     "__webpack_require__": ("webpack", "webpack", "build-tool"),
     "__webpack_modules__": ("webpack", "webpack", "build-tool"),
     "webpackChunk": ("webpack", "webpack", "build-tool"),
+    "webpackJsonp": ("webpack", "webpack", "build-tool"),
     "__turbopack_load__": ("turbopack", "Turbopack", "build-tool"),
     "turbopack-runtime": ("turbopack", "Turbopack", "build-tool"),
     "TURBOPACK": ("turbopack", "Turbopack", "build-tool"),
+    "__turbopack__": ("turbopack", "Turbopack", "build-tool"),
     "import.meta.hot": ("vite", "Vite", "build-tool"),
+    "import.meta.env": ("vite", "Vite", "build-tool"),
     "__vite__": ("vite", "Vite", "build-tool"),
     "/@vite/client": ("vite", "Vite", "build-tool"),
+    "rollupVersion": ("rollup", "Rollup", "build-tool"),
+    "parcelRequire": ("parcel", "Parcel", "build-tool"),
+    "__rspack_require__": ("rspack", "Rspack", "build-tool"),
+}
+
+# Bundler metadata key → technology
+BUNDLER_TECHNOLOGY_MAP: dict[str, tuple[str, str, str]] = {
+    "webpack": ("webpack", "webpack", "build-tool"),
+    "vite": ("vite", "Vite", "build-tool"),
+    "rollup": ("rollup", "Rollup", "build-tool"),
+    "parcel": ("parcel", "Parcel", "build-tool"),
+    "rspack": ("rspack", "Rspack", "build-tool"),
+    "turbopack": ("turbopack", "Turbopack", "build-tool"),
+    "esbuild": ("esbuild", "esbuild", "build-tool"),
+}
+
+# CSS structured marker key → technology
+CSS_TECHNOLOGY_MAP: dict[str, tuple[str, str, str]] = {
+    "bootstrap": ("bootstrap", "Bootstrap", "css-framework"),
+    "tailwindcss": ("tailwindcss", "Tailwind CSS", "css-framework"),
+    "tailwind": ("tailwindcss", "Tailwind CSS", "css-framework"),
+}
+
+# HTML framework hint / generator key → technology
+HTML_TECHNOLOGY_MAP: dict[str, tuple[str, str, str]] = {
+    "next.js": ("nextjs", "Next.js", "meta-framework"),
+    "nextjs": ("nextjs", "Next.js", "meta-framework"),
+    "next": ("nextjs", "Next.js", "meta-framework"),
+    "nuxt": ("nuxt", "Nuxt", "meta-framework"),
+    "react": ("react", "React", "framework"),
+    "vue": ("vue", "Vue", "framework"),
+    "angular": ("angular", "Angular", "framework"),
+    "wordpress": ("wordpress", "WordPress", "cms"),
+    "drupal": ("drupal", "Drupal", "cms"),
+    "gatsby": ("gatsby", "Gatsby", "meta-framework"),
 }
 
 # HTTP header name (lower) + value substring (lower) → technology
 HTTP_HEADER_MAP: tuple[tuple[str, str, str, str, str], ...] = (
     ("server", "nginx", "nginx", "Nginx", "web-servers"),
     ("server", "apache", "apache", "Apache", "web-servers"),
+    ("server", "cloudflare", "cloudflare", "Cloudflare", "cdn"),
     ("x-powered-by", "express", "express", "Express", "web-frameworks"),
     ("x-powered-by", "php", "php", "PHP", "languages"),
     ("x-powered-by", "asp.net", "aspnet", "ASP.NET", "web-frameworks"),
+    ("x-powered-by", "next.js", "nextjs", "Next.js", "meta-framework"),
+    ("x-powered-by", "nextjs", "nextjs", "Next.js", "meta-framework"),
     ("x-nextjs-cache", "", "nextjs", "Next.js", "meta-framework"),
     ("x-vercel-id", "", "vercel", "Vercel", "hosting"),
+)
+
+# Headers that may establish an identity from their product token alone.
+HTTP_IDENTITY_HEADERS: frozenset[str] = frozenset(
+    {
+        "server",
+        "x-powered-by",
+        "x-generator",
+        "x-framework",
+        "x-nextjs-cache",
+        "x-vercel-id",
+    },
 )
 
 # Bundle/package markers that are too generic to generate candidates alone
@@ -108,6 +161,15 @@ GENERIC_MARKER_BLOCKLIST: frozenset[str] = frozenset(
         "require",
         "import",
         "export",
+        "runtime",
+        "app",
+        "main",
+        "component",
+        "render",
+        "common",
+        "helper",
+        "utils",
+        "core",
     },
 )
 
@@ -133,6 +195,80 @@ CONSERVATIVE_PACKAGE_NAMES: frozenset[str] = frozenset(
         "shared",
         "types",
         "internal",
+        "component",
+        "components",
+        "render",
+        "chunk",
+        "bundle",
+    },
+)
+
+CONSERVATIVE_RUNTIME_NAMES: frozenset[str] = frozenset(CONSERVATIVE_PACKAGE_NAMES)
+
+GENERIC_CSS_SELECTORS: frozenset[str] = frozenset(
+    {
+        "btn",
+        "button",
+        "container",
+        "row",
+        "col",
+        "flex",
+        "grid",
+        "card",
+        "nav",
+        "navbar",
+        "header",
+        "footer",
+        "main",
+        "wrapper",
+        "content",
+        "item",
+        "list",
+        "text",
+        "title",
+        "active",
+        "hidden",
+        "show",
+        "hide",
+    },
+)
+
+GENERIC_HTML_ELEMENTS: frozenset[str] = frozenset(
+    {
+        "div",
+        "span",
+        "section",
+        "button",
+        "a",
+        "p",
+        "ul",
+        "li",
+        "img",
+        "form",
+        "input",
+        "table",
+        "html",
+        "body",
+        "head",
+        "script",
+        "link",
+        "meta",
+    },
+)
+
+GENERIC_HTTP_VALUES: frozenset[str] = frozenset(
+    {
+        "",
+        "*",
+        "unknown",
+        "server",
+        "ok",
+        "true",
+        "false",
+        "null",
+        "none",
+        "http",
+        "https",
     },
 )
 
@@ -140,7 +276,14 @@ CONSERVATIVE_PACKAGE_NAMES: frozenset[str] = frozenset(
 def is_relative_module(value: str) -> bool:
     """Return True when a specifier is an application-local relative path."""
     cleaned = value.strip().strip("\"'")
-    return cleaned.startswith("./") or cleaned.startswith("../") or cleaned.startswith("/")
+    if cleaned.startswith("./") or cleaned.startswith("../"):
+        return True
+    # Absolute path-like imports (/utils), excluding CSS comments and URL schemes.
+    if cleaned.startswith("/*") or cleaned.startswith("//"):
+        return False
+    if cleaned.startswith("/") and "://" not in cleaned and " " not in cleaned:
+        return True
+    return False
 
 
 def is_url_like_module(value: str) -> bool:
@@ -246,6 +389,56 @@ def lookup_runtime_family(family: str) -> tuple[str, str, str] | None:
     return RUNTIME_TECHNOLOGY_MAP.get(family.strip().lower())
 
 
+def normalize_identity_key(value: str) -> str:
+    """Normalize a free-form identity token to a stable lowercase key."""
+    cleaned = value.strip().strip("\"'")
+    if not cleaned:
+        return ""
+    lowered = cleaned.lower().replace("_", "-")
+    while "--" in lowered:
+        lowered = lowered.replace("--", "-")
+    return lowered.strip("-")
+
+
+def is_conservative_runtime_name(normalized_key: str) -> bool:
+    """Return True for ambiguous runtime names that must not open-discover."""
+    return not normalized_key or normalized_key in CONSERVATIVE_RUNTIME_NAMES
+
+
+def is_structured_runtime_marker(value: str) -> bool:
+    """Return True when a runtime marker looks uniquely structured."""
+    cleaned = value.strip()
+    if len(cleaned) < 4:
+        return False
+    if cleaned.startswith("__") and cleaned.endswith("__") and len(cleaned) >= 6:
+        return True
+    if "." in cleaned and any(token.isupper() or token[:1].isupper() for token in cleaned.split(".")):
+        return True
+    return False
+
+
+def resolve_runtime_identity(
+    family: str,
+    *,
+    matched_value: str | None = None,
+) -> tuple[str, str, str, bool] | None:
+    """Resolve runtime evidence to catalog or evidence-native identity."""
+    key = normalize_identity_key(family)
+    if not key:
+        return None
+    known = lookup_runtime_family(key)
+    if known is not None:
+        tech_id, name, category = known
+        return tech_id, name, category, True
+    if is_conservative_runtime_name(key):
+        return None
+    # Open runtime identities require a structured marker, not a bare word.
+    if matched_value and not is_structured_runtime_marker(matched_value):
+        if not key.startswith(("__", "@")) and "-" not in key and len(key) < 8:
+            return None
+    return f"runtime:{key}", key, "unknown", False
+
+
 def lookup_bundle_marker(value: str) -> tuple[str, str, str] | None:
     """Resolve a strong bundle marker to technology knowledge."""
     if value in BUNDLE_MARKER_MAP:
@@ -254,6 +447,38 @@ def lookup_bundle_marker(value: str) -> tuple[str, str, str] | None:
     for marker, mapping in BUNDLE_MARKER_MAP.items():
         if marker.lower() == lowered:
             return mapping
+    return None
+
+
+def lookup_bundler(bundler: str) -> tuple[str, str, str] | None:
+    """Resolve bundler metadata to technology knowledge."""
+    return BUNDLER_TECHNOLOGY_MAP.get(bundler.strip().lower())
+
+
+def resolve_bundle_identity(
+    *,
+    marker: str | None = None,
+    bundler: str | None = None,
+) -> tuple[str, str, str, bool] | None:
+    """Resolve bundler evidence to catalog or evidence-native identity."""
+    if bundler:
+        known = lookup_bundler(bundler)
+        if known is not None:
+            tech_id, name, category = known
+            return tech_id, name, category, True
+        key = normalize_identity_key(bundler)
+        if key and key not in GENERIC_MARKER_BLOCKLIST and not is_conservative_package_name(key):
+            return f"bundle:{key}", key, "build-tool", False
+    if marker:
+        if marker.lower() in GENERIC_MARKER_BLOCKLIST:
+            return None
+        # Filenames and chunk ids are not technology identities.
+        if "." in marker and marker.lower().endswith((".js", ".css", ".map")):
+            return None
+        known = lookup_bundle_marker(marker)
+        if known is not None:
+            tech_id, name, category = known
+            return tech_id, name, category, True
     return None
 
 
@@ -270,3 +495,119 @@ def lookup_http_header(header: str, value: str) -> tuple[str, str, str] | None:
             continue
         return tech_id, name, category
     return None
+
+
+def _http_product_token(value: str) -> str:
+    """Extract the leading product token from a Server / X-Powered-By value."""
+    cleaned = value.strip()
+    if not cleaned:
+        return ""
+    # Take first product before spaces/commas; strip version suffix.
+    token = cleaned.split(",")[0].strip().split()[0]
+    token = token.split("/")[0].strip()
+    return normalize_identity_key(token)
+
+
+def resolve_http_identity(
+    header: str,
+    value: str,
+) -> tuple[str, str, str, bool] | None:
+    """Resolve HTTP header evidence to catalog or evidence-native identity."""
+    header_key = header.strip().lower()
+    if header_key not in HTTP_IDENTITY_HEADERS:
+        return None
+    known = lookup_http_header(header, value)
+    if known is not None:
+        tech_id, name, category = known
+        return tech_id, name, category, True
+    # Presence-only framework headers without a value product stay map-driven.
+    if header_key in {"x-nextjs-cache", "x-vercel-id"}:
+        return None
+    product = _http_product_token(value)
+    if not product or product in GENERIC_HTTP_VALUES:
+        return None
+    if is_conservative_package_name(product) or product in GENERIC_MARKER_BLOCKLIST:
+        return None
+    if len(product) < 3:
+        return None
+    display = value.strip().split(",")[0].strip().split("/")[0].strip() or product
+    return f"http:{product}", display, "unknown", False
+
+
+def lookup_css_marker(key: str) -> tuple[str, str, str] | None:
+    """Resolve a CSS technology marker key to catalog knowledge."""
+    return CSS_TECHNOLOGY_MAP.get(key.strip().lower())
+
+
+def is_generic_css_selector(value: str) -> bool:
+    """Return True for generic CSS class/selector names."""
+    cleaned = value.strip().lstrip(".#").lower()
+    if not cleaned:
+        return True
+    root = cleaned.split(":")[0].split("(")[0]
+    return root in GENERIC_CSS_SELECTORS or root in CONSERVATIVE_PACKAGE_NAMES
+
+
+def resolve_css_identity(
+    key: str,
+    *,
+    matched_value: str | None = None,
+) -> tuple[str, str, str, bool] | None:
+    """Resolve CSS evidence to catalog or evidence-native identity."""
+    normalized = normalize_identity_key(key)
+    if not normalized:
+        return None
+    if is_generic_css_selector(normalized) or is_generic_css_selector(matched_value or ""):
+        return None
+    known = lookup_css_marker(normalized)
+    if known is not None:
+        tech_id, name, category = known
+        return tech_id, name, category, True
+    if is_conservative_package_name(normalized):
+        return None
+    return f"css:{normalized}", normalized, "css-framework", False
+
+
+def lookup_html_marker(key: str) -> tuple[str, str, str] | None:
+    """Resolve an HTML framework/generator marker to catalog knowledge."""
+    return HTML_TECHNOLOGY_MAP.get(key.strip().lower())
+
+
+def is_generic_html_element(value: str) -> bool:
+    """Return True for generic HTML element names."""
+    return value.strip().lower() in GENERIC_HTML_ELEMENTS
+
+
+def resolve_html_identity(
+    key: str,
+    *,
+    matched_value: str | None = None,
+) -> tuple[str, str, str, bool] | None:
+    """Resolve HTML evidence to catalog or evidence-native identity."""
+    raw = key.strip()
+    if raw.lower().startswith("generator:"):
+        raw = raw.split(":", 1)[1].strip()
+    # Generator values often include versions: "WordPress 6.4.2"
+    token = raw.split()[0] if raw else ""
+    normalized = normalize_identity_key(token)
+    if not normalized:
+        return None
+    if is_generic_html_element(normalized) or is_generic_html_element(matched_value or ""):
+        return None
+    known = lookup_html_marker(normalized)
+    if known is None and " " not in raw:
+        known = lookup_html_marker(raw.lower())
+    # WordPress-style generator tokens
+    if known is None:
+        for hint_key, mapping in HTML_TECHNOLOGY_MAP.items():
+            if hint_key in normalized or normalized.startswith(hint_key):
+                known = mapping
+                break
+    if known is not None:
+        tech_id, name, category = known
+        return tech_id, name, category, True
+    if is_conservative_package_name(normalized) or normalized in GENERIC_MARKER_BLOCKLIST:
+        return None
+    if len(normalized) < 3:
+        return None
+    return f"html:{normalized}", raw.split()[0], "unknown", False

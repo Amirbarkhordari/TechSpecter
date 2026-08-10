@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from techspecter.fingerprinting.analyzers.bundle import BundleAnalyzer
+from techspecter.fingerprinting.analyzers.css import CSSAnalyzer
 from techspecter.fingerprinting.analyzers.html import HTMLAnalyzer
 from techspecter.fingerprinting.analyzers.javascript import JavaScriptAnalyzer
 from techspecter.fingerprinting.analyzers.network import NetworkAnalyzer
@@ -15,6 +16,7 @@ _BUILTIN_COLLECTORS = (
     JavaScriptAnalyzer(),
     BundleAnalyzer(),
     PackageAnalyzer(),
+    CSSAnalyzer(),
 )
 
 

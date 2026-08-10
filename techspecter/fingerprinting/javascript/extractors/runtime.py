@@ -10,10 +10,12 @@ from techspecter.fingerprinting.javascript.models import ExtractionFinding, Pars
 _RUNTIME_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ("react", re.compile(r"\bReactDOM\.createRoot\b"), "ReactDOM.createRoot runtime call"),
     ("react", re.compile(r"\bhydrateRoot\b"), "hydrateRoot runtime call"),
+    ("react", re.compile(r"\b__REACT_DEVTOOLS_GLOBAL_HOOK__\b"), "React DevTools global hook"),
     ("react", re.compile(r"\bcreateContext\b"), "createContext runtime call"),
     ("react", re.compile(r"\buseState\b"), "useState hook reference"),
     ("react", re.compile(r"\buseEffect\b"), "useEffect hook reference"),
     ("vue", re.compile(r"\bVue\.createApp\b"), "Vue.createApp runtime call"),
+    ("vue", re.compile(r"\b__VUE__\b"), "Vue global runtime marker"),
     ("angular", re.compile(r"\bɵɵdefineComponent\b"), "Angular Ivy defineComponent runtime"),
     ("angular", re.compile(r"\bzone\.js\b"), "zone.js runtime reference"),
     ("solid", re.compile(r"\bcreateSignal\b"), "Solid createSignal runtime"),

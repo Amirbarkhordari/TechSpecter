@@ -23,6 +23,8 @@ _INDEXABLE_TYPES = frozenset(
         EvidenceType.MANIFEST,
         EvidenceType.SOURCE_MAP_METADATA,
         EvidenceType.VERSION_CANDIDATE,
+        EvidenceType.CSS_MARKER,
+        EvidenceType.HTML_MARKER,
     },
 )
 
@@ -39,10 +41,13 @@ class EvidenceIndex:
     by_bundle_marker: dict[str, list[Evidence]] = field(
         default_factory=lambda: defaultdict(list),
     )
+    by_bundler: dict[str, list[Evidence]] = field(default_factory=lambda: defaultdict(list))
     by_http_header: dict[str, list[Evidence]] = field(
         default_factory=lambda: defaultdict(list),
     )
     by_import: dict[str, list[Evidence]] = field(default_factory=lambda: defaultdict(list))
+    by_css_family: dict[str, list[Evidence]] = field(default_factory=lambda: defaultdict(list))
+    by_html_family: dict[str, list[Evidence]] = field(default_factory=lambda: defaultdict(list))
     all_items: tuple[Evidence, ...] = ()
 
     def items_for_type(self, evidence_type: EvidenceType | str) -> list[Evidence]:
@@ -96,6 +101,9 @@ class EvidenceIndexer:
                 marker = (item.matched_value or "").strip()
                 if marker:
                     result.by_bundle_marker[marker].append(item)
+                bundler = str(item.metadata.get("bundler", "")).strip().lower()
+                if bundler:
+                    result.by_bundler[bundler].append(item)
 
             if item.evidence_type == EvidenceType.HTTP_HEADER:
                 header = str(
@@ -109,7 +117,17 @@ class EvidenceIndexer:
                 EvidenceType.AST_EXTRACTION,
             }:
                 module = (item.matched_value or "").strip().lower()
-                if module and item.metadata.get("kind") in {None, "import"}:
+                if module and item.metadata.get("kind") in {None, "import", "dynamic_import"}:
                     result.by_import[module].append(item)
+
+            if item.evidence_type == EvidenceType.CSS_MARKER:
+                family = str(item.metadata.get("css_family", "")).strip().lower()
+                if family:
+                    result.by_css_family[family].append(item)
+
+            if item.evidence_type == EvidenceType.HTML_MARKER:
+                family = str(item.metadata.get("html_family", "")).strip().lower()
+                if family:
+                    result.by_html_family[family].append(item)
 
         return result

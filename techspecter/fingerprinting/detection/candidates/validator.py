@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 
 from techspecter.fingerprinting.detection.candidates.mappings import (
     is_conservative_package_name,
+    is_generic_css_selector,
+    is_generic_html_element,
     is_relative_module,
 )
 from techspecter.fingerprinting.detection.candidates.models import (
@@ -39,6 +41,8 @@ _CONFIRMABLE_TYPES = frozenset(
         EvidenceType.BUNDLE_RUNTIME,
         EvidenceType.HTTP_HEADER,
         EvidenceType.SOURCE_MAP_METADATA,
+        EvidenceType.CSS_MARKER,
+        EvidenceType.HTML_MARKER,
     },
 )
 
@@ -52,6 +56,8 @@ _WEAK_ALONE_TYPES = frozenset(
     },
 )
 
+_OPEN_PREFIXES = ("package:", "runtime:", "bundle:", "css:", "html:", "http:")
+
 
 @dataclass
 class CandidateValidator:
@@ -59,7 +65,7 @@ class CandidateValidator:
 
     quality_gate: MatchQualityGate = field(default_factory=MatchQualityGate)
     min_confidence: float = 55.0
-    open_package_min_confidence: float = 70.0
+    open_identity_min_confidence: float = 70.0
 
     def validate(
         self,
@@ -100,6 +106,29 @@ class CandidateValidator:
                 },
             )
 
+        if any(is_generic_css_selector(item.matched_value or "") for item in candidate.evidence) and all(
+            item.evidence_type == EvidenceType.CSS_MARKER
+            and item.metadata.get("kind") in {None, "selector"}
+            for item in candidate.evidence
+        ):
+            return None, candidate.model_copy(
+                update={
+                    "status": CandidateStatus.REJECTED,
+                    "rejection_reason": "generic CSS selector is not technology evidence",
+                },
+            )
+
+        if any(is_generic_html_element(item.matched_value or "") for item in candidate.evidence) and all(
+            item.evidence_type in {EvidenceType.HTML_MARKER, EvidenceType.HTML_ELEMENT}
+            for item in candidate.evidence
+        ):
+            return None, candidate.model_copy(
+                update={
+                    "status": CandidateStatus.REJECTED,
+                    "rejection_reason": "generic HTML element is not technology evidence",
+                },
+            )
+
         if all(item.evidence_type in _WEAK_ALONE_TYPES for item in candidate.evidence):
             return None, candidate.model_copy(
                 update={
@@ -121,36 +150,53 @@ class CandidateValidator:
 
         threshold = self.min_confidence
         if not candidate.knowledge_matched:
-            threshold = self.open_package_min_confidence
-            package_key = candidate.technology_id.removeprefix("package:")
-            if is_conservative_package_name(package_key):
-                # Ambiguous names require multi-signal correlation to confirm.
+            threshold = self.open_identity_min_confidence
+            open_key = _open_identity_key(candidate.technology_id)
+            if is_conservative_package_name(open_key):
                 if len(candidate.evidence_types) < 2:
                     return None, candidate.model_copy(
                         update={
                             "status": CandidateStatus.REJECTED,
                             "rejection_reason": (
-                                "conservative package name requires multi-signal evidence"
+                                "conservative identity requires multi-signal evidence"
                             ),
                         },
                     )
-            # Evidence-native packages need at least one PACKAGE_REFERENCE or
-            # source-map node_modules path — import-only is candidate-grade only.
-            has_package_ref = any(
-                item.evidence_type
-                in {EvidenceType.PACKAGE_REFERENCE, EvidenceType.SOURCE_MAP_METADATA}
-                for item in strong
-            )
-            if not has_package_ref and len(strong) < 2:
-                return None, candidate.model_copy(
-                    update={
-                        "status": CandidateStatus.REJECTED,
-                        "rejection_reason": (
-                            "open package identity requires package reference "
-                            "or multi-signal evidence"
-                        ),
-                    },
+            if candidate.technology_id.startswith("package:"):
+                has_package_ref = any(
+                    item.evidence_type
+                    in {EvidenceType.PACKAGE_REFERENCE, EvidenceType.SOURCE_MAP_METADATA}
+                    for item in strong
                 )
+                if not has_package_ref and len(strong) < 2:
+                    return None, candidate.model_copy(
+                        update={
+                            "status": CandidateStatus.REJECTED,
+                            "rejection_reason": (
+                                "open package identity requires package reference "
+                                "or multi-signal evidence"
+                            ),
+                        },
+                    )
+            elif candidate.technology_id.startswith(("runtime:", "bundle:", "css:", "html:", "http:")):
+                # Open non-package identities need a matching structured evidence type.
+                required = {
+                    "runtime:": EvidenceType.RUNTIME_PATTERN,
+                    "bundle:": (EvidenceType.BUNDLE_RUNTIME, EvidenceType.BUNDLE_MARKER),
+                    "css:": EvidenceType.CSS_MARKER,
+                    "html:": EvidenceType.HTML_MARKER,
+                    "http:": EvidenceType.HTTP_HEADER,
+                }
+                prefix = next(p for p in required if candidate.technology_id.startswith(p))
+                needed = required[prefix]
+                needed_types = {needed} if isinstance(needed, EvidenceType) else set(needed)
+                if not any(item.evidence_type in needed_types for item in strong):
+                    return None, candidate.model_copy(
+                        update={
+                            "status": CandidateStatus.REJECTED,
+                            "rejection_reason": "open identity missing required evidence type",
+                        },
+                    )
 
         if candidate.confidence < threshold:
             return None, candidate.model_copy(
@@ -174,8 +220,11 @@ class CandidateValidator:
             version = candidate.version_hint
 
         display_name = candidate.name
-        if candidate.technology_id.startswith("package:") and not candidate.knowledge_matched:
-            display_name = candidate.technology_id.removeprefix("package:")
+        if not candidate.knowledge_matched:
+            for prefix in _OPEN_PREFIXES:
+                if candidate.technology_id.startswith(prefix):
+                    display_name = candidate.technology_id.removeprefix(prefix)
+                    break
 
         match = TechnologyMatch(
             technology=Technology(
@@ -239,7 +288,11 @@ class CandidateValidator:
             EvidenceType.PACKAGE_REFERENCE,
             EvidenceType.RUNTIME_PATTERN,
             EvidenceType.BUNDLE_MARKER,
+            EvidenceType.BUNDLE_RUNTIME,
             EvidenceType.SOURCE_MAP_METADATA,
+            EvidenceType.CSS_MARKER,
+            EvidenceType.HTML_MARKER,
+            EvidenceType.HTTP_HEADER,
         }:
             weight = max(weight, 70.0)
         return PatternEvidence(
@@ -257,3 +310,10 @@ class CandidateValidator:
 def is_strong_candidate_evidence(item: Evidence) -> bool:
     """Return True when evidence is strong enough to support confirmation."""
     return item.evidence_type in _CONFIRMABLE_TYPES
+
+
+def _open_identity_key(technology_id: str) -> str:
+    for prefix in _OPEN_PREFIXES:
+        if technology_id.startswith(prefix):
+            return technology_id.removeprefix(prefix)
+    return technology_id

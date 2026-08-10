@@ -19,6 +19,7 @@ class EvidenceSource(StrEnum):
     JAVASCRIPT = "javascript"
     BUNDLE = "bundle"
     PACKAGE = "package"
+    CSS = "css"
     PLUGIN = "plugin"
     UNKNOWN = "unknown"
 
@@ -29,6 +30,7 @@ class EvidenceType(StrEnum):
     HTTP_HEADER = "http_header"
     HTTP_METADATA = "http_metadata"
     HTML_ELEMENT = "html_element"
+    HTML_MARKER = "html_marker"
     SCRIPT_REFERENCE = "script_reference"
     SCRIPT_CONTENT = "script_content"
     FILENAME = "filename"
@@ -47,6 +49,7 @@ class EvidenceType(StrEnum):
     AST_EXTRACTION = "ast_extraction"
     SOURCE_MAP_METADATA = "source_map_metadata"
     IMPORT_EXPORT = "import_export"
+    CSS_MARKER = "css_marker"
 
 
 class Evidence(TechSpecterModel):

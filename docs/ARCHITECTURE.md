@@ -161,7 +161,44 @@ Evidence collection (technology=None)
                Technology Intelligence / Reporting
 ```
 
-**Candidate ≠ confirmed technology.** Only validated candidates with strong structured evidence (package, runtime, import, bundle, technology-specific HTTP) become confirmed matches. Generic `STRING_LITERAL` values never generate or confirm technologies by themselves.
+**Candidate ≠ confirmed technology.** Only validated candidates with strong structured evidence (package, runtime, import, bundle, CSS, HTML, technology-specific HTTP) become confirmed matches. Generic `STRING_LITERAL` values never generate or confirm technologies by themselves.
+
+### Evidence-driven expansion (Phase 4)
+
+```
+Asset
+  ↓
+Evidence (JS / CSS / HTML / HTTP / source-map / package)
+  ↓
+Identity discovery (catalog enrichment OR evidence-native id)
+  ↓
+TechnologyCandidate
+  ↓
+Multi-source correlation (same technology_id)
+  ↓
+CandidateValidator + MatchQualityGate
+  ↓
+Confirmed TechnologyMatch
+  ↓
+Technology-scoped version + provenance
+  ↓
+Reporting
+```
+
+| Channel | Known identity | Open identity (when structured) |
+|---|---|---|
+| Package | catalog (e.g. React) | `package:<name>` |
+| Runtime | catalog | `runtime:<name>` |
+| Bundler | catalog | `bundle:<name>` |
+| CSS | catalog | `css:<name>` |
+| HTML | catalog | `html:<name>` |
+| HTTP | catalog | `http:<product>` |
+
+**Knowledge = enrichment.** Catalog metadata enriches known identities; it is not required for evidence-backed discovery.
+
+**Evidence = detection basis.** Technologies appear only from structured evidence, never from generic keywords, CSS classes (`.btn`, `.container`), HTML tags (`div`), or filenames (`chunk.js`) alone.
+
+**Validation = confirmation boundary.** CandidateValidator and MatchQualityGate remain mandatory for all channels.
 
 ### Open package identity (Phase 3)
 

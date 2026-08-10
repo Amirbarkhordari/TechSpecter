@@ -12,11 +12,13 @@ from techspecter.fingerprinting.detection.candidates.mappings import (
     is_relative_module,
     is_structured_package_evidence,
     is_url_like_module,
-    lookup_bundle_marker,
-    lookup_http_header,
-    lookup_runtime_family,
     normalize_package_key,
+    resolve_bundle_identity,
+    resolve_css_identity,
+    resolve_html_identity,
+    resolve_http_identity,
     resolve_package_identity,
+    resolve_runtime_identity,
 )
 from techspecter.fingerprinting.detection.candidates.models import (
     CandidateStatus,
@@ -37,6 +39,8 @@ _STRONG_TYPES = frozenset(
         EvidenceType.HTTP_HEADER,
         EvidenceType.IMPORT_EXPORT,
         EvidenceType.SOURCE_MAP_METADATA,
+        EvidenceType.CSS_MARKER,
+        EvidenceType.HTML_MARKER,
     },
 )
 
@@ -75,10 +79,12 @@ class CandidateGenerator:
                 self._merge_meta(metas, tech_id, meta)
 
         for family, evidence_list in index.by_runtime_family.items():
-            mapping = lookup_runtime_family(family)
-            if mapping is None:
+            sample = evidence_list[0] if evidence_list else None
+            matched = sample.matched_value if sample is not None else None
+            resolved = resolve_runtime_identity(family, matched_value=matched)
+            if resolved is None:
                 continue
-            tech_id, name, category = mapping
+            tech_id, name, category, knowledge_matched = resolved
             for item in evidence_list:
                 buckets[tech_id].append(
                     (item, DiscoveryBasis.RUNTIME, f"runtime family '{family}'"),
@@ -89,20 +95,79 @@ class CandidateGenerator:
                 _BucketMeta(
                     name=name,
                     category=category,
-                    identity_kind=IdentityKind.RUNTIME,
+                    identity_kind=(
+                        IdentityKind.CATALOG if knowledge_matched else IdentityKind.RUNTIME
+                    ),
                     identity_source="RUNTIME_PATTERN",
-                    knowledge_matched=True,
+                    knowledge_matched=knowledge_matched,
+                ),
+            )
+
+        # Prefer bundler metadata identities over raw marker strings.
+        for bundler, evidence_list in index.by_bundler.items():
+            resolved = resolve_bundle_identity(bundler=bundler)
+            if resolved is None:
+                continue
+            tech_id, name, category, knowledge_matched = resolved
+            for item in evidence_list:
+                buckets[tech_id].append(
+                    (item, DiscoveryBasis.BUNDLE, f"bundler '{bundler}'"),
+                )
+            self._merge_meta(
+                metas,
+                tech_id,
+                _BucketMeta(
+                    name=name,
+                    category=category,
+                    identity_kind=(
+                        IdentityKind.CATALOG if knowledge_matched else IdentityKind.BUNDLE
+                    ),
+                    identity_source="BUNDLE_RUNTIME",
+                    knowledge_matched=knowledge_matched,
                 ),
             )
 
         for marker, evidence_list in index.by_bundle_marker.items():
             if marker.lower() in GENERIC_MARKER_BLOCKLIST:
                 continue
-            mapping = lookup_bundle_marker(marker)
-            if mapping is None:
+            # Skip filename / chunk-id style markers (handled only via unique maps).
+            if any(
+                item.evidence_type == EvidenceType.BUNDLE_MARKER
+                and item.metadata.get("kind") == "chunk_id"
+                for item in evidence_list
+            ) and all(
+                item.evidence_type != EvidenceType.BUNDLE_RUNTIME for item in evidence_list
+            ):
                 continue
-            tech_id, name, category = mapping
+            if any(
+                item.evidence_type == EvidenceType.BUNDLE_MARKER
+                and not item.metadata.get("bundler")
+                and (
+                    marker.lower().endswith((".js", ".css", ".map"))
+                    or "chunk" in marker.lower()
+                    or "bundle" in marker.lower()
+                )
+                for item in evidence_list
+            ) and all(
+                item.evidence_type != EvidenceType.BUNDLE_RUNTIME
+                and item.evidence_type != EvidenceType.RUNTIME_PATTERN
+                for item in evidence_list
+            ):
+                # Filename-only bundle markers never establish identity.
+                if resolve_bundle_identity(marker=marker) is None:
+                    continue
+            resolved = resolve_bundle_identity(marker=marker)
+            if resolved is None:
+                continue
+            tech_id, name, category, knowledge_matched = resolved
             for item in evidence_list:
+                if item.evidence_type == EvidenceType.BUNDLE_MARKER and item.metadata.get(
+                    "kind",
+                ) == "chunk_id":
+                    continue
+                if item.metadata.get("bundler"):
+                    # Already handled via by_bundler.
+                    continue
                 buckets[tech_id].append(
                     (item, DiscoveryBasis.BUNDLE, f"bundle marker '{marker}'"),
                 )
@@ -112,9 +177,11 @@ class CandidateGenerator:
                 _BucketMeta(
                     name=name,
                     category=category,
-                    identity_kind=IdentityKind.BUNDLE,
+                    identity_kind=(
+                        IdentityKind.CATALOG if knowledge_matched else IdentityKind.BUNDLE
+                    ),
                     identity_source="BUNDLE_MARKER",
-                    knowledge_matched=True,
+                    knowledge_matched=knowledge_matched,
                 ),
             )
 
@@ -125,7 +192,7 @@ class CandidateGenerator:
                     EvidenceType.AST_EXTRACTION,
                 }:
                     continue
-                if item.metadata.get("kind") not in {None, "import"}:
+                if item.metadata.get("kind") not in {None, "import", "dynamic_import"}:
                     continue
                 resolved = self._from_package_value(
                     module,
@@ -145,10 +212,10 @@ class CandidateGenerator:
                     item.metadata.get("header") or item.matched_pattern or "",
                 ).strip()
                 value = item.matched_value or ""
-                mapping = lookup_http_header(header, value)
-                if mapping is None:
+                resolved = resolve_http_identity(header, value)
+                if resolved is None:
                     continue
-                tech_id, name, category = mapping
+                tech_id, name, category, knowledge_matched = resolved
                 buckets[tech_id].append(
                     (item, DiscoveryBasis.HTTP, f"HTTP header '{header}'"),
                 )
@@ -158,11 +225,68 @@ class CandidateGenerator:
                     _BucketMeta(
                         name=name,
                         category=category,
-                        identity_kind=IdentityKind.HTTP,
+                        identity_kind=(
+                            IdentityKind.CATALOG if knowledge_matched else IdentityKind.HTTP
+                        ),
                         identity_source="HTTP_HEADER",
-                        knowledge_matched=True,
+                        knowledge_matched=knowledge_matched,
                     ),
                 )
+
+        for family, evidence_list in index.by_css_family.items():
+            sample = evidence_list[0] if evidence_list else None
+            matched = sample.matched_value if sample is not None else None
+            resolved = resolve_css_identity(family, matched_value=matched)
+            if resolved is None:
+                continue
+            tech_id, name, category, knowledge_matched = resolved
+            version_hint = None
+            for item in evidence_list:
+                buckets[tech_id].append(
+                    (item, DiscoveryBasis.CSS, f"css family '{family}'"),
+                )
+                meta_version = item.metadata.get("version")
+                if isinstance(meta_version, str) and meta_version and version_hint is None:
+                    version_hint = meta_version
+            self._merge_meta(
+                metas,
+                tech_id,
+                _BucketMeta(
+                    name=name,
+                    category=category,
+                    identity_kind=(
+                        IdentityKind.CATALOG if knowledge_matched else IdentityKind.CSS
+                    ),
+                    identity_source="CSS_MARKER",
+                    knowledge_matched=knowledge_matched,
+                    version_hint=version_hint,
+                ),
+            )
+
+        for family, evidence_list in index.by_html_family.items():
+            sample = evidence_list[0] if evidence_list else None
+            matched = sample.matched_value if sample is not None else None
+            resolved = resolve_html_identity(family, matched_value=matched)
+            if resolved is None:
+                continue
+            tech_id, name, category, knowledge_matched = resolved
+            for item in evidence_list:
+                buckets[tech_id].append(
+                    (item, DiscoveryBasis.HTML, f"html family '{family}'"),
+                )
+            self._merge_meta(
+                metas,
+                tech_id,
+                _BucketMeta(
+                    name=name,
+                    category=category,
+                    identity_kind=(
+                        IdentityKind.CATALOG if knowledge_matched else IdentityKind.HTML
+                    ),
+                    identity_source="HTML_MARKER",
+                    knowledge_matched=knowledge_matched,
+                ),
+            )
 
         for item in index.by_type.get(EvidenceType.SOURCE_MAP_METADATA.value, []):
             value = item.matched_value or ""
@@ -281,17 +405,19 @@ class CandidateGenerator:
     ) -> tuple[str, _BucketMeta, DiscoveryBasis, str] | None:
         if item.evidence_type == EvidenceType.PACKAGE_MARKER:
             value = item.matched_value or ""
-            mapping = lookup_bundle_marker(value)
-            if mapping is not None:
-                tech_id, name, category = mapping
+            resolved = resolve_bundle_identity(marker=value)
+            if resolved is not None:
+                tech_id, name, category, knowledge_matched = resolved
                 return (
                     tech_id,
                     _BucketMeta(
                         name=name,
                         category=category,
-                        identity_kind=IdentityKind.BUNDLE,
+                        identity_kind=(
+                            IdentityKind.CATALOG if knowledge_matched else IdentityKind.BUNDLE
+                        ),
                         identity_source="PACKAGE_MARKER",
-                        knowledge_matched=True,
+                        knowledge_matched=knowledge_matched,
                     ),
                     DiscoveryBasis.BUNDLE,
                     f"structured marker '{value}'",
@@ -408,6 +534,8 @@ class CandidateGenerator:
             EvidenceType.PACKAGE_MARKER: 55.0,
             EvidenceType.AST_EXTRACTION: 50.0,
             EvidenceType.SOURCE_MAP_METADATA: 65.0,
+            EvidenceType.CSS_MARKER: 80.0,
+            EvidenceType.HTML_MARKER: 80.0,
         }
         best = max(
             (weights.get(item.evidence_type, 40.0) for item in items),

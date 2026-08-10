@@ -30,6 +30,8 @@ class DiscoveryBasis(StrEnum):
     IMPORT = "import"
     BUNDLE = "bundle"
     HTTP = "http"
+    CSS = "css"
+    HTML = "html"
     MULTI_SIGNAL = "multi_signal"
     SOURCE_MAP = "source_map"
 
@@ -42,6 +44,8 @@ class IdentityKind(StrEnum):
     RUNTIME = "runtime"
     BUNDLE = "bundle"
     HTTP = "http"
+    CSS = "css"
+    HTML = "html"
 
 
 class TechnologyCandidate(TechSpecterModel):

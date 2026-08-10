@@ -14,9 +14,15 @@ from techspecter.fingerprinting.evidence.models import (
 )
 from techspecter.models.discovery import DiscoveryResult
 
+# SSR / hydration markers that establish framework identity.
+_SSR_MARKER_TO_FAMILY: dict[str, str] = {
+    "next-data-ssr": "next.js",
+    "nuxt-ssr": "nuxt",
+}
+
 
 class HTMLAnalyzer(EvidenceCollector):
-    """Collect HTML-derived script and document evidence."""
+    """Collect HTML-derived script and framework marker evidence."""
 
     @property
     def name(self) -> str:
@@ -33,7 +39,7 @@ class HTMLAnalyzer(EvidenceCollector):
         return True
 
     def collect(self, discovery: DiscoveryResult) -> EvidenceResult:
-        """Collect script references and inline script markers."""
+        """Collect script references and structured HTML technology markers."""
         started = time.perf_counter()
         items: list[Evidence] = []
         timestamp = datetime.now(UTC)
@@ -73,6 +79,75 @@ class HTMLAnalyzer(EvidenceCollector):
                     },
                 ),
             )
+
+        html_meta = (
+            discovery.metadata_observation.html
+            if discovery.metadata_observation is not None
+            else None
+        )
+        if html_meta is not None:
+            page_url = html_meta.url or target_url
+            if html_meta.generator:
+                items.append(
+                    Evidence(
+                        source=EvidenceSource.HTML,
+                        evidence_type=EvidenceType.HTML_MARKER,
+                        collector=self.name,
+                        url=page_url,
+                        file=page_url,
+                        matched_value=html_meta.generator,
+                        matched_pattern="meta[name=generator]",
+                        category="html",
+                        reason="HTML generator meta tag",
+                        confidence_hint=85.0,
+                        timestamp=timestamp,
+                        metadata={
+                            "kind": "generator",
+                            "html_family": html_meta.generator.split()[0].lower(),
+                        },
+                    ),
+                )
+
+            for hint in html_meta.framework_hints:
+                if hint.lower().startswith("generator:"):
+                    continue
+                items.append(
+                    Evidence(
+                        source=EvidenceSource.HTML,
+                        evidence_type=EvidenceType.HTML_MARKER,
+                        collector=self.name,
+                        url=page_url,
+                        file=page_url,
+                        matched_value=hint,
+                        matched_pattern="framework_hint",
+                        category="html",
+                        reason=f"HTML framework marker '{hint}'",
+                        confidence_hint=80.0,
+                        timestamp=timestamp,
+                        metadata={"kind": "framework_hint", "html_family": hint.lower()},
+                    ),
+                )
+
+            for indicator in html_meta.ssr_indicators:
+                family = _SSR_MARKER_TO_FAMILY.get(indicator)
+                if family is None:
+                    continue
+                items.append(
+                    Evidence(
+                        source=EvidenceSource.HTML,
+                        evidence_type=EvidenceType.HTML_MARKER,
+                        collector=self.name,
+                        url=page_url,
+                        file=page_url,
+                        matched_value=indicator,
+                        matched_pattern="ssr_indicator",
+                        category="html",
+                        reason=f"HTML SSR/hydration marker '{indicator}'",
+                        confidence_hint=90.0,
+                        timestamp=timestamp,
+                        metadata={"kind": "ssr_marker", "html_family": family},
+                    ),
+                )
 
         elapsed_ms = (time.perf_counter() - started) * 1000
         return EvidenceResult(collector=self.name, items=tuple(items), elapsed_ms=elapsed_ms)
