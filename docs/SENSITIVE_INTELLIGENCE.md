@@ -188,14 +188,28 @@ The fingerprint command shows security-relevant findings only (secrets, credenti
 |-----------|----------|
 | `tests/test_sensitive_intelligence.py` | Core detectors, engine, export |
 | `tests/test_sensitive_rule_engine.py` | Rule engine, validators, JS intel, correlation |
+| `tests/test_sensitive_candidate_validation.py` | Candidate spine confirmation / rejection |
+| `tests/test_sensitive_context_value_analysis.py` | Context and value analyzers |
+| `tests/test_sensitive_correlation_policies.py` | Correlation + detector policies + severity |
+| `tests/test_sensitive_final_regression.py` | Phase 5 final FP/TP/correlation/reporting corpus |
 | `tests/test_fingerprint_cli_display.py` | Fingerprint CLI filters |
 | `tests/test_cli_report_rendering.py` | CLI summaries, grouping, value trimming, security summary |
 
 Run:
 
 ```bash
-python -m pytest tests/test_sensitive_intelligence.py tests/test_sensitive_rule_engine.py -v
+python -m pytest tests/test_sensitive_intelligence.py tests/test_sensitive_rule_engine.py tests/test_sensitive_final_regression.py -v
 ```
+
+### Real-world validation lessons (Phase 5 Step 5)
+
+Passive live checks against public sites reinforced that:
+
+- Relative / schemeless asset URLs must be resolved or skipped before download — never passed to the HTTP client.
+- Framework identifiers such as bare `NODE_ENV` in React/Next warning strings are not environment configuration findings; structured `process.env.*` / `import.meta.env.*` / `NODE_ENV="…"` assignments remain in scope.
+- Internal hostnames (for example `*.local` development domains) and RFC1918 addresses in public assets can be legitimate medium-severity configuration findings.
+
+CLI: `techspecter sensitive-intelligence <url> [--json] [--output path]`.
 
 ## Limitations
 
@@ -203,6 +217,9 @@ python -m pytest tests/test_sensitive_intelligence.py tests/test_sensitive_rule_
 - Legacy `techspecter sensitive` artifact analyzers remain separate from this engine
 - SARIF/HTML export wiring for sensitive findings is prepared but not fully integrated into `ReportEngine`
 - Entropy-based detection may still produce low-confidence findings on minified bundles
+- Not every false positive class is eliminated; detector-specific edge cases remain
+- Dynamic runtime-only secrets and assets that cannot be downloaded are out of scope
+- Coverage is not universal across all technologies or configuration styles
 
 ## Related docs
 

@@ -6,6 +6,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
 
 from techspecter.asset_discovery.download_status import (
     classify_download_outcome,
@@ -18,6 +19,12 @@ from techspecter.downloader.http_client import AsyncHttpClient
 from techspecter.exceptions import DownloaderError
 
 logger = logging.getLogger(__name__)
+
+
+def _is_downloadable_http_url(url: str) -> bool:
+    """Return True when *url* is an absolute http(s) URL with a host."""
+    parsed = urlparse((url or "").strip())
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 DEFAULT_MAX_CONCURRENCY = 8
 DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -110,6 +117,22 @@ class AssetCollector:
                     download_duration_ms=0.0,
                     response_time_ms=0.0,
                     error_message="Skipped non-text asset (not required for technology evidence)",
+                    download_status=AssetDownloadStatus.SKIPPED,
+                )
+                skipped += 1
+                continue
+            if not _is_downloadable_http_url(record.url):
+                builder.upsert_download(
+                    url=record.url,
+                    http_status=record.http_status,
+                    content_type=record.content_type,
+                    encoding=record.encoding,
+                    file_size=record.file_size,
+                    sha256=record.sha256,
+                    download_success=False,
+                    download_duration_ms=0.0,
+                    response_time_ms=0.0,
+                    error_message="Skipped non-absolute URL (not downloadable)",
                     download_status=AssetDownloadStatus.SKIPPED,
                 )
                 skipped += 1

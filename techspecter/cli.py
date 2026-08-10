@@ -453,6 +453,10 @@ def sensitive_intelligence_command(
         bool,
         typer.Option("--json", help="Output sensitive intelligence as JSON."),
     ] = False,
+    output: Annotated[
+        str | None,
+        typer.Option("--output", help="Write JSON report to this file when --json is set."),
+    ] = None,
 ) -> None:
     """Analyze discovered assets for sensitive data and secrets."""
     try:
@@ -476,7 +480,15 @@ def sensitive_intelligence_command(
 
     if json_output:
         payload = report.model_dump(mode="json")
-        console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        encoded = orjson.dumps(payload, option=orjson.OPT_INDENT_2)
+        if output:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(encoded)
+            console.print(f"[green]JSON written to[/green] {output_path}")
+        else:
+            sys.stdout.buffer.write(encoded + b"\n")
+            sys.stdout.buffer.flush()
         return
 
     console.print(f"\n[bold]Target:[/bold] {result.target.url}")

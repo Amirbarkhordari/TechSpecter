@@ -608,7 +608,12 @@ _CONFIG_RULES: tuple[DetectionRule, ...] = (
         finding_type=FindingType.SENSITIVE_CONFIG,
         subtype="environment-config",
         pattern=re.compile(
-            r"(?:process\.env|import\.meta\.env|NODE_ENV|REACT_APP_)[^\s;]{0,80}",
+            r"(?:"
+            r"process\.env(?:\.[A-Za-z_][\w]*|\[['\"][^'\"]{1,64}['\"]\])"
+            r"|import\.meta\.env(?:\.[A-Za-z_][\w]*)?"
+            r"|REACT_APP_[A-Z0-9_]+\s*[:=]\s*['\"][^'\"]{0,120}['\"]"
+            r"|(?:NODE_ENV|APP_ENV)\s*[:=]\s*['\"][^'\"]{1,32}['\"]"
+            r")",
             re.I,
         ),
         severity=SeverityLevel.MEDIUM,

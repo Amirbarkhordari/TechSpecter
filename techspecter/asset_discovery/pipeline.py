@@ -6,6 +6,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from urllib.parse import urlparse
 
 from techspecter.asset_discovery.collector import AssetCollector, AssetCollectorConfig
 from techspecter.asset_discovery.discovery import AssetDiscoveryEngine
@@ -194,6 +195,9 @@ def _seed_javascript_index(
         if resource.inline or not resource.download_success:
             continue
         url = str(resource.url)
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            continue
         content = resource.content or ""
         key = inventory_key(url)
         if content:

@@ -94,6 +94,12 @@ def _references_from_javascript_index(index: object, *, base_url: str) -> list[A
             )
             continue
 
+        absolute_parent = _absolute_or_none(parent_url, base_url=base_url)
+        if absolute_parent is None:
+            logger.debug("Skipping non-absolute javascript index URL: %s", parent_url)
+            continue
+        parent_url = absolute_parent
+
         references.append(
             AssetReference(
                 url=parent_url,
@@ -105,16 +111,18 @@ def _references_from_javascript_index(index: object, *, base_url: str) -> list[A
             ),
         )
         if resource.metadata.source_map_url:
-            references.append(
-                AssetReference(
-                    url=resource.metadata.source_map_url,
-                    original_url=resource.metadata.source_map_url,
-                    category_hint=AssetCategory.MAP,
-                    source=AssetDiscoverySource.SOURCE_MAP,
-                    referenced_by=parent_url,
-                    detail="javascript-source-map",
-                ),
-            )
+            map_url = _absolute_or_none(resource.metadata.source_map_url, base_url=parent_url)
+            if map_url is not None:
+                references.append(
+                    AssetReference(
+                        url=map_url,
+                        original_url=resource.metadata.source_map_url,
+                        category_hint=AssetCategory.MAP,
+                        source=AssetDiscoverySource.SOURCE_MAP,
+                        referenced_by=parent_url,
+                        detail="javascript-source-map",
+                    ),
+                )
         references.extend(
             extract_javascript_references(
                 content,
@@ -139,9 +147,12 @@ def _references_from_metadata(
     for source_map in observation.sourcemap_references:
         if not source_map.url:
             continue
+        map_url = _absolute_or_none(source_map.url, base_url=base_url)
+        if map_url is None:
+            continue
         references.append(
             AssetReference(
-                url=source_map.url,
+                url=map_url,
                 original_url=source_map.url,
                 category_hint=AssetCategory.MAP,
                 source=AssetDiscoverySource.SOURCE_MAP,
@@ -154,9 +165,12 @@ def _references_from_metadata(
         script_url = worker.script_url
         if not script_url:
             continue
+        absolute = _absolute_or_none(script_url, base_url=base_url)
+        if absolute is None:
+            continue
         references.append(
             AssetReference(
-                url=script_url,
+                url=absolute,
                 original_url=script_url,
                 category_hint=AssetCategory.SERVICE_WORKER,
                 source=AssetDiscoverySource.SERVICE_WORKER,
@@ -197,9 +211,12 @@ def _reference_from_well_known(
             stripped = line.strip()
             if stripped.lower().startswith("sitemap:"):
                 sitemap_url = stripped.split(":", 1)[1].strip()
+                absolute = _absolute_or_none(sitemap_url, base_url=resource.url)
+                if absolute is None:
+                    continue
                 references.append(
                     AssetReference(
-                        url=sitemap_url,
+                        url=absolute,
                         original_url=sitemap_url,
                         category_hint=AssetCategory.XML,
                         source=AssetDiscoverySource.SITEMAP,
@@ -218,6 +235,26 @@ def _reference_from_well_known(
         )
 
     return references
+
+
+def _absolute_or_none(url: str, *, base_url: str) -> str | None:
+    """Resolve *url* against *base_url* and return only downloadable http(s) URLs."""
+    from urllib.parse import urlparse
+
+    candidate = (url or "").strip()
+    if not candidate or candidate.startswith(("data:", "blob:", "javascript:")):
+        return None
+    try:
+        if candidate.startswith(("http://", "https://")):
+            absolute = candidate
+        else:
+            absolute = resolve_url(base_url, candidate)
+    except Exception:
+        return None
+    parsed = urlparse(absolute)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return absolute
 
 
 def _category_from_well_known(resource_type: str) -> AssetCategory:

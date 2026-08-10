@@ -180,6 +180,56 @@ async def test_dns_failure_is_recorded_and_scan_continues() -> None:
 
 
 @pytest.mark.asyncio
+async def test_relative_asset_urls_are_skipped_without_crash() -> None:
+    """Schemeless relative URLs must be skipped, not crash httpx/urllib."""
+    builder = AssetInventoryBuilder()
+    builder.add_reference(_reference("/_next/static/chunks/37s89-sr5-ttw.js"))
+    builder.add_reference(_reference("https://example.com/ok.js"))
+    client = MagicMock(spec=AsyncHttpClient)
+    client.get = AsyncMock(
+        return_value=_mock_response("https://example.com/ok.js", text="console.log(1)"),
+    )
+    collector = AssetCollector(client=client)
+
+    await collector.enrich_inventory(builder)
+
+    inventory = builder.build(target_url="https://example.com/")
+    by_url = {asset.url: asset for asset in inventory.assets}
+    relative = by_url["/_next/static/chunks/37s89-sr5-ttw.js"]
+    assert relative.download_status == AssetDownloadStatus.SKIPPED
+    assert "non-absolute" in (relative.error_message or "").lower()
+    assert by_url["https://example.com/ok.js"].download_status == AssetDownloadStatus.DOWNLOADED
+    assert client.get.await_count == 1
+
+
+def test_javascript_index_source_map_resolved_to_absolute() -> None:
+    """Relative sourceMappingURL from JS index must resolve against the script URL."""
+    from techspecter.asset_discovery.discovery import _references_from_javascript_index
+    from techspecter.javascript.index.javascript_index import JavaScriptIndex
+    from techspecter.javascript.models import IndexedJavaScriptResource, JavaScriptResourceMetadata
+
+    index = JavaScriptIndex()
+    index.add(
+        IndexedJavaScriptResource(
+            resource_id="app-js",
+            url="https://example.com/_next/static/chunks/app.js",
+            original_url="/_next/static/chunks/app.js",
+            content="console.log(1);",
+            normalized_content="console.log(1);",
+            download_success=True,
+            metadata=JavaScriptResourceMetadata(
+                filename="app.js",
+                content_hash="abc",
+                source_map_url="app.js.map",
+            ),
+        ),
+    )
+    refs = _references_from_javascript_index(index, base_url="https://example.com/")
+    map_urls = [ref.url for ref in refs if ref.category_hint == AssetCategory.MAP]
+    assert map_urls == ["https://example.com/_next/static/chunks/app.js.map"]
+
+
+@pytest.mark.asyncio
 async def test_non_text_media_assets_are_skipped_without_download() -> None:
     """Binary/media assets must not be downloaded for technology evidence."""
     builder = AssetInventoryBuilder()
