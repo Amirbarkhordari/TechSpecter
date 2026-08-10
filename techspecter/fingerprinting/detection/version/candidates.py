@@ -11,7 +11,14 @@ from techspecter.fingerprinting.detection.version.priorities import (
 )
 from techspecter.fingerprinting.evidence.models import Evidence, EvidenceType
 from techspecter.fingerprinting.signatures.models import TechnologySignature
-from techspecter.versioning.ownership import version_evidence_relevant
+from techspecter.versioning.attribution import confirm_or_keep_candidate
+from techspecter.versioning.models import VersionAttributionState, VersionOwnershipClass
+from techspecter.versioning.ownership import (
+    VersionOwnershipAssessment,
+    classify_version_evidence_ownership,
+    ownership_supports_confirmation,
+    version_evidence_relevant,
+)
 from techspecter.versioning.validator import validate_and_normalize
 
 _VERSION_RE = re.compile(r"^\d{1,4}(?:\.\d{1,4}){0,3}(?:[-+][\w.-]+)?$")
@@ -22,7 +29,7 @@ _PACKAGE_VERSION_PATH = re.compile(
 
 @dataclass(frozen=True, slots=True)
 class VersionCandidate:
-    """A single version observation linked to provenance."""
+    """A single version observation linked to provenance and ownership."""
 
     version: str
     source: str
@@ -32,6 +39,18 @@ class VersionCandidate:
     resource: str | None = None
     extractor_id: str | None = None
     metadata: dict[str, object] = field(default_factory=dict)
+    source_url: str | None = None
+    source_file: str | None = None
+    asset_id: str | None = None
+    evidence_type: str | None = None
+    matched_pattern: str | None = None
+    matched_value: str | None = None
+    ownership_class: VersionOwnershipClass = VersionOwnershipClass.UNKNOWN
+    ownership_confidence: float = 0.0
+    ownership_basis: str | None = None
+    version_confidence: float = 0.0
+    technology_confidence: float | None = None
+    attribution_state: VersionAttributionState = VersionAttributionState.CANDIDATE
 
 
 @dataclass(slots=True)
@@ -45,6 +64,7 @@ class VersionCandidateCollector:
         evidence_items: tuple[Evidence, ...],
         matched_evidence_ids: frozenset[str] | None = None,
         matched_resources: frozenset[str] | None = None,
+        technology_confidence: float | None = None,
     ) -> tuple[VersionCandidate, ...]:
         """Gather all version candidates without filtering by selection."""
         candidates: list[VersionCandidate] = []
@@ -59,6 +79,7 @@ class VersionCandidateCollector:
                 candidates,
                 seen,
                 matched_evidence_ids=owned_evidence_ids,
+                technology_confidence=technology_confidence,
             )
 
         for spec in signature.version_extractors:
@@ -77,6 +98,8 @@ class VersionCandidateCollector:
                     item,
                     candidates,
                     seen,
+                    matched_evidence_ids=owned_evidence_ids,
+                    technology_confidence=technology_confidence,
                 )
 
         return tuple(candidates)
@@ -89,8 +112,14 @@ class VersionCandidateCollector:
         seen: set[tuple[str, str, str | None]],
         *,
         matched_evidence_ids: frozenset[str],
+        technology_confidence: float | None,
     ) -> None:
         """Extract version candidates from a single evidence item."""
+        assessment = classify_version_evidence_ownership(
+            signature.id,
+            item,
+            matched_evidence_ids=matched_evidence_ids,
+        )
         if not version_evidence_relevant(
             signature.id,
             item,
@@ -112,6 +141,13 @@ class VersionCandidateCollector:
                 source=source,
                 evidence_id=item.id,
                 resource=item.url or item.file,
+                source_url=item.url,
+                source_file=item.file,
+                evidence_type=item.evidence_type.value,
+                matched_pattern=item.matched_pattern,
+                matched_value=metadata_version,
+                assessment=assessment,
+                technology_confidence=technology_confidence,
                 metadata={"origin": "metadata.version"},
             )
 
@@ -128,6 +164,13 @@ class VersionCandidateCollector:
                 source=source,
                 evidence_id=item.id,
                 resource=item.url or item.file,
+                source_url=item.url,
+                source_file=item.file,
+                evidence_type=item.evidence_type.value,
+                matched_pattern=item.matched_pattern,
+                matched_value=value,
+                assessment=assessment,
+                technology_confidence=technology_confidence,
                 metadata={"origin": "version_candidate"},
             )
             return
@@ -141,6 +184,13 @@ class VersionCandidateCollector:
                 source="package",
                 evidence_id=item.id,
                 resource=item.url or item.file,
+                source_url=item.url,
+                source_file=item.file,
+                evidence_type=item.evidence_type.value,
+                matched_pattern=_PACKAGE_VERSION_PATH.pattern,
+                matched_value=match.group(0),
+                assessment=assessment,
+                technology_confidence=technology_confidence,
                 metadata={"origin": "package_path"},
             )
 
@@ -158,6 +208,11 @@ class VersionCandidateCollector:
                 source=source,
                 evidence_id=item.id,
                 resource=item.url or item.file,
+                source_url=item.url,
+                source_file=item.file,
+                evidence_type=item.evidence_type.value,
+                assessment=assessment,
+                technology_confidence=technology_confidence,
                 candidates=candidates,
                 seen=seen,
             )
@@ -169,12 +224,20 @@ class VersionCandidateCollector:
         item: Evidence,
         candidates: list[VersionCandidate],
         seen: set[tuple[str, str, str | None]],
+        *,
+        matched_evidence_ids: frozenset[str],
+        technology_confidence: float | None,
     ) -> None:
         """Apply signature version extractors to evidence haystacks."""
         from techspecter.fingerprinting.signatures.models import VersionExtractorSpec
 
         if not isinstance(spec, VersionExtractorSpec):
             return
+        assessment = classify_version_evidence_ownership(
+            signature.id,
+            item,
+            matched_evidence_ids=matched_evidence_ids,
+        )
         haystack = (item.matched_value or "") + " " + str(item.metadata)
         for match in re.finditer(spec.pattern, haystack, re.IGNORECASE):
             version = match.group(1) if match.lastindex else match.group(0)
@@ -188,6 +251,13 @@ class VersionCandidateCollector:
                 priority_override=priority,
                 evidence_id=item.id,
                 resource=item.url or item.file,
+                source_url=item.url,
+                source_file=item.file,
+                evidence_type=item.evidence_type.value,
+                matched_pattern=spec.pattern,
+                matched_value=match.group(0),
+                assessment=assessment,
+                technology_confidence=technology_confidence,
                 extractor_id=spec.id,
                 metadata={"pattern": spec.pattern},
             )
@@ -200,6 +270,11 @@ class VersionCandidateCollector:
         source: str,
         evidence_id: str,
         resource: str | None,
+        source_url: str | None,
+        source_file: str | None,
+        evidence_type: str,
+        assessment: VersionOwnershipAssessment,
+        technology_confidence: float | None,
         candidates: list[VersionCandidate],
         seen: set[tuple[str, str, str | None]],
     ) -> None:
@@ -221,6 +296,13 @@ class VersionCandidateCollector:
                 priority_override=priority,
                 evidence_id=evidence_id,
                 resource=resource,
+                source_url=source_url,
+                source_file=source_file,
+                evidence_type=evidence_type,
+                matched_pattern=spec.pattern,
+                matched_value=match.group(0),
+                assessment=assessment,
+                technology_confidence=technology_confidence,
                 extractor_id=spec.id,
                 metadata={"embedded": True},
             )
@@ -235,11 +317,18 @@ class VersionCandidateCollector:
         source: str,
         evidence_id: str | None = None,
         resource: str | None = None,
+        source_url: str | None = None,
+        source_file: str | None = None,
+        evidence_type: str | None = None,
+        matched_pattern: str | None = None,
+        matched_value: str | None = None,
+        assessment: VersionOwnershipAssessment | None = None,
+        technology_confidence: float | None = None,
         extractor_id: str | None = None,
         priority_override: float | None = None,
         metadata: dict[str, object] | None = None,
     ) -> None:
-        """Normalize and store a version candidate."""
+        """Normalize and store a version candidate with ownership provenance."""
         normalized = normalize_version(version)
         if normalized is None:
             return
@@ -250,6 +339,21 @@ class VersionCandidateCollector:
         priority = (
             priority_override if priority_override is not None else priority_for_source(source)
         )
+        ownership = assessment or VersionOwnershipAssessment(
+            technology_id=technology_id,
+            ownership_class=VersionOwnershipClass.UNKNOWN,
+            ownership_confidence=0.0,
+            reason="Missing ownership assessment",
+            basis="none",
+        )
+        version_confidence = min(100.0, max(0.0, priority))
+        state = confirm_or_keep_candidate(
+            ownership,
+            version_confidence=version_confidence,
+        )
+        # Collection never auto-confirms; confirmation happens at resolution.
+        if state == VersionAttributionState.CONFIRMED:
+            state = VersionAttributionState.CANDIDATE
         candidates.append(
             VersionCandidate(
                 version=normalized,
@@ -260,6 +364,17 @@ class VersionCandidateCollector:
                 resource=resource,
                 extractor_id=extractor_id,
                 metadata=dict(metadata or {}),
+                source_url=source_url,
+                source_file=source_file,
+                evidence_type=evidence_type,
+                matched_pattern=matched_pattern,
+                matched_value=matched_value or normalized,
+                ownership_class=ownership.ownership_class,
+                ownership_confidence=ownership.ownership_confidence,
+                ownership_basis=ownership.basis,
+                version_confidence=version_confidence,
+                technology_confidence=technology_confidence,
+                attribution_state=state,
             ),
         )
 
@@ -267,3 +382,15 @@ class VersionCandidateCollector:
 def normalize_version(raw: str) -> str | None:
     """Normalize and validate a version string."""
     return validate_and_normalize(raw)
+
+
+def candidate_supports_confirmation(candidate: VersionCandidate) -> bool:
+    """Return True when a collected candidate has enough ownership to confirm."""
+    assessment = VersionOwnershipAssessment(
+        technology_id=candidate.technology_id or "",
+        ownership_class=candidate.ownership_class,
+        ownership_confidence=candidate.ownership_confidence,
+        reason="candidate",
+        basis=candidate.ownership_basis or "none",
+    )
+    return ownership_supports_confirmation(assessment)

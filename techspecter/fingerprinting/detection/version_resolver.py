@@ -9,6 +9,7 @@ from techspecter.fingerprinting.detection.models import RuleMatch, VersionResolu
 from techspecter.fingerprinting.detection.version.candidates import (
     VersionCandidate,
     VersionCandidateCollector,
+    candidate_supports_confirmation,
     normalize_version,
 )
 from techspecter.fingerprinting.detection.version.priorities import priority_for_source
@@ -16,6 +17,7 @@ from techspecter.fingerprinting.detection.weights import ScoringWeights
 from techspecter.fingerprinting.evidence.models import Evidence
 from techspecter.fingerprinting.models import UNKNOWN_VERSION
 from techspecter.fingerprinting.signatures.models import TechnologySignature
+from techspecter.versioning.models import VersionAttributionState
 from techspecter.versioning.validator import is_valid_version
 
 
@@ -32,6 +34,7 @@ class VersionResolutionEngine:
         *,
         evidence_items: tuple[Evidence, ...],
         matched_rules: tuple[RuleMatch, ...],
+        technology_confidence: float | None = None,
     ) -> VersionResolution:
         """Select the best supported version for a technology."""
         resources = frozenset(
@@ -46,6 +49,7 @@ class VersionResolutionEngine:
             evidence_items=evidence_items,
             matched_evidence_ids=matched_evidence_ids,
             matched_resources=resources,
+            technology_confidence=technology_confidence,
         )
         if not candidates:
             return VersionResolution(
@@ -53,6 +57,8 @@ class VersionResolutionEngine:
                 confidence=0.0,
                 source="none",
                 reason="No version candidates matched technology context",
+                attribution_state=VersionAttributionState.CANDIDATE.value,
+                technology_confidence=technology_confidence,
             )
 
         ranked = self._rank_candidates(candidates)
@@ -64,10 +70,42 @@ class VersionResolutionEngine:
                 reason="All version candidates were invalid or placeholder values",
                 rejected_candidates=tuple(sorted({item.version for item in candidates})),
                 candidate_count=len(candidates),
+                attribution_state=VersionAttributionState.REJECTED.value,
+                candidates=candidates,
+                technology_confidence=technology_confidence,
             )
-        best = ranked[0]
+
+        confirmable = [item for item in ranked if candidate_supports_confirmation(item)]
+        if not confirmable:
+            best_weak = ranked[0]
+            return VersionResolution(
+                version=UNKNOWN_VERSION,
+                confidence=0.0,
+                source=best_weak.source,
+                reason=(
+                    "Version evidence retained as candidate-only; "
+                    "ownership is insufficient for confirmation "
+                    f"(class={best_weak.ownership_class.value}, "
+                    f"ownership_confidence={best_weak.ownership_confidence:.0f})"
+                ),
+                rejected_candidates=tuple(
+                    sorted({item.version for item in ranked if item.version != best_weak.version}),
+                ),
+                candidate_count=len(candidates),
+                evidence_ids=tuple(
+                    sorted({item.evidence_id for item in candidates if item.evidence_id}),
+                ),
+                attribution_state=VersionAttributionState.CANDIDATE.value,
+                ownership_class=best_weak.ownership_class.value,
+                ownership_confidence=best_weak.ownership_confidence,
+                version_confidence=best_weak.version_confidence,
+                technology_confidence=technology_confidence,
+                candidates=candidates,
+            )
+
+        best = confirmable[0]
         rejected = tuple(
-            sorted({item.version for item in ranked[1:] if item.version != best.version}),
+            sorted({item.version for item in ranked if item.version != best.version}),
         )
         agreement = self._agreement_score(ranked, best.version)
         confidence = self._version_confidence(best, agreement, rejected)
@@ -83,6 +121,12 @@ class VersionResolutionEngine:
                 sorted({item.evidence_id for item in candidates if item.evidence_id}),
             ),
             winning_candidate=best.version,
+            attribution_state=VersionAttributionState.CONFIRMED.value,
+            ownership_class=best.ownership_class.value,
+            ownership_confidence=best.ownership_confidence,
+            version_confidence=round(confidence, 1),
+            technology_confidence=technology_confidence,
+            candidates=candidates,
         )
 
     def _rank_candidates(self, candidates: tuple[VersionCandidate, ...]) -> list[VersionCandidate]:
@@ -99,6 +143,7 @@ class VersionResolutionEngine:
                 score += 2.0
             if candidate.resource:
                 score += 1.0
+            score += candidate.ownership_confidence * 0.05
             scored.append((score, candidate))
         scored.sort(key=lambda item: (-item[0], -priority_for_source(item[1].source)))
         return [item[1] for item in scored]
@@ -135,7 +180,10 @@ class VersionResolutionEngine:
         rejected: tuple[str, ...],
     ) -> str:
         """Build human-readable version selection reason."""
-        parts = [f"Highest-ranked candidate from {best.source} (priority {best.priority:.0f})"]
+        parts = [
+            f"Highest-ranked owned candidate from {best.source} "
+            f"(priority {best.priority:.0f}, ownership {best.ownership_confidence:.0f})",
+        ]
         if agreement > 1:
             parts.append(f"{agreement} independent sources agree")
         if rejected:
@@ -162,6 +210,11 @@ def resolve_cross_file_versions(
                 rejected_candidates=(resolution.version, *resolution.rejected_candidates),
                 candidate_count=resolution.candidate_count,
                 evidence_ids=resolution.evidence_ids,
+                attribution_state=VersionAttributionState.REJECTED.value,
+                ownership_class=resolution.ownership_class,
+                ownership_confidence=resolution.ownership_confidence,
+                technology_confidence=resolution.technology_confidence,
+                candidates=resolution.candidates,
             )
             continue
         if normalized != resolution.version:
@@ -174,6 +227,12 @@ def resolve_cross_file_versions(
                 candidate_count=resolution.candidate_count,
                 evidence_ids=resolution.evidence_ids,
                 winning_candidate=normalized,
+                attribution_state=resolution.attribution_state,
+                ownership_class=resolution.ownership_class,
+                ownership_confidence=resolution.ownership_confidence,
+                version_confidence=resolution.version_confidence,
+                technology_confidence=resolution.technology_confidence,
+                candidates=resolution.candidates,
             )
             continue
         merged[tech_id] = resolution

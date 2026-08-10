@@ -59,7 +59,7 @@ class ScoringBreakdown:
 
 @dataclass(frozen=True, slots=True)
 class VersionResolution:
-    """Resolved version with provenance."""
+    """Resolved version with provenance and attribution state."""
 
     version: str
     confidence: float
@@ -69,6 +69,12 @@ class VersionResolution:
     candidate_count: int = 0
     evidence_ids: tuple[str, ...] = field(default_factory=tuple)
     winning_candidate: str | None = None
+    attribution_state: str = "candidate"
+    ownership_class: str | None = None
+    ownership_confidence: float = 0.0
+    version_confidence: float = 0.0
+    technology_confidence: float | None = None
+    candidates: tuple[object, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True, slots=True)

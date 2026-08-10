@@ -4,6 +4,40 @@ Phase 6 adds a dedicated **JavaScript Version Detection Engine** that extracts r
 
 Everything remains **passive** — no CVE lookup, vulnerability scanning, or active probing.
 
+## Conceptual separation (Phase 6 Step 1)
+
+`
+Technology Detection
+        ≠
+Version Evidence
+        ≠
+Version Candidate
+        ≠
+Version Confirmation
+        ≠
+Final Technology Version
+`
+
+Finding a version string inside an asset does **not** mean every technology detected in that asset owns that version.
+
+| Concept | Meaning |
+|---------|---------|
+| Technology Detection | Evidence that a technology is present |
+| Version Evidence | A version string observation with provenance |
+| Version Candidate | Technology-scoped version observation pending ownership confirmation |
+| Version Confirmation | Ownership-gated promotion of a candidate to a confirmed version |
+| Final Technology Version | Confirmed version attached to a technology match (or Unknown) |
+
+Independent confidence axes:
+
+- **Technology confidence** — strength of technology detection
+- **Version confidence** — strength of the version observation
+- **Ownership confidence** — strength of technology-scoped attribution
+
+A technology may be confirmed at confidence 100 with version Unknown. Weak/reference evidence may remain **candidate-only** without becoming a final version.
+
+Ownership is always technology-scoped. Shared assets do **not** imply shared version ownership. Full multi-version conflict resolution is deferred to Phase 6 Step 2.
+
 ## Pipeline
 
 ```
@@ -23,7 +57,9 @@ Integration point: `FingerprintPipeline.run()` calls `VersionDetectionEngine.enr
 ```
 techspecter/versioning/
 ├── engine.py          # VersionDetectionEngine
-├── models.py          # ExtractedVersion, VersionEvidence, TechnologyVersionResult
+├── models.py          # Evidence types, results, ownership/state enums
+├── ownership.py       # Technology-scoped ownership classification
+├── attribution.py     # Candidate vs confirmed confirmation helpers
 ├── registry.py        # VersionExtractorRegistry
 ├── extractor.py       # TechnologyVersionExtractor protocol
 ├── validator.py       # Semver validation and normalization
@@ -129,6 +165,8 @@ Version provenance appears in:
 - Generic semver literals without technology context are not used (avoids false positives).
 - Technologies without a dedicated extractor still rely on legacy `VersionExtractor` / JSON patterns.
 - Highly obfuscated bundles may hide runtime constants.
+- Primary/alternate version ranking and full cross-asset conflict resolution are **not** complete (Phase 6 Step 2).
+- This foundation does not claim universal version attribution.
 
 ## Developer API
 

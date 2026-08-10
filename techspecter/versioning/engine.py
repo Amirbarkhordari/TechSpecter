@@ -7,7 +7,12 @@ from dataclasses import dataclass, field
 
 from techspecter.fingerprinting.models import UNKNOWN_VERSION, DetectionResult, TechnologyMatch
 from techspecter.models.discovery import DiscoveryResult
-from techspecter.versioning.models import ExtractedVersion, TechnologyVersionResult
+from techspecter.versioning.models import (
+    ExtractedVersion,
+    TechnologyVersionResult,
+    VersionAttributionState,
+    VersionOwnershipClass,
+)
 from techspecter.versioning.registry import VersionExtractorRegistry
 from techspecter.versioning.validator import is_valid_version
 
@@ -176,6 +181,10 @@ class VersionDetectionEngine:
             evidence=best.evidence,
             candidates_considered=len(candidates),
             rejected_candidates=rejected,
+            attribution_state=VersionAttributionState.CONFIRMED,
+            ownership_confidence=95.0,
+            ownership_class=VersionOwnershipClass.OWNED,
+            version_confidence=best.confidence,
         )
 
     def _resolve_match_version(
