@@ -9,6 +9,7 @@ from techspecter.fingerprinting.models import UNKNOWN_VERSION, DetectionResult, 
 from techspecter.models.discovery import DiscoveryResult
 from techspecter.versioning.models import ExtractedVersion, TechnologyVersionResult
 from techspecter.versioning.registry import VersionExtractorRegistry
+from techspecter.versioning.validator import is_valid_version
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,13 @@ class VersionDetectionEngine:
                 "Version detection skipped for %s: no javascript content available",
                 detection.target_url,
             )
-            return detection
+            return DetectionResult(
+                target_url=detection.target_url,
+                matches=[_sanitize_match_version(match) for match in detection.matches],
+                ignored_matches=detection.ignored_matches,
+                scripts_analyzed=detection.scripts_analyzed,
+                elapsed_ms=detection.elapsed_ms,
+            )
 
         enriched_matches: list[TechnologyMatch] = []
         resolved = 0
@@ -133,9 +140,20 @@ class VersionDetectionEngine:
             )
             return None
 
-        candidates.sort(key=lambda item: (-item.confidence, item.version))
-        best = candidates[0]
-        rejected = sorted({item.version for item in candidates[1:] if item.version != best.version})
+        valid_candidates = [item for item in candidates if is_valid_version(item.version)]
+        if not valid_candidates:
+            logger.debug(
+                "Version detection extractor=%s found only invalid candidates for technology=%s",
+                extractor.technology_id,
+                technology_id,
+            )
+            return None
+
+        valid_candidates.sort(key=lambda item: (-item.confidence, item.version))
+        best = valid_candidates[0]
+        rejected = sorted(
+            {item.version for item in valid_candidates[1:] if item.version != best.version},
+        )
 
         logger.debug(
             "Version detection selected version=%s for technology=%s via %s "
@@ -166,6 +184,7 @@ class VersionDetectionEngine:
         resources: list[JavaScriptResourceContent],
     ) -> TechnologyMatch:
         """Resolve version for a single technology match."""
+        match = _sanitize_match_version(match)
         existing_confidence = match.version_confidence or 0.0
         has_known_version = match.version not in (UNKNOWN_VERSION, "", None)
 
@@ -268,3 +287,26 @@ def collect_javascript_resources(
 ) -> list[JavaScriptResourceContent]:
     """Collect JavaScript resources from a discovery result."""
     return _collect_resources(discovery)
+
+
+def _sanitize_match_version(match: TechnologyMatch) -> TechnologyMatch:
+    """Drop invalid placeholder versions while preserving technology detection."""
+    if match.version in (UNKNOWN_VERSION, "", None):
+        return match
+    if is_valid_version(match.version):
+        return match
+    rejected = sorted({match.version, *match.rejected_version_candidates})
+    logger.debug(
+        "Version detection rejected invalid version for %s: %s",
+        match.technology.id,
+        match.version,
+    )
+    return match.model_copy(
+        update={
+            "version": UNKNOWN_VERSION,
+            "version_source": None,
+            "version_reason": "Rejected invalid or placeholder version candidate",
+            "version_confidence": None,
+            "rejected_version_candidates": rejected,
+        },
+    )

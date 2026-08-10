@@ -50,6 +50,9 @@ def test_validate_rejects_invalid_versions() -> None:
     assert validate_and_normalize("") is None
     assert validate_and_normalize("not-a-version") is None
     assert validate_and_normalize("1") is None
+    assert validate_and_normalize("0.0.0") is None
+    assert validate_and_normalize("0.0") is None
+    assert validate_and_normalize("0") is None
     assert is_valid_version("abc.def.ghi") is False
 
 

@@ -16,6 +16,7 @@ from techspecter.fingerprinting.detection.weights import ScoringWeights
 from techspecter.fingerprinting.evidence.models import Evidence
 from techspecter.fingerprinting.models import UNKNOWN_VERSION
 from techspecter.fingerprinting.signatures.models import TechnologySignature
+from techspecter.versioning.validator import is_valid_version
 
 
 @dataclass(slots=True)
@@ -53,6 +54,15 @@ class VersionResolutionEngine:
             )
 
         ranked = self._rank_candidates(candidates)
+        if not ranked:
+            return VersionResolution(
+                version=UNKNOWN_VERSION,
+                confidence=0.0,
+                source="none",
+                reason="All version candidates were invalid or placeholder values",
+                rejected_candidates=tuple(sorted({item.version for item in candidates})),
+                candidate_count=len(candidates),
+            )
         best = ranked[0]
         rejected = tuple(
             sorted({item.version for item in ranked[1:] if item.version != best.version}),
@@ -75,9 +85,12 @@ class VersionResolutionEngine:
 
     def _rank_candidates(self, candidates: tuple[VersionCandidate, ...]) -> list[VersionCandidate]:
         """Rank candidates by priority, agreement, and specificity."""
-        version_counts = Counter(item.version for item in candidates)
+        valid = [item for item in candidates if is_valid_version(item.version)]
+        if not valid:
+            return []
+        version_counts = Counter(item.version for item in valid)
         scored: list[tuple[float, VersionCandidate]] = []
-        for candidate in candidates:
+        for candidate in valid:
             score = candidate.priority
             score += min(15.0, (version_counts[candidate.version] - 1) * 5.0)
             if candidate.extractor_id:

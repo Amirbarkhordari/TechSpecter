@@ -6,9 +6,9 @@ from dataclasses import dataclass, field
 
 from techspecter.fingerprinting.models import UNKNOWN_VERSION
 from techspecter.providers.models import ProviderMatch
+from techspecter.versioning.validator import validate_and_normalize
 
 _PROVIDER_PRIORITY: tuple[str, ...] = ("techspecter", "wappalyzer", "retirejs")
-_VERSION_RE = __import__("re").compile(r"^\d{1,4}(?:\.\d{1,4}){0,3}(?:[-+][\w.-]+)?$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,12 +78,9 @@ class ProviderVersionResolver:
 
     def _normalize_version(self, raw: str) -> str | None:
         """Validate and normalize a version string."""
-        value = raw.strip().lstrip("vV")
-        if not value or value == UNKNOWN_VERSION:
+        if raw.strip() == UNKNOWN_VERSION:
             return None
-        if not _VERSION_RE.match(value):
-            return None
-        return value
+        return validate_and_normalize(raw)
 
 
 def _provider_weight(provider: str) -> float:

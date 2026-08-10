@@ -11,6 +11,7 @@ from techspecter.fingerprinting.models import (
     PatternEvidence,
     TechnologyMatch,
 )
+from techspecter.versioning.validator import is_valid_version
 
 if TYPE_CHECKING:
     from techspecter.fingerprinting.context import MatchContext
@@ -173,7 +174,11 @@ def is_valid_detection_candidate(match: TechnologyMatch) -> bool:
 
 def select_best_version_match(matches: list[TechnologyMatch]) -> TechnologyMatch | None:
     """Select the match carrying the strongest known version attribution."""
-    known = [item for item in matches if item.version not in (UNKNOWN_VERSION, "", None)]
+    known = [
+        item
+        for item in matches
+        if item.version not in (UNKNOWN_VERSION, "", None) and is_valid_version(item.version)
+    ]
     if not known:
         return None
     return max(

@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 from techspecter.fingerprinting.context import MatchContext
 from techspecter.fingerprinting.models import UNKNOWN_VERSION, Fingerprint, VersionPattern
+from techspecter.versioning.validator import validate_and_normalize
 
 logger = logging.getLogger(__name__)
 
@@ -68,13 +69,16 @@ class VersionExtractor:
             return UNKNOWN_VERSION, None
 
         best = max(candidates, key=lambda item: (item.confidence, item.pattern.weight))
+        validated = validate_and_normalize(best.version)
+        if validated is None:
+            return UNKNOWN_VERSION, None
         logger.debug(
             "Extracted version '%s' for technology '%s' (source=%s)",
-            best.version,
+            validated,
             fingerprint.id,
             best.pattern.source or "inline",
         )
-        return best.version, best.pattern
+        return validated, best.pattern
 
     def _extract_candidate(
         self,

@@ -8,10 +8,9 @@ from typing import Any
 
 from techspecter.fingerprinting.models import UNKNOWN_VERSION
 from techspecter.providers.models import ProviderDetectionResult, ProviderMatch
+from techspecter.versioning.validator import is_valid_version as is_valid_technology_version
 
 logger = logging.getLogger(__name__)
-
-_VERSION_RE = __import__("re").compile(r"^\d{1,4}(?:\.\d{1,4}){0,3}(?:[-+][\w.-]+)?$")
 
 
 @dataclass(slots=True)
@@ -117,10 +116,9 @@ class ProviderOutputValidator:
 
     def is_valid_version(self, value: str) -> bool:
         """Return whether a version string is well-formed."""
-        cleaned = value.strip().lstrip("vV")
-        if not cleaned or cleaned == UNKNOWN_VERSION:
+        if not value or value.strip() == UNKNOWN_VERSION:
             return False
-        return bool(_VERSION_RE.match(cleaned))
+        return is_valid_technology_version(value)
 
     def _is_valid_version(self, value: str) -> bool:
         return self.is_valid_version(value)

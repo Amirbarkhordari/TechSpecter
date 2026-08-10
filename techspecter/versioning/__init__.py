@@ -10,6 +10,7 @@ from techspecter.versioning.models import (
 )
 from techspecter.versioning.registry import VersionExtractorRegistry
 from techspecter.versioning.validator import (
+    is_placeholder_version,
     is_valid_version,
     normalize_version,
     validate_and_normalize,
@@ -23,6 +24,7 @@ __all__ = [
     "VersionEvidence",
     "VersionEvidenceType",
     "VersionExtractorRegistry",
+    "is_placeholder_version",
     "is_valid_version",
     "normalize_version",
     "validate_and_normalize",

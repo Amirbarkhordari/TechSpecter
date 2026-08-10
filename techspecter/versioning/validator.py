@@ -17,10 +17,34 @@ def normalize_version(raw: str) -> str:
     return cleaned.strip()
 
 
-def is_valid_version(value: str) -> bool:
-    """Return whether a string is a valid semver-like version."""
+def is_placeholder_version(value: str) -> bool:
+    """Return True when a semver-like value is an obvious placeholder (e.g. 0.0.0)."""
     normalized = normalize_version(value)
     if not normalized:
+        return True
+    match = _SEMVER_RE.match(normalized)
+    if match is None:
+        return False
+    major = int(match.group(1))
+    if major != 0:
+        return False
+    minor = match.group(2)
+    if minor is None:
+        return True
+    if int(minor) != 0:
+        return False
+    patch = match.group(3)
+    if patch is None:
+        return True
+    return int(patch) == 0
+
+
+def is_valid_version(value: str) -> bool:
+    """Return whether a string is a valid semver-like technology version."""
+    normalized = normalize_version(value)
+    if not normalized:
+        return False
+    if is_placeholder_version(normalized):
         return False
     match = _SEMVER_RE.match(normalized)
     if match is None:

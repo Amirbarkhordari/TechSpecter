@@ -11,9 +11,9 @@ from techspecter.fingerprinting.detection.version.priorities import (
 )
 from techspecter.fingerprinting.evidence.models import Evidence, EvidenceType
 from techspecter.fingerprinting.signatures.models import TechnologySignature
+from techspecter.versioning.validator import validate_and_normalize
 
 _VERSION_RE = re.compile(r"^\d{1,4}(?:\.\d{1,4}){0,3}(?:[-+][\w.-]+)?$")
-_VERSION_PREFIX_RE = re.compile(r"^[vV]")
 _PACKAGE_VERSION_PATH = re.compile(
     r"node_modules/(?:@?[\w.-]+/[\w.-]+|@?[\w.-]+)@(\d{1,4}(?:\.\d{1,4}){0,3}(?:[-+][\w.-]+)?)"
 )
@@ -288,11 +288,7 @@ class VersionCandidateCollector:
 
 def normalize_version(raw: str) -> str | None:
     """Normalize and validate a version string."""
-    value = raw.strip()
-    value = _VERSION_PREFIX_RE.sub("", value)
-    if not value or not _VERSION_RE.match(value):
-        return None
-    return value
+    return validate_and_normalize(raw)
 
 
 def _technology_identifiers(signature: TechnologySignature) -> tuple[str, ...]:
