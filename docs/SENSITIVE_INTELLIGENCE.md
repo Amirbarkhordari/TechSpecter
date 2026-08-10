@@ -24,12 +24,37 @@ DiscoveryPipeline.run()
 `DetectorMatch` is **not** automatically a confirmed finding. Confirmation requires the
 candidate validation spine (`candidates/`).
 
+### Candidate validation spine
+
+| Module | Responsibility |
+|--------|----------------|
+| `candidates/models.py` | `SensitiveCandidate`, evidence enums, `ValueStrength`, `ContextKind` |
+| `candidates/builder.py` | `DetectorMatch` → candidate (+ credential name for future correlation) |
+| `candidates/context.py` | Static / runtime / empty / placeholder / docs / fixture / form context |
+| `candidates/value.py` | Empty / placeholder / weak / runtime / provider / realistic classification |
+| `candidates/placeholders.py` | Centralized placeholder normalization + detection |
+| `candidates/runtime.py` | Centralized runtime / self / empty / form / template detection |
+| `candidates/validator.py` | Confirmation policy + negative-evidence precedence |
+| `candidates/quality_gate.py` | Final confirm / reject / candidate-only gate |
+
+**Context signals** include static assignment, runtime references (`process.env`, `getToken()`),
+self-reference, empty/`null`/`undefined`, placeholders, documentation/example snippets,
+test fixtures, generated templates, and HTML form fields.
+
+**Value classification** distinguishes empty, placeholder, weak-generic, runtime, realistic,
+and structured/provider formats. Provider validators (JWT/PEM/AWS/GitHub) remain authoritative
+positive evidence (`PROVIDER_SPECIFIC_FORMAT`) and are stronger than entropy heuristics.
+
+**Negative evidence** (empty, placeholder, form, runtime, self-ref, template, …) is preserved on
+the candidate and blocks confirmation for generic keyword rules. Soft documentation/fixture
+noise does not blanket-suppress realistic or provider-validated secrets.
+
 ### Package layout
 
 | Module | Responsibility |
 |--------|----------------|
-| `models.py` | Finding types, categories, severity, confidence, evidence models |
-| `candidates/` | `SensitiveCandidate`, context/value analysis, validator, quality gate |
+| `models.py` | Finding types, categories, severity, confidence, report models |
+| `candidates/` | Candidate validation spine (see above) |
 | `rules/` | Extensible rule engine (`DetectionRule`, validators, catalog, `RuleEngine`) |
 | `javascript_intel.py` | Extract `window.__NEXT_DATA__`, `__INITIAL_STATE__`, `process.env`, etc. |
 | `correlator.py` | Correlate nearby username/password assignments (candidate evidence) |

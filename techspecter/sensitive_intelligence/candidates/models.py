@@ -22,10 +22,39 @@ class ValidationState(StrEnum):
     REJECTED = "rejected"
 
 
+class ValueStrength(StrEnum):
+    """Semantic strength of the analyzed sensitive value."""
+
+    EMPTY = "empty"
+    PLACEHOLDER = "placeholder"
+    WEAK = "weak"
+    RUNTIME = "runtime"
+    REALISTIC = "realistic"
+    STRUCTURED = "structured"
+    UNKNOWN = "unknown"
+
+
+class ContextKind(StrEnum):
+    """Primary context classification for a candidate."""
+
+    STATIC_ASSIGNMENT = "static_assignment"
+    RUNTIME_REFERENCE = "runtime_reference"
+    SELF_REFERENCE = "self_reference"
+    EMPTY_ASSIGNMENT = "empty_assignment"
+    PLACEHOLDER_ASSIGNMENT = "placeholder_assignment"
+    DOCUMENTATION = "documentation"
+    TEST_FIXTURE = "test_fixture"
+    GENERATED_TEMPLATE = "generated_template"
+    FORM_FIELD = "form_field"
+    CONFIGURATION = "configuration"
+    UNKNOWN = "unknown"
+
+
 class PositiveEvidence(StrEnum):
     """Signals that support confirmation of a sensitive candidate."""
 
     STATIC_LITERAL = "static_literal"
+    STATIC_ASSIGNMENT = "static_assignment"
     REALISTIC_SECRET_SHAPE = "realistic_secret_shape"
     HIGH_ENTROPY = "high_entropy"
     PROVIDER_SPECIFIC_FORMAT = "provider_specific_format"
@@ -43,6 +72,7 @@ class NegativeEvidence(StrEnum):
     WEAK_GENERIC_VALUE = "weak_generic_value"
     RUNTIME_REFERENCE = "runtime_reference"
     FORM_REFERENCE = "form_reference"
+    FORM_FIELD = "form_field"
     DOCUMENTATION_CONTEXT = "documentation_context"
     TEST_FIXTURE = "test_fixture"
     GENERATED_TEMPLATE = "generated_template"
@@ -66,6 +96,10 @@ class SensitiveCandidate:
     relative_path: str | None = None
     asset_id: str | None = None
     analysis_value: str | None = None
+    credential_name: str | None = None
+    credential_category: str | None = None
+    value_strength: ValueStrength = ValueStrength.UNKNOWN
+    context_kind: ContextKind = ContextKind.UNKNOWN
     original_confidence: float = 0.0
     original_severity: SeverityLevel = SeverityLevel.INFORMATIONAL
     adjusted_confidence: float = 0.0

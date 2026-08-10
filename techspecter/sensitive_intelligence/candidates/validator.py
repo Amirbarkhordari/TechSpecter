@@ -11,6 +11,7 @@ from techspecter.sensitive_intelligence.candidates.models import (
     PositiveEvidence,
     SensitiveCandidate,
     ValidationState,
+    ValueStrength,
 )
 from techspecter.sensitive_intelligence.candidates.quality_gate import SensitiveMatchQualityGate
 from techspecter.sensitive_intelligence.candidates.value import ValueAnalyzer, is_strong_secret_value
@@ -18,11 +19,13 @@ from techspecter.sensitive_intelligence.detectors.base import DetectorMatch
 from techspecter.sensitive_intelligence.models import FindingCategory, FindingType
 from techspecter.sensitive_intelligence.sources import TextAssetSource
 
+# Precedence: these negatives generally block confirmation for generic keyword rules.
 _HARD_REJECT = frozenset(
     {
         NegativeEvidence.EMPTY_VALUE,
         NegativeEvidence.PLACEHOLDER_VALUE,
         NegativeEvidence.FORM_REFERENCE,
+        NegativeEvidence.FORM_FIELD,
         NegativeEvidence.RUNTIME_REFERENCE,
         NegativeEvidence.HTML_ATTRIBUTE,
         NegativeEvidence.SELF_REFERENCE,
@@ -86,6 +89,13 @@ _ASSIGNMENT_RULES = frozenset(
     },
 )
 
+_STRUCTURED_POSITIVES = frozenset(
+    {
+        PositiveEvidence.PROVIDER_SPECIFIC_FORMAT,
+        PositiveEvidence.STRUCTURED_SECRET,
+    },
+)
+
 
 @dataclass(slots=True)
 class SensitiveCandidateValidator:
@@ -131,7 +141,6 @@ class SensitiveCandidateValidator:
             return
 
         if candidate.finding_type == FindingType.IP and candidate.subtype in {"ipv4", "ipv6"}:
-            # Generic IP detector: keep as candidate unless private-range config rule.
             candidate.validation_state = ValidationState.CANDIDATE_ONLY
             candidate.rejection_reason = "generic_ip_requires_sensitive_config_rule"
             return
@@ -140,6 +149,7 @@ class SensitiveCandidateValidator:
             NegativeEvidence.EMPTY_VALUE,
             NegativeEvidence.HTML_ATTRIBUTE,
             NegativeEvidence.SELF_REFERENCE,
+            NegativeEvidence.FORM_FIELD,
         }:
             candidate.validation_state = ValidationState.REJECTED
             candidate.rejection_reason = sorted(negatives & _HARD_REJECT)[0].value
@@ -151,20 +161,9 @@ class SensitiveCandidateValidator:
             self._policy_correlated(candidate)
             return
 
-        if rule_id in _STRUCTURED_RULES or PositiveEvidence.PROVIDER_SPECIFIC_FORMAT in positives:
-            blocking = {
-                NegativeEvidence.EMPTY_VALUE,
-                NegativeEvidence.FORM_REFERENCE,
-                NegativeEvidence.HTML_ATTRIBUTE,
-                NegativeEvidence.SELF_REFERENCE,
-                NegativeEvidence.GENERATED_TEMPLATE,
-            }
-            # Placeholder/runtime false positives must not suppress validated provider formats.
-            if negatives & blocking:
-                candidate.validation_state = ValidationState.REJECTED
-                candidate.rejection_reason = "structured_secret_negative_context"
-            else:
-                candidate.validation_state = ValidationState.CONFIRMED
+        has_structured = bool(positives & _STRUCTURED_POSITIVES) or rule_id in _STRUCTURED_RULES
+        if has_structured:
+            self._policy_structured(candidate)
             return
 
         if rule_id in _ASSIGNMENT_RULES or candidate.category in {
@@ -182,11 +181,56 @@ class SensitiveCandidateValidator:
 
         candidate.validation_state = ValidationState.CONFIRMED
 
+    def _policy_structured(self, candidate: SensitiveCandidate) -> None:
+        negatives = set(candidate.negative_evidence)
+        positives = set(candidate.positive_evidence)
+        blocking = {
+            NegativeEvidence.EMPTY_VALUE,
+            NegativeEvidence.FORM_REFERENCE,
+            NegativeEvidence.FORM_FIELD,
+            NegativeEvidence.HTML_ATTRIBUTE,
+            NegativeEvidence.SELF_REFERENCE,
+            NegativeEvidence.GENERATED_TEMPLATE,
+        }
+        # Provider/JWT/PEM formats remain authoritative over soft doc/test noise.
+        if negatives & blocking and not (positives & _STRUCTURED_POSITIVES):
+            candidate.validation_state = ValidationState.REJECTED
+            candidate.rejection_reason = "structured_secret_negative_context"
+            return
+        if negatives & blocking and positives & _STRUCTURED_POSITIVES:
+            # Empty/form/self shells still win even for structured rules.
+            if negatives & {
+                NegativeEvidence.EMPTY_VALUE,
+                NegativeEvidence.FORM_REFERENCE,
+                NegativeEvidence.FORM_FIELD,
+                NegativeEvidence.HTML_ATTRIBUTE,
+                NegativeEvidence.SELF_REFERENCE,
+                NegativeEvidence.GENERATED_TEMPLATE,
+            }:
+                candidate.validation_state = ValidationState.REJECTED
+                candidate.rejection_reason = "structured_secret_negative_context"
+                return
+        candidate.validation_state = ValidationState.CONFIRMED
+
     def _policy_assignment(self, candidate: SensitiveCandidate) -> None:
         negatives = set(candidate.negative_evidence)
         positives = set(candidate.positive_evidence)
 
         if negatives & _HARD_REJECT:
+            # Hard negatives win for generic keyword assignments unless a true provider format.
+            if positives & _STRUCTURED_POSITIVES and not (
+                negatives
+                & {
+                    NegativeEvidence.EMPTY_VALUE,
+                    NegativeEvidence.FORM_REFERENCE,
+                    NegativeEvidence.FORM_FIELD,
+                    NegativeEvidence.SELF_REFERENCE,
+                    NegativeEvidence.GENERATED_TEMPLATE,
+                    NegativeEvidence.HTML_ATTRIBUTE,
+                }
+            ):
+                candidate.validation_state = ValidationState.CONFIRMED
+                return
             candidate.validation_state = ValidationState.REJECTED
             candidate.rejection_reason = sorted(negatives & _HARD_REJECT)[0].value
             return
@@ -198,10 +242,35 @@ class SensitiveCandidateValidator:
             candidate.rejection_reason = "weak_generic_value"
             return
 
-        if NegativeEvidence.EXAMPLE_VALUE in negatives or NegativeEvidence.TEST_FIXTURE in negatives:
-            if PositiveEvidence.PROVIDER_SPECIFIC_FORMAT not in positives:
+        if NegativeEvidence.EXAMPLE_VALUE in negatives and PositiveEvidence.PROVIDER_SPECIFIC_FORMAT not in positives:
+            candidate.validation_state = ValidationState.REJECTED
+            candidate.rejection_reason = "example_value"
+            return
+
+        if NegativeEvidence.TEST_FIXTURE in negatives:
+            # Weak/placeholder fixtures are rejected above; realistic secrets in fixtures remain.
+            if candidate.value_strength in {
+                ValueStrength.PLACEHOLDER,
+                ValueStrength.WEAK,
+                ValueStrength.EMPTY,
+            }:
                 candidate.validation_state = ValidationState.REJECTED
-                candidate.rejection_reason = "example_or_test_context"
+                candidate.rejection_reason = "test_fixture_weak_value"
+                return
+
+        if NegativeEvidence.DOCUMENTATION_CONTEXT in negatives:
+            # Documentation with a realistic/static secret can still be a leak.
+            if not (
+                positives
+                & {
+                    PositiveEvidence.REALISTIC_SECRET_SHAPE,
+                    PositiveEvidence.PROVIDER_SPECIFIC_FORMAT,
+                    PositiveEvidence.STRUCTURED_SECRET,
+                    PositiveEvidence.HIGH_ENTROPY,
+                }
+            ):
+                candidate.validation_state = ValidationState.REJECTED
+                candidate.rejection_reason = "documentation_without_strong_value"
                 return
 
         if PositiveEvidence.REALISTIC_SECRET_SHAPE in positives or (
@@ -215,7 +284,6 @@ class SensitiveCandidateValidator:
             candidate.validation_state = ValidationState.CONFIRMED
             return
 
-        # Username alone without strong password-like value stays candidate-only.
         if candidate.subtype == "username-field":
             candidate.validation_state = ValidationState.CANDIDATE_ONLY
             candidate.rejection_reason = "username_without_strong_secret"
@@ -230,13 +298,11 @@ class SensitiveCandidateValidator:
             candidate.validation_state = ValidationState.REJECTED
             candidate.rejection_reason = "correlated_credentials_weak_values"
             return
-        # Username may be a common account name; password strength is decisive.
         if user is not None and not user.strip():
             candidate.validation_state = ValidationState.REJECTED
             candidate.rejection_reason = "correlated_credentials_weak_values"
             return
         _add_positive(candidate, PositiveEvidence.CREDENTIAL_PAIR)
-        # Drop username-only placeholder/weak signals so they do not hard-reject the pair.
         candidate.negative_evidence = [
             signal
             for signal in candidate.negative_evidence
@@ -247,6 +313,7 @@ class SensitiveCandidateValidator:
                 NegativeEvidence.EXAMPLE_VALUE,
             }
         ]
+        candidate.value_strength = ValueStrength.REALISTIC
         candidate.validation_state = ValidationState.CONFIRMED
 
 
