@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from techspecter.fingerprinting.detection.version.priorities import (
     priority_for_source,
@@ -11,15 +12,11 @@ from techspecter.fingerprinting.detection.version.priorities import (
 )
 from techspecter.fingerprinting.evidence.models import Evidence, EvidenceType
 from techspecter.fingerprinting.signatures.models import TechnologySignature
-from techspecter.versioning.attribution import confirm_or_keep_candidate
 from techspecter.versioning.models import VersionAttributionState, VersionOwnershipClass
-from techspecter.versioning.ownership import (
-    VersionOwnershipAssessment,
-    classify_version_evidence_ownership,
-    ownership_supports_confirmation,
-    version_evidence_relevant,
-)
 from techspecter.versioning.validator import validate_and_normalize
+
+if TYPE_CHECKING:
+    from techspecter.versioning.ownership import VersionOwnershipAssessment
 
 _VERSION_RE = re.compile(r"^\d{1,4}(?:\.\d{1,4}){0,3}(?:[-+][\w.-]+)?$")
 _PACKAGE_VERSION_PATH = re.compile(
@@ -67,6 +64,8 @@ class VersionCandidateCollector:
         technology_confidence: float | None = None,
     ) -> tuple[VersionCandidate, ...]:
         """Gather all version candidates without filtering by selection."""
+        from techspecter.versioning.ownership import version_evidence_relevant
+
         candidates: list[VersionCandidate] = []
         seen: set[tuple[str, str, str | None]] = set()
         _ = matched_resources
@@ -115,6 +114,11 @@ class VersionCandidateCollector:
         technology_confidence: float | None,
     ) -> None:
         """Extract version candidates from a single evidence item."""
+        from techspecter.versioning.ownership import (
+            classify_version_evidence_ownership,
+            version_evidence_relevant,
+        )
+
         assessment = classify_version_evidence_ownership(
             signature.id,
             item,
@@ -230,6 +234,7 @@ class VersionCandidateCollector:
     ) -> None:
         """Apply signature version extractors to evidence haystacks."""
         from techspecter.fingerprinting.signatures.models import VersionExtractorSpec
+        from techspecter.versioning.ownership import classify_version_evidence_ownership
 
         if not isinstance(spec, VersionExtractorSpec):
             return
@@ -329,6 +334,9 @@ class VersionCandidateCollector:
         metadata: dict[str, object] | None = None,
     ) -> None:
         """Normalize and store a version candidate with ownership provenance."""
+        from techspecter.versioning.attribution import confirm_or_keep_candidate
+        from techspecter.versioning.ownership import VersionOwnershipAssessment
+
         normalized = normalize_version(version)
         if normalized is None:
             return
@@ -386,6 +394,11 @@ def normalize_version(raw: str) -> str | None:
 
 def candidate_supports_confirmation(candidate: VersionCandidate) -> bool:
     """Return True when a collected candidate has enough ownership to confirm."""
+    from techspecter.versioning.ownership import (
+        VersionOwnershipAssessment,
+        ownership_supports_confirmation,
+    )
+
     assessment = VersionOwnershipAssessment(
         technology_id=candidate.technology_id or "",
         ownership_class=candidate.ownership_class,

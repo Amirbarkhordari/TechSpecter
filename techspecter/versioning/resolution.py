@@ -161,34 +161,43 @@ def resolve_primary_version(
     runner_up = strong[1] if len(strong) > 1 else None
 
     if runner_up is not None and (top.score - runner_up.score) < _STRONG_MARGIN:
-        alternates = tuple(group.version for group in strong)
-        return PrimaryVersionResolution(
-            primary_version=UNKNOWN_VERSION,
-            alternate_versions=alternates,
-            rejected_versions=tuple(
-                sorted({*invalid, *(group.version for group in weak)}),
-            ),
-            conflict_class=(
-                VersionConflictClass.AMBIGUOUS
-                if abs(top.score - runner_up.score) < (_STRONG_MARGIN / 2)
-                else VersionConflictClass.STRONG_CONFLICT
-            ),
-            attribution_state=VersionAttributionState.CANDIDATE,
-            confidence=0.0,
-            version_confidence=0.0,
-            ownership_confidence=max(top.ownership_confidence, runner_up.ownership_confidence),
-            ownership_class=top.best_candidate.ownership_class.value,
-            source=top.best_candidate.source,
-            reason=(
-                "Strong conflicting version evidence without a clear ownership/"
-                f"quality margin ({top.version} score={top.score:.1f} vs "
-                f"{runner_up.version} score={runner_up.score:.1f})"
-            ),
-            evidence_ids=_merge_evidence_ids(strong),
-            independent_source_count=max(top.independent_sources, runner_up.independent_sources),
-            candidate_count=len(candidate_tuple),
-            groups=tuple(groups),
-        )
+        strong_sources: set[str] = set()
+        for group in strong:
+            strong_sources.update(group.source_keys)
+        # Multiple methods in one asset are ranked by evidence quality, not treated
+        # as independent cross-asset conflicts.
+        if len(strong_sources) > 1:
+            alternates = tuple(group.version for group in strong)
+            return PrimaryVersionResolution(
+                primary_version=UNKNOWN_VERSION,
+                alternate_versions=alternates,
+                rejected_versions=tuple(
+                    sorted({*invalid, *(group.version for group in weak)}),
+                ),
+                conflict_class=(
+                    VersionConflictClass.AMBIGUOUS
+                    if abs(top.score - runner_up.score) < (_STRONG_MARGIN / 2)
+                    else VersionConflictClass.STRONG_CONFLICT
+                ),
+                attribution_state=VersionAttributionState.CANDIDATE,
+                confidence=0.0,
+                version_confidence=0.0,
+                ownership_confidence=max(top.ownership_confidence, runner_up.ownership_confidence),
+                ownership_class=top.best_candidate.ownership_class.value,
+                source=top.best_candidate.source,
+                reason=(
+                    "Strong conflicting version evidence without a clear ownership/"
+                    f"quality margin ({top.version} score={top.score:.1f} vs "
+                    f"{runner_up.version} score={runner_up.score:.1f})"
+                ),
+                evidence_ids=_merge_evidence_ids(strong),
+                independent_source_count=max(
+                    top.independent_sources,
+                    runner_up.independent_sources,
+                ),
+                candidate_count=len(candidate_tuple),
+                groups=tuple(groups),
+            )
 
     alternates = tuple(
         group.version
@@ -251,7 +260,7 @@ def _score_group(version: str, items: list[VersionCandidate]) -> VersionGroupSco
     ownership = max(item.ownership_confidence for item in ranked_items)
     confirmable = bool(confirmable_items)
 
-    score = priority_for_source(best.source) * 0.50
+    score = best.priority * 0.50
     score += ownership * 0.35
     if independent > 1:
         score += min(

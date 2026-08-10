@@ -113,3 +113,5 @@ class TechnologyVersionResult(TechSpecterModel):
     ownership_confidence: float = Field(default=95.0, ge=0.0, le=100.0)
     ownership_class: VersionOwnershipClass = VersionOwnershipClass.OWNED
     version_confidence: float | None = Field(default=None, ge=0.0, le=100.0)
+    alternate_versions: list[str] = Field(default_factory=list)
+    conflict_class: str | None = None

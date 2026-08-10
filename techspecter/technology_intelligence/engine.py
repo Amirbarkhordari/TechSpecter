@@ -70,6 +70,7 @@ class TechnologyIntelligenceEngine:
             version_result = self.version_engine.detect_for_technology(
                 match.technology.id,
                 resources_for_match(match, resources),
+                technology_confidence=match.confidence,
             )
             if version_result is not None:
                 evidence.extend(
@@ -79,16 +80,28 @@ class TechnologyIntelligenceEngine:
                         attributor=attributor,
                     ),
                 )
-            version_attr = build_version_attribution(
-                match,
-                version_result,
-                attributor=attributor,
-            )
-            resolved_version = (
-                version_attr.detected_version
-                if version_attr is not None
-                else match.version
-            )
+
+            # TechnologyMatch.version is the canonical authority when already resolved.
+            # JS extraction may fill gaps only; it must not independently override a
+            # confirmed match version.
+            if match.version not in ("Unknown", "", None):
+                version_attr = build_version_attribution(
+                    match,
+                    None,
+                    attributor=attributor,
+                )
+                resolved_version = match.version
+            else:
+                version_attr = build_version_attribution(
+                    match,
+                    version_result,
+                    attributor=attributor,
+                )
+                resolved_version = (
+                    version_attr.detected_version
+                    if version_attr is not None
+                    else match.version
+                )
 
             entry = self.correlation_engine.correlate(
                 match,

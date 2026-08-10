@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from techspecter.fingerprinting.evidence.models import Evidence, EvidenceType
 from techspecter.versioning.models import VersionOwnershipClass
+
+if TYPE_CHECKING:
+    from techspecter.fingerprinting.evidence.models import Evidence
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +35,8 @@ def version_evidence_relevant(
     matched_evidence_ids: frozenset[str],
 ) -> bool:
     """Return True when an evidence item may contribute a version for a technology."""
+    from techspecter.fingerprinting.evidence.models import EvidenceType
+
     assessment = classify_version_evidence_ownership(
         technology_id,
         item,
@@ -59,6 +64,8 @@ def classify_version_evidence_ownership(
 
     Ownership is technology-scoped. Shared assets do not imply shared ownership.
     """
+    from techspecter.fingerprinting.evidence.models import EvidenceType
+
     tech_id = technology_id.lower()
     matched_ids = matched_evidence_ids or frozenset()
 
@@ -128,8 +135,6 @@ def classify_version_evidence_ownership(
 
     value_hint = str(item.matched_value or "").strip().lower()
     if value_hint and any(token in value_hint for token in _package_tokens(tech_id)):
-        # Token presence in an arbitrary string is weak ownership — collectable but
-        # not automatically strong enough for confirmation.
         return VersionOwnershipAssessment(
             technology_id=technology_id,
             ownership_class=VersionOwnershipClass.OWNED,
@@ -154,6 +159,7 @@ def classify_version_evidence_ownership(
         reason="No technology-scoped ownership signals",
         basis="none",
     )
+
 
 def ownership_supports_confirmation(assessment: VersionOwnershipAssessment) -> bool:
     """Return True when ownership is strong enough to confirm a version."""

@@ -70,6 +70,32 @@ o_conflict, weak_alternate, strong_conflict, mbiguous, weak_only.
 
 Canonical API: 	echspecter.versioning.resolve_primary_version.
 
+
+## Canonical Resolution Across Paths (Phase 6 Step 3)
+
+`
+Extraction (JS extractors / evidence collectors)
+        ↓
+Version Evidence
+        ↓
+Version Candidate
+        ↓
+Ownership
+        ↓
+Canonical Resolution (resolve_primary_version)
+        ↓
+Primary Version + Alternate Versions
+        ↓
+TechnologyMatch
+        ↓
+Technology Intelligence / Reporting
+`
+
+- Extractors extract evidence; they do **not** own final version selection.
+- Evidence-path and JS-extractor-path candidates share the same candidate model and resolver.
+- Technology Intelligence consumes TechnologyMatch.version when already resolved and does not independently override it.
+- Live-target validation is separate from this architecture step.
+
 ## Pipeline
 
 ```

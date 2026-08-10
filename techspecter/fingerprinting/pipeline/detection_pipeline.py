@@ -12,7 +12,6 @@ from techspecter.fingerprinting.match_quality import apply_match_quality_gate
 from techspecter.fingerprinting.models import DetectionResult, TechnologyMatch
 from techspecter.fingerprinting.pipeline.analysis_contexts import iter_analysis_contexts
 from techspecter.models.discovery import DiscoveryResult
-from techspecter.versioning.engine import VersionDetectionEngine
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +25,11 @@ class FingerprintPipeline:
         *,
         signature_loader: SignatureLoader | None = None,
         merger: TechnologyMerger | None = None,
-        version_engine: VersionDetectionEngine | None = None,
+        version_engine: object | None = None,
     ) -> None:
         """Initialize the fingerprint pipeline."""
+        from techspecter.versioning.engine import VersionDetectionEngine
+
         self._signature_loader = signature_loader or SignatureLoader()
         self._engine = engine or FingerprintEngine(self._signature_loader.load_all())
         self._merger = merger or TechnologyMerger()

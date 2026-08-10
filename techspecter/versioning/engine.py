@@ -7,12 +7,11 @@ from dataclasses import dataclass, field
 
 from techspecter.fingerprinting.models import UNKNOWN_VERSION, DetectionResult, TechnologyMatch
 from techspecter.models.discovery import DiscoveryResult
-from techspecter.versioning.models import (
-    ExtractedVersion,
-    TechnologyVersionResult,
-    VersionAttributionState,
-    VersionOwnershipClass,
+from techspecter.versioning.adapters import (
+    resolve_extracted_versions,
+    technology_version_result_from_resolution,
 )
+from techspecter.versioning.models import TechnologyVersionResult
 from techspecter.versioning.registry import VersionExtractorRegistry
 from techspecter.versioning.validator import is_valid_version
 
@@ -30,7 +29,11 @@ class JavaScriptResourceContent:
 
 @dataclass(slots=True)
 class VersionDetectionEngine:
-    """Detect library/framework versions from discovered JavaScript resources."""
+    """Detect library/framework versions from discovered JavaScript resources.
+
+    Extractors only produce version evidence. Final primary/alternate selection is
+    always performed by the canonical ``resolve_primary_version`` path.
+    """
 
     registry: VersionExtractorRegistry = field(default_factory=VersionExtractorRegistry)
 
@@ -105,8 +108,10 @@ class VersionDetectionEngine:
         self,
         technology_id: str,
         resources: list[JavaScriptResourceContent],
+        *,
+        technology_confidence: float | None = None,
     ) -> TechnologyVersionResult | None:
-        """Detect the best version for one technology across resources."""
+        """Extract JS version evidence and resolve via the canonical resolver."""
         extractor = self.registry.get(technology_id)
         if extractor is None:
             logger.debug(
@@ -121,78 +126,69 @@ class VersionDetectionEngine:
             technology_id,
         )
 
-        candidates: list[ExtractedVersion] = []
+        extracted = []
         for resource in resources:
-            extracted = extractor.extract(
+            found = extractor.extract(
                 resource.content,
                 url=resource.url,
                 filename=resource.filename,
             )
-            if extracted:
+            if found:
                 logger.debug(
                     "Version detection extractor=%s found %d candidate(s) in %s",
                     extractor.technology_id,
-                    len(extracted),
+                    len(found),
                     resource.filename,
                 )
-            candidates.extend(extracted)
+                for item in found:
+                    extracted.append(
+                        item.model_copy(
+                            update={
+                                "technology_id": technology_id,
+                                "source_url": item.source_url or resource.url,
+                                "filename": item.filename or resource.filename,
+                            },
+                        ),
+                    )
 
-        if not candidates:
+        if not extracted:
             logger.debug(
-                "Version detection extractor=%s found no valid candidates for technology=%s",
+                "Version detection extractor=%s found no candidates for technology=%s",
                 extractor.technology_id,
                 technology_id,
             )
             return None
 
-        valid_candidates = [item for item in candidates if is_valid_version(item.version)]
-        if not valid_candidates:
-            logger.debug(
-                "Version detection extractor=%s found only invalid candidates for technology=%s",
-                extractor.technology_id,
-                technology_id,
-            )
-            return None
-
-        valid_candidates.sort(key=lambda item: (-item.confidence, item.version))
-        best = valid_candidates[0]
-        rejected = sorted(
-            {item.version for item in valid_candidates[1:] if item.version != best.version},
+        outcome = resolve_extracted_versions(
+            extracted,
+            technology_id=technology_id,
+            technology_confidence=technology_confidence,
         )
+        result = technology_version_result_from_resolution(
+            technology_id=extractor.technology_id,
+            extracted=extracted,
+            outcome=outcome,
+        )
+        if result is None:
+            return None
 
         logger.debug(
-            "Version detection selected version=%s for technology=%s via %s "
-            "(confidence=%.1f rejected=%s candidates=%d)",
-            best.version,
+            "Version detection canonically resolved technology=%s version=%s "
+            "(conflict=%s alternates=%s candidates=%d)",
             technology_id,
-            best.method.value,
-            best.confidence,
-            rejected,
-            len(candidates),
+            result.version,
+            result.conflict_class,
+            result.alternate_versions,
+            result.candidates_considered,
         )
-
-        return TechnologyVersionResult(
-            technology_id=extractor.technology_id,
-            version=best.version,
-            confidence=best.confidence,
-            confidence_level=best.confidence_level,
-            method=best.method,
-            reason=f"Selected via {best.method.value} ({best.confidence_level.value} confidence)",
-            evidence=best.evidence,
-            candidates_considered=len(candidates),
-            rejected_candidates=rejected,
-            attribution_state=VersionAttributionState.CONFIRMED,
-            ownership_confidence=95.0,
-            ownership_class=VersionOwnershipClass.OWNED,
-            version_confidence=best.confidence,
-        )
+        return result
 
     def _resolve_match_version(
         self,
         match: TechnologyMatch,
         resources: list[JavaScriptResourceContent],
     ) -> TechnologyMatch:
-        """Resolve version for a single technology match."""
+        """Resolve version for a single technology match via canonical resolution."""
         match = _sanitize_match_version(match)
         existing_confidence = match.version_confidence or 0.0
         has_known_version = match.version not in (UNKNOWN_VERSION, "", None)
@@ -209,9 +205,39 @@ class VersionDetectionEngine:
         result = self.detect_for_technology(
             match.technology.id,
             resources_for_match(match, resources),
+            technology_confidence=match.confidence,
         )
         if result is None:
             return match
+
+        if result.version in (UNKNOWN_VERSION, "", None):
+            if has_known_version:
+                return match.model_copy(
+                    update={
+                        "alternate_versions": sorted(
+                            {
+                                *match.alternate_versions,
+                                *result.alternate_versions,
+                            },
+                        ),
+                        "rejected_version_candidates": sorted(
+                            {
+                                *match.rejected_version_candidates,
+                                *result.rejected_candidates,
+                            },
+                        ),
+                    },
+                )
+            return match.model_copy(
+                update={
+                    "version": UNKNOWN_VERSION,
+                    "version_source": result.method.value,
+                    "version_reason": result.reason,
+                    "version_confidence": result.version_confidence or 0.0,
+                    "alternate_versions": list(result.alternate_versions),
+                    "rejected_version_candidates": list(result.rejected_candidates),
+                },
+            )
 
         if has_known_version and existing_confidence >= result.confidence:
             logger.debug(
@@ -219,7 +245,18 @@ class VersionDetectionEngine:
                 match.technology.id,
                 result.version,
             )
-            return match
+            return match.model_copy(
+                update={
+                    "alternate_versions": sorted(
+                        {
+                            *match.alternate_versions,
+                            *result.alternate_versions,
+                            result.version,
+                        }
+                        - {match.version},
+                    ),
+                },
+            )
 
         evidence_sources = list(match.evidence_sources)
         if result.method.value not in evidence_sources:
@@ -231,7 +268,8 @@ class VersionDetectionEngine:
                 "version_source": result.method.value,
                 "version_reason": result.reason,
                 "version_confidence": result.confidence,
-                "rejected_version_candidates": result.rejected_candidates,
+                "rejected_version_candidates": list(result.rejected_candidates),
+                "alternate_versions": list(result.alternate_versions),
                 "evidence_sources": evidence_sources,
             },
         )
