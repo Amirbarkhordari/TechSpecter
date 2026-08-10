@@ -61,7 +61,7 @@ class TechSpecterProvider(BaseDetectionProvider):
 
         try:
             pipeline = self.pipeline or FingerprintPipeline()
-            detection = pipeline.run(target.discovery)
+            detection = pipeline.run(target.discovery, apply_quality_gate=False)
             result = self.normalizer.from_techspecter(detection)
             validated = self.validator.validate_matches(result.matches, provider=self.provider_id)
             result = validated.apply_to_result(result)

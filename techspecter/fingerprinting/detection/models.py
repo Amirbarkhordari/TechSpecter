@@ -106,8 +106,33 @@ def technology_match_from_evaluation(
     evidence_sources = sorted(
         {match.evidence.source.value for match in evaluation.matched_rules},
     )
+    from techspecter.fingerprinting.match_attribution import apply_match_attribution
+    from techspecter.fingerprinting.models import PatternEvidence
 
-    return TechnologyMatch(
+    source_file = next(
+        (match.evidence.file for match in evaluation.matched_rules if match.evidence.file),
+        None,
+    )
+    source_url = next(
+        (match.evidence.url for match in evaluation.matched_rules if match.evidence.url),
+        None,
+    )
+    structured_evidence: list[PatternEvidence] = []
+    for rule_match in evaluation.matched_rules:
+        structured_evidence.append(
+            PatternEvidence(
+                matcher=rule_match.evidence.source.value,
+                pattern=rule_match.rule.pattern,
+                weight=rule_match.weight,
+                detail=rule_match.matched_text,
+                source_file=rule_match.evidence.file,
+                asset_id=rule_match.evidence.id,
+                matched_value=rule_match.matched_text,
+                evidence_type=rule_match.evidence.evidence_type.value,
+            ),
+        )
+
+    match = TechnologyMatch(
         technology=Technology(
             id=signature.id,
             name=signature.name,
@@ -117,10 +142,10 @@ def technology_match_from_evaluation(
         version=version.version,
         confidence=confidence,
         matched_patterns=patterns,
-        source_url=resources[0] if resources else None,
-        filename=next(
-            (match.evidence.file for match in evaluation.matched_rules if match.evidence.file), None
-        ),
+        source_url=source_url or (resources[0] if resources else None),
+        filename=source_file,
+        source_file=source_file,
+        evidence=structured_evidence,
         detection_reason=(
             "; ".join(reasons) if reasons else f"Matched {len(evaluation.matched_rules)} rules"
         ),
@@ -128,9 +153,12 @@ def technology_match_from_evaluation(
         version_reason=version.reason,
         version_confidence=version.confidence,
         supporting_evidence_ids=evidence_ids,
-        evidence_count=len(evidence_ids),
+        evidence_count=len(structured_evidence) or len(evidence_ids),
         matched_resources=resources,
         rejected_version_candidates=list(version.rejected_candidates),
         evidence_sources=evidence_sources,
         confidence_breakdown=dict(breakdown.components),
+        providers=["techspecter"],
+        detection_methods=["evidence-engine"],
     )
+    return apply_match_attribution(match)

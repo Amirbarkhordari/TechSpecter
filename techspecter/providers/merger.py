@@ -6,7 +6,6 @@ import logging
 from collections import defaultdict
 
 from techspecter.fingerprinting.match_attribution import apply_match_attribution
-from techspecter.fingerprinting.match_quality import apply_match_quality_gate
 from techspecter.fingerprinting.models import (
     DetectionResult,
     SecurityFinding,
@@ -65,10 +64,9 @@ class ProviderMerger:
 
         merged_matches.sort(key=lambda item: (-item.confidence, item.technology.name.lower()))
 
-        confirmed, ignored = apply_match_quality_gate(merged_matches)
-        evidence_total = sum(item.evidence_count for item in confirmed)
+        evidence_total = sum(item.evidence_count for item in merged_matches)
         summary = MergeSummary(
-            technologies_merged=len(confirmed),
+            technologies_merged=len(merged_matches),
             providers_succeeded=succeeded,
             providers_failed=failed,
             evidence_items_total=evidence_total,
@@ -89,8 +87,8 @@ class ProviderMerger:
 
         return DetectionResult(
             target_url=target_url,
-            matches=confirmed,
-            ignored_matches=ignored,
+            matches=merged_matches,
+            ignored_matches=[],
             scripts_analyzed=scripts_analyzed,
             elapsed_ms=elapsed_ms,
         )

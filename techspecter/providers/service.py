@@ -11,6 +11,7 @@ from techspecter.configuration.models import ProvidersConfig
 from techspecter.crawler.discovery import DiscoveryPipeline
 from techspecter.fingerprinting.compatibility import FingerprintCompatibilityLayer
 from techspecter.fingerprinting.models import FingerprintAnalysisResult
+from techspecter.fingerprinting.pipeline.result_merger import merge_detection_results
 from techspecter.fingerprinting.rebuild import rebuild_fingerprint_analysis_models  # noqa: F401
 from techspecter.providers.manager import ProviderManager
 from techspecter.providers.merger import ProviderMerger
@@ -56,6 +57,16 @@ class UnifiedDetectionService:
 
         target = ProviderTarget(url=str(discovery.target.url), discovery=discovery)
         manager = self._manager()
+
+        evidence_collection = None
+        if self.collect_evidence:
+            evidence_collection = self._compatibility().collect_evidence(discovery)
+            logger.info(
+                "Evidence collection prepared for %s: %d items",
+                target.url,
+                evidence_collection.summary.total_items,
+            )
+
         provider_results = manager.run_all(
             target,
             selected=selected_providers,
@@ -72,6 +83,18 @@ class UnifiedDetectionService:
         )
         merge_summary = self.merger.last_merge_summary
 
+        detection_inputs = [merged]
+        if evidence_collection is not None and evidence_collection.summary.total_items:
+            explainable = self._compatibility().detect_from_evidence(evidence_collection)
+            logger.info(
+                "Evidence-based detection for %s produced %d candidate technologies",
+                target.url,
+                len(explainable.detection.matches),
+            )
+            detection_inputs.append(explainable.detection)
+
+        merged = merge_detection_results(*detection_inputs, apply_quality_gate=True)
+
         if failed:
             logger.info(
                 "Providers skipped or failed",
@@ -84,10 +107,6 @@ class UnifiedDetectionService:
             provider_health=provider_health,
             merge_summary=merge_summary,
         )
-
-        evidence_collection: EvidenceCollection | None = None
-        if self.collect_evidence:
-            evidence_collection = self._compatibility().collect_evidence(discovery)
 
         intelligence = self._intelligence().build(
             discovery,
