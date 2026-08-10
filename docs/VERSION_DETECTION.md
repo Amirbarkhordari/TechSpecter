@@ -38,6 +38,38 @@ A technology may be confirmed at confidence 100 with version Unknown. Weak/refer
 
 Ownership is always technology-scoped. Shared assets do **not** imply shared version ownership. Full multi-version conflict resolution is deferred to Phase 6 Step 2.
 
+
+## Primary / Alternate Resolution (Phase 6 Step 2)
+
+`
+Version Candidate
+        ↓
+Ownership
+        ↓
+Ranking (evidence quality + independent corroboration)
+        ↓
+Conflict Classification
+        ↓
+Primary Version
+        ↓
+Alternate Versions
+`
+
+Rules:
+
+- Primary Version is selected by ownership and evidence quality, **not** by numeric newest/first/last.
+- Alternate versions may be retained when attributable and provenance-backed.
+- Two strong conflicting versions without a clear margin may remain **Unknown/Ambiguous**.
+- Independent assets corroborate a version; repeated matches in one source do not inflate independence.
+- Technology, Version, and Ownership confidence remain independent.
+- Ownership remains technology-scoped.
+- Step 2 does not perform live-target validation and does not claim universal resolution.
+
+Conflict classes: 
+o_conflict, weak_alternate, strong_conflict, mbiguous, weak_only.
+
+Canonical API: 	echspecter.versioning.resolve_primary_version.
+
 ## Pipeline
 
 ```

@@ -91,6 +91,7 @@ class TechnologyMerger:
         resources: set[str] = set()
         asset_ids: set[str] = set()
         rejected: set[str] = set()
+        alternates: set[str] = set()
         sources: set[str] = set()
         reasons: set[str] = set()
         breakdown: dict[str, float] = dict(primary.confidence_breakdown)
@@ -109,6 +110,7 @@ class TechnologyMerger:
             if match.asset_id:
                 asset_ids.add(match.asset_id)
             rejected.update(match.rejected_version_candidates)
+            alternates.update(match.alternate_versions)
             if match.version_source:
                 sources.add(match.version_source)
             if match.detection_reason:
@@ -130,6 +132,7 @@ class TechnologyMerger:
             "evidence_count": len(evidence_items) or len(evidence_ids),
             "matched_resources": sorted(resources),
             "rejected_version_candidates": sorted(rejected),
+            "alternate_versions": sorted(alternates - {primary.version}),
             "evidence_sources": sorted(sources),
             "confidence_breakdown": breakdown,
             "detection_reason": (

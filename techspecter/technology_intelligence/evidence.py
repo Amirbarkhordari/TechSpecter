@@ -167,7 +167,9 @@ def build_version_attribution(
             matched_text=match.version_reason,
             confidence=match.version_confidence or match.confidence,
             extractor_id=match.version_source,
-            alternative_candidates=list(match.rejected_version_candidates),
+            alternative_candidates=list(
+                match.alternate_versions or match.rejected_version_candidates,
+            ),
         )
 
     primary = version_result.evidence[0] if version_result.evidence else None
@@ -190,9 +192,10 @@ def build_version_attribution(
         matched_text=primary.matched_value if primary else None,
         confidence=version_result.confidence,
         extractor_id=version_result.method.value,
-        alternative_candidates=list(version_result.rejected_candidates),
+        alternative_candidates=list(
+            match.alternate_versions or version_result.rejected_candidates,
+        ),
     )
-
 
 def version_evidence_records(
     match: TechnologyMatch,

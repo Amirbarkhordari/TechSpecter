@@ -52,6 +52,16 @@ class VersionAttributionState(StrEnum):
     REJECTED = "rejected"
 
 
+class VersionConflictClass(StrEnum):
+    """Conflict classification for technology-scoped version resolution."""
+
+    NO_CONFLICT = "no_conflict"
+    WEAK_ALTERNATE = "weak_alternate"
+    STRONG_CONFLICT = "strong_conflict"
+    AMBIGUOUS = "ambiguous"
+    WEAK_ONLY = "weak_only"
+
+
 class VersionEvidence(TechSpecterModel):
     """Evidence supporting a detected version."""
 

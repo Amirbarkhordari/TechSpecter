@@ -59,7 +59,7 @@ class ScoringBreakdown:
 
 @dataclass(frozen=True, slots=True)
 class VersionResolution:
-    """Resolved version with provenance and attribution state."""
+    """Resolved version with provenance, alternates, and conflict state."""
 
     version: str
     confidence: float
@@ -75,6 +75,9 @@ class VersionResolution:
     version_confidence: float = 0.0
     technology_confidence: float | None = None
     candidates: tuple[object, ...] = field(default_factory=tuple)
+    alternate_versions: tuple[str, ...] = field(default_factory=tuple)
+    conflict_class: str = "no_conflict"
+    independent_source_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,6 +166,7 @@ def technology_match_from_evaluation(
         evidence_count=len(structured_evidence) or len(evidence_ids),
         matched_resources=resources,
         rejected_version_candidates=list(version.rejected_candidates),
+        alternate_versions=list(version.alternate_versions),
         evidence_sources=evidence_sources,
         confidence_breakdown=dict(breakdown.components),
         providers=["techspecter"],

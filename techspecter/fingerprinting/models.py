@@ -121,6 +121,7 @@ class TechnologyMatch(TechSpecterModel):
     evidence_count: int = 0
     matched_resources: list[str] = Field(default_factory=list)
     rejected_version_candidates: list[str] = Field(default_factory=list)
+    alternate_versions: list[str] = Field(default_factory=list)
     evidence_sources: list[str] = Field(default_factory=list)
     confidence_breakdown: dict[str, float] = Field(default_factory=dict)
     providers: list[str] = Field(default_factory=list)
