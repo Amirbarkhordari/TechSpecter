@@ -5,6 +5,7 @@ from techspecter.fingerprinting.detection.candidates.indexer import EvidenceInde
 from techspecter.fingerprinting.detection.candidates.models import (
     CandidateStatus,
     DiscoveryBasis,
+    IdentityKind,
     TechnologyCandidate,
 )
 from techspecter.fingerprinting.detection.candidates.pipeline import CandidateDetectionPipeline
@@ -18,5 +19,6 @@ __all__ = [
     "DiscoveryBasis",
     "EvidenceIndex",
     "EvidenceIndexer",
+    "IdentityKind",
     "TechnologyCandidate",
 ]

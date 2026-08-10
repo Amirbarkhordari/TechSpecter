@@ -163,6 +163,28 @@ Evidence collection (technology=None)
 
 **Candidate ≠ confirmed technology.** Only validated candidates with strong structured evidence (package, runtime, import, bundle, technology-specific HTTP) become confirmed matches. Generic `STRING_LITERAL` values never generate or confirm technologies by themselves.
 
+### Open package identity (Phase 3)
+
+Structured package evidence can produce identities without a prior catalog entry:
+
+```
+PACKAGE_REFERENCE / import / source-map node_modules path
+    ↓
+normalize package root
+    ↓
+known in knowledge map? ──yes──► catalog technology (e.g. React)
+    │
+    no
+    ↓
+package:<normalized-name>  (evidence-native candidate)
+    ↓
+CandidateValidator + MatchQualityGate
+    ↓
+confirmed TechnologyMatch  OR  rejected (candidate-only / noise)
+```
+
+Relative imports (`./`, `../`) never become package identities. Ambiguous names (`utils`, `core`, …) require multi-signal evidence before confirmation. Missing catalog metadata does not invalidate evidence-backed discovery.
+
 Each `TechnologyMatch` retains provenance: source file, matcher, matched pattern/value, structured evidence, and optional version attribution scoped per technology.
 
 ## Configuration Architecture

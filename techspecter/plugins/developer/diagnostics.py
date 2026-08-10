@@ -5,13 +5,16 @@ from __future__ import annotations
 import platform
 import sys
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from techspecter import __version__
 from techspecter.plugins.config import PluginConfiguration
-from techspecter.plugins.manager import PluginManager
 from techspecter.plugins.registry import PluginRegistry
 from techspecter.plugins.sdk import current_python_version
 from techspecter.plugins.validator import PluginValidator
+
+if TYPE_CHECKING:
+    from techspecter.plugins.manager import PluginManager
 
 
 @dataclass(slots=True)

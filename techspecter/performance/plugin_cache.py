@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import logging
 from threading import Lock
+from typing import TYPE_CHECKING
 
-from techspecter.plugins.manager import PluginManager
+if TYPE_CHECKING:
+    from techspecter.plugins.manager import PluginManager
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +17,8 @@ _lock = Lock()
 
 def get_shared_plugin_manager(*, load_builtins: bool = True) -> PluginManager:
     """Return a process-wide plugin manager, loading builtins once."""
+    from techspecter.plugins.manager import PluginManager
+
     global _shared_manager
     with _lock:
         if _shared_manager is None:

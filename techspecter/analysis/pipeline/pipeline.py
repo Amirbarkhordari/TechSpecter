@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from techspecter import __version__
 from techspecter.analysis.analyzers.base import Analyzer
@@ -36,7 +37,9 @@ from techspecter.performance.executor import AnalyzerExecutor
 from techspecter.performance.plugin_cache import get_shared_plugin_manager
 from techspecter.performance.timing import PipelineTiming
 from techspecter.plugins.hooks import HookName
-from techspecter.plugins.manager import PluginManager
+
+if TYPE_CHECKING:
+    from techspecter.plugins.manager import PluginManager
 
 logger = logging.getLogger(__name__)
 
@@ -306,6 +309,8 @@ class AnalysisPipeline:
 
     def _ensure_plugin_manager(self) -> PluginManager | None:
         """Return a plugin manager with built-in plugins loaded."""
+        from techspecter.plugins.manager import PluginManager
+
         if self._plugin_manager is not None:
             return self._plugin_manager
         if not self._load_builtin_plugins:

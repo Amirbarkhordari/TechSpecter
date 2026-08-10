@@ -158,6 +158,7 @@ def is_strong_evidence(item: PatternEvidence) -> bool:
         "bundle_runtime",
         "import_export",
         "http_header",
+        "source_map_metadata",
     } and item.weight >= 70.0:
         return True
     return item.matcher == "regex" and item.weight >= 25.0

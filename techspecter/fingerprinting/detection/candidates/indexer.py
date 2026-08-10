@@ -21,6 +21,8 @@ _INDEXABLE_TYPES = frozenset(
         EvidenceType.HTTP_METADATA,
         EvidenceType.BANNER,
         EvidenceType.MANIFEST,
+        EvidenceType.SOURCE_MAP_METADATA,
+        EvidenceType.VERSION_CANDIDATE,
     },
 )
 
@@ -68,6 +70,16 @@ class EvidenceIndexer:
                 key = (item.matched_value or "").strip().lower()
                 if key:
                     result.by_package[key].append(item)
+
+            if item.evidence_type == EvidenceType.SOURCE_MAP_METADATA:
+                value = (item.matched_value or "").replace("\\", "/")
+                if "node_modules/" in value.lower():
+                    result.by_package[value.lower()].append(item)
+
+            if item.evidence_type == EvidenceType.VERSION_CANDIDATE:
+                package = str(item.metadata.get("package", "")).strip().lower()
+                if package:
+                    result.by_package[package].append(item)
 
             if item.evidence_type == EvidenceType.RUNTIME_PATTERN:
                 family = str(item.metadata.get("runtime_family", "")).strip().lower()

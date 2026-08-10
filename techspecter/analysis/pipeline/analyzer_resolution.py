@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from techspecter.analysis.analyzers.base import Analyzer
 from techspecter.analysis.analyzers.technology import TechnologyFingerprintAnalyzer
@@ -15,7 +16,9 @@ from techspecter.configuration.models import (
     HttpAnalysisConfig,
     MetadataAnalysisConfig,
 )
-from techspecter.plugins.manager import PluginManager
+
+if TYPE_CHECKING:
+    from techspecter.plugins.manager import PluginManager
 
 logger = logging.getLogger(__name__)
 

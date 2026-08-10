@@ -31,6 +31,17 @@ class DiscoveryBasis(StrEnum):
     BUNDLE = "bundle"
     HTTP = "http"
     MULTI_SIGNAL = "multi_signal"
+    SOURCE_MAP = "source_map"
+
+
+class IdentityKind(StrEnum):
+    """How a candidate technology identity was established."""
+
+    CATALOG = "catalog"
+    PACKAGE = "package"
+    RUNTIME = "runtime"
+    BUNDLE = "bundle"
+    HTTP = "http"
 
 
 class TechnologyCandidate(TechSpecterModel):
@@ -50,8 +61,16 @@ class TechnologyCandidate(TechSpecterModel):
     supporting_evidence_ids: tuple[str, ...] = Field(default_factory=tuple)
     rejection_reason: str | None = None
     version_hint: str | None = None
+    identity_kind: IdentityKind = IdentityKind.CATALOG
+    identity_source: str | None = None
+    knowledge_matched: bool = True
 
     @property
     def evidence_types(self) -> frozenset[str]:
         """Return distinct evidence type values attached to this candidate."""
         return frozenset(item.evidence_type.value for item in self.evidence)
+
+    @property
+    def display_name(self) -> str:
+        """Human-readable technology name."""
+        return self.name

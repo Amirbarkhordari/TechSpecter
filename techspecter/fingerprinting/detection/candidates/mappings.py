@@ -111,33 +111,134 @@ GENERIC_MARKER_BLOCKLIST: frozenset[str] = frozenset(
     },
 )
 
+# Ambiguous short names that must not auto-confirm without strong multi-signal evidence.
+CONSERVATIVE_PACKAGE_NAMES: frozenset[str] = frozenset(
+    {
+        "core",
+        "utils",
+        "util",
+        "app",
+        "runtime",
+        "common",
+        "helper",
+        "helpers",
+        "config",
+        "index",
+        "main",
+        "test",
+        "tests",
+        "lib",
+        "src",
+        "dist",
+        "shared",
+        "types",
+        "internal",
+    },
+)
+
+
+def is_relative_module(value: str) -> bool:
+    """Return True when a specifier is an application-local relative path."""
+    cleaned = value.strip().strip("\"'")
+    return cleaned.startswith("./") or cleaned.startswith("../") or cleaned.startswith("/")
+
+
+def is_url_like_module(value: str) -> bool:
+    """Return True when a specifier looks like a URL rather than a package."""
+    cleaned = value.strip().lower()
+    return cleaned.startswith(("http://", "https://", "data:", "blob:", "file:"))
+
 
 def normalize_package_key(value: str) -> str:
-    """Normalize a package path or specifier to a lookup key."""
-    cleaned = value.strip().strip("\"'").lower()
-    if "node_modules/" in cleaned:
-        cleaned = cleaned.split("node_modules/", 1)[1]
-    cleaned = cleaned.lstrip("./")
-    # Keep scoped packages as @scope/name when present
-    parts = cleaned.split("/")
-    if cleaned.startswith("@") and len(parts) >= 2:
+    """Normalize a package path or specifier to a package-root lookup key."""
+    cleaned = value.strip().strip("\"'")
+    if is_relative_module(cleaned) or is_url_like_module(cleaned):
+        return ""
+    lowered = cleaned.lower()
+    if "node_modules/" in lowered:
+        lowered = lowered.split("node_modules/", 1)[1]
+    lowered = lowered.lstrip("./")
+    parts = lowered.split("/")
+    if lowered.startswith("@") and len(parts) >= 2:
         return f"{parts[0]}/{parts[1]}"
-    return parts[0] if parts else cleaned
+    return parts[0] if parts else lowered
+
+
+def package_technology_id(normalized_key: str) -> str:
+    """Build a stable evidence-native technology id for an unknown package."""
+    return f"package:{normalized_key}"
+
+
+def is_conservative_package_name(normalized_key: str) -> bool:
+    """Return True for ambiguous package roots that should not auto-confirm."""
+    if not normalized_key:
+        return True
+    root = normalized_key.split("/")[-1] if normalized_key.startswith("@") else normalized_key
+    return root in CONSERVATIVE_PACKAGE_NAMES or normalized_key in CONSERVATIVE_PACKAGE_NAMES
+
+
+def is_structured_package_evidence(item: object) -> bool:
+    """Return True when evidence establishes a real package/module identity."""
+    from techspecter.fingerprinting.evidence.models import Evidence, EvidenceType
+
+    if not isinstance(item, Evidence):
+        return False
+    if item.evidence_type not in {
+        EvidenceType.PACKAGE_REFERENCE,
+        EvidenceType.IMPORT_EXPORT,
+        EvidenceType.SOURCE_MAP_METADATA,
+    }:
+        return False
+    value = item.matched_value or ""
+    if is_relative_module(value) or is_url_like_module(value):
+        return False
+    if not normalize_package_key(value):
+        return False
+    # IMPORT_EXPORT must be an import, not an export name
+    if item.evidence_type == EvidenceType.IMPORT_EXPORT:
+        return item.metadata.get("kind") in {None, "import"}
+    if item.evidence_type == EvidenceType.SOURCE_MAP_METADATA:
+        return "node_modules/" in value.replace("\\", "/").lower()
+    return True
 
 
 def lookup_package(value: str) -> tuple[str, str, str] | None:
     """Resolve a package identifier to technology knowledge when known."""
+    if is_relative_module(value) or is_url_like_module(value):
+        return None
     key = normalize_package_key(value)
+    if not key:
+        return None
     if key in PACKAGE_TECHNOLOGY_MAP:
         return PACKAGE_TECHNOLOGY_MAP[key]
-    # Try scoped full path then unscoped first segment already handled
     if key.startswith("@") and key.count("/") >= 1:
-        return PACKAGE_TECHNOLOGY_MAP.get(key)
-    # nested path like next/dist/client
+        mapped = PACKAGE_TECHNOLOGY_MAP.get(key)
+        if mapped is not None:
+            return mapped
     for package_key, mapping in PACKAGE_TECHNOLOGY_MAP.items():
         if key == package_key or key.startswith(f"{package_key}/"):
             return mapping
     return None
+
+
+def resolve_package_identity(
+    value: str,
+) -> tuple[str, str, str, bool] | None:
+    """Resolve package evidence to catalog or evidence-native identity.
+
+    Returns:
+        (technology_id, display_name, category, knowledge_matched) or None.
+    """
+    if is_relative_module(value) or is_url_like_module(value):
+        return None
+    key = normalize_package_key(value)
+    if not key:
+        return None
+    known = lookup_package(value)
+    if known is not None:
+        tech_id, name, category = known
+        return tech_id, name, category, True
+    return package_technology_id(key), key, "unknown", False
 
 
 def lookup_runtime_family(family: str) -> tuple[str, str, str] | None:

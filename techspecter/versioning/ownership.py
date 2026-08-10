@@ -48,6 +48,8 @@ def version_evidence_relevant(
 
 def _package_tokens(technology_id: str) -> tuple[str, ...]:
     normalized = technology_id.lower().replace("_", "-")
+    if normalized.startswith("package:"):
+        normalized = normalized.removeprefix("package:")
     tokens = {normalized, normalized.replace("-", ""), normalized.replace("-", ".")}
     if normalized == "nextjs":
         tokens.add("next")

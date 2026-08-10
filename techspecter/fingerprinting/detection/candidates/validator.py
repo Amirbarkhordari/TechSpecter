@@ -5,6 +5,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
+from techspecter.fingerprinting.detection.candidates.mappings import (
+    is_conservative_package_name,
+    is_relative_module,
+)
 from techspecter.fingerprinting.detection.candidates.models import (
     CandidateStatus,
     TechnologyCandidate,
@@ -22,6 +26,7 @@ from techspecter.fingerprinting.models import (
     Technology,
     TechnologyMatch,
 )
+from techspecter.versioning.validator import is_valid_version
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +38,7 @@ _CONFIRMABLE_TYPES = frozenset(
         EvidenceType.BUNDLE_MARKER,
         EvidenceType.BUNDLE_RUNTIME,
         EvidenceType.HTTP_HEADER,
+        EvidenceType.SOURCE_MAP_METADATA,
     },
 )
 
@@ -53,6 +59,7 @@ class CandidateValidator:
 
     quality_gate: MatchQualityGate = field(default_factory=MatchQualityGate)
     min_confidence: float = 55.0
+    open_package_min_confidence: float = 70.0
 
     def validate(
         self,
@@ -83,6 +90,16 @@ class CandidateValidator:
                 },
             )
 
+        if any(
+            is_relative_module(item.matched_value or "") for item in candidate.evidence
+        ):
+            return None, candidate.model_copy(
+                update={
+                    "status": CandidateStatus.REJECTED,
+                    "rejection_reason": "relative module path is not a package identity",
+                },
+            )
+
         if all(item.evidence_type in _WEAK_ALONE_TYPES for item in candidate.evidence):
             return None, candidate.model_copy(
                 update={
@@ -102,13 +119,44 @@ class CandidateValidator:
                 },
             )
 
-        # Require multi-signal when confidence is only medium and single signal
-        # is a lower-weight HTTP/import without package/runtime/bundle support.
-        if candidate.confidence < self.min_confidence:
+        threshold = self.min_confidence
+        if not candidate.knowledge_matched:
+            threshold = self.open_package_min_confidence
+            package_key = candidate.technology_id.removeprefix("package:")
+            if is_conservative_package_name(package_key):
+                # Ambiguous names require multi-signal correlation to confirm.
+                if len(candidate.evidence_types) < 2:
+                    return None, candidate.model_copy(
+                        update={
+                            "status": CandidateStatus.REJECTED,
+                            "rejection_reason": (
+                                "conservative package name requires multi-signal evidence"
+                            ),
+                        },
+                    )
+            # Evidence-native packages need at least one PACKAGE_REFERENCE or
+            # source-map node_modules path — import-only is candidate-grade only.
+            has_package_ref = any(
+                item.evidence_type
+                in {EvidenceType.PACKAGE_REFERENCE, EvidenceType.SOURCE_MAP_METADATA}
+                for item in strong
+            )
+            if not has_package_ref and len(strong) < 2:
+                return None, candidate.model_copy(
+                    update={
+                        "status": CandidateStatus.REJECTED,
+                        "rejection_reason": (
+                            "open package identity requires package reference "
+                            "or multi-signal evidence"
+                        ),
+                    },
+                )
+
+        if candidate.confidence < threshold:
             return None, candidate.model_copy(
                 update={
                     "status": CandidateStatus.REJECTED,
-                    "rejection_reason": f"confidence {candidate.confidence:.1f} below threshold",
+                    "rejection_reason": f"confidence {candidate.confidence:.1f} below {threshold:.0f}",
                 },
             )
 
@@ -121,13 +169,21 @@ class CandidateValidator:
                 },
             )
 
+        version = UNKNOWN_VERSION
+        if candidate.version_hint and is_valid_version(candidate.version_hint):
+            version = candidate.version_hint
+
+        display_name = candidate.name
+        if candidate.technology_id.startswith("package:") and not candidate.knowledge_matched:
+            display_name = candidate.technology_id.removeprefix("package:")
+
         match = TechnologyMatch(
             technology=Technology(
                 id=candidate.technology_id,
-                name=candidate.name,
+                name=display_name,
                 category=candidate.category,
             ),
-            version=UNKNOWN_VERSION,
+            version=version,
             confidence=candidate.confidence,
             matched_patterns=[
                 f"{item.evidence_type.value}:{item.matched_value or item.matched_pattern or ''}"
@@ -143,8 +199,18 @@ class CandidateValidator:
             detection_reason=candidate.discovery_reason,
             detection_basis=DetectionBasis.EVIDENCE,
             providers=["techspecter"],
-            detection_methods=["candidate-engine", candidate.discovery_basis.value],
+            detection_methods=[
+                "candidate-engine",
+                candidate.discovery_basis.value,
+                candidate.identity_kind.value,
+            ],
             evidence_sources=sorted({item.source.value for item in strong}),
+            version_source="package-metadata" if version != UNKNOWN_VERSION else None,
+            version_reason=(
+                "Owned package version evidence"
+                if version != UNKNOWN_VERSION
+                else None
+            ),
         )
         match = apply_match_attribution(match)
         match = annotate_detection_basis(match)
@@ -163,10 +229,6 @@ class CandidateValidator:
                 },
             )
 
-        confirmed_candidate = candidate.model_copy(
-            update={"status": CandidateStatus.CONFIRMED, "rejection_reason": None},
-        )
-        _ = confirmed_candidate
         return match, candidate.model_copy(update={"status": CandidateStatus.CONFIRMED})
 
     def _to_pattern_evidence(self, item: Evidence) -> PatternEvidence:
@@ -177,6 +239,7 @@ class CandidateValidator:
             EvidenceType.PACKAGE_REFERENCE,
             EvidenceType.RUNTIME_PATTERN,
             EvidenceType.BUNDLE_MARKER,
+            EvidenceType.SOURCE_MAP_METADATA,
         }:
             weight = max(weight, 70.0)
         return PatternEvidence(
