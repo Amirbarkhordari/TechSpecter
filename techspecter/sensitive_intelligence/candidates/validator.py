@@ -13,6 +13,10 @@ from techspecter.sensitive_intelligence.candidates.models import (
     ValidationState,
     ValueStrength,
 )
+from techspecter.sensitive_intelligence.candidates.policies import (
+    policy_blocks_confirmation,
+    resolve_detector_policy,
+)
 from techspecter.sensitive_intelligence.candidates.quality_gate import SensitiveMatchQualityGate
 from techspecter.sensitive_intelligence.candidates.value import ValueAnalyzer, is_strong_secret_value
 from techspecter.sensitive_intelligence.detectors.base import DetectorMatch
@@ -157,12 +161,26 @@ class SensitiveCandidateValidator:
 
         rule_id = candidate.rule_id or candidate.subtype
 
-        if rule_id == "correlated-credentials":
+        if rule_id == "correlated-credentials" or rule_id.startswith("correlated-"):
             self._policy_correlated(candidate)
             return
 
+        policy = resolve_detector_policy(candidate)
+        candidate.adjusted_confidence = max(
+            0.0,
+            min(100.0, candidate.adjusted_confidence + policy.confidence_adjustment),
+        )
+        blocked = policy_blocks_confirmation(candidate, policy)
+        if blocked and not (
+            policy.require_provider_format and positives & _STRUCTURED_POSITIVES
+        ):
+            if blocked in {item.value for item in _HARD_REJECT}:
+                candidate.validation_state = ValidationState.REJECTED
+                candidate.rejection_reason = blocked
+                return
+
         has_structured = bool(positives & _STRUCTURED_POSITIVES) or rule_id in _STRUCTURED_RULES
-        if has_structured:
+        if has_structured or policy.require_provider_format:
             self._policy_structured(candidate)
             return
 
@@ -217,6 +235,24 @@ class SensitiveCandidateValidator:
         positives = set(candidate.positive_evidence)
 
         if negatives & _HARD_REJECT:
+            # Identifier fields may use common names; keep them available for correlation.
+            if candidate.subtype in {"username-field", "client-id-field", "db-user-field"}:
+                shell = negatives & {
+                    NegativeEvidence.EMPTY_VALUE,
+                    NegativeEvidence.FORM_REFERENCE,
+                    NegativeEvidence.FORM_FIELD,
+                    NegativeEvidence.RUNTIME_REFERENCE,
+                    NegativeEvidence.SELF_REFERENCE,
+                    NegativeEvidence.HTML_ATTRIBUTE,
+                    NegativeEvidence.GENERATED_TEMPLATE,
+                }
+                if shell:
+                    candidate.validation_state = ValidationState.REJECTED
+                    candidate.rejection_reason = sorted(shell)[0].value
+                    return
+                candidate.validation_state = ValidationState.CANDIDATE_ONLY
+                candidate.rejection_reason = "identifier_candidate_only"
+                return
             # Hard negatives win for generic keyword assignments unless a true provider format.
             if positives & _STRUCTURED_POSITIVES and not (
                 negatives
@@ -293,16 +329,37 @@ class SensitiveCandidateValidator:
         candidate.rejection_reason = "insufficient_positive_evidence"
 
     def _policy_correlated(self, candidate: SensitiveCandidate) -> None:
+        # Materialized strong correlations already carry pair evidence.
+        if (
+            PositiveEvidence.CREDENTIAL_PAIR in candidate.positive_evidence
+            and candidate.value_strength
+            in {ValueStrength.REALISTIC, ValueStrength.STRUCTURED}
+            and not (
+                set(candidate.negative_evidence)
+                & {
+                    NegativeEvidence.EMPTY_VALUE,
+                    NegativeEvidence.FORM_FIELD,
+                    NegativeEvidence.RUNTIME_REFERENCE,
+                    NegativeEvidence.SELF_REFERENCE,
+                }
+            )
+        ):
+            _add_positive(candidate, PositiveEvidence.CORRELATION)
+            candidate.validation_state = ValidationState.CONFIRMED
+            return
+
         user, password = pair_values(candidate.analysis_value or candidate.match.raw_value)
-        if password is None or not is_strong_secret_value(password):
+        secret = password if password is not None else user
+        if secret is None or not is_strong_secret_value(secret):
             candidate.validation_state = ValidationState.REJECTED
             candidate.rejection_reason = "correlated_credentials_weak_values"
             return
-        if user is not None and not user.strip():
+        if user is not None and password is not None and not user.strip():
             candidate.validation_state = ValidationState.REJECTED
             candidate.rejection_reason = "correlated_credentials_weak_values"
             return
         _add_positive(candidate, PositiveEvidence.CREDENTIAL_PAIR)
+        _add_positive(candidate, PositiveEvidence.CORRELATION)
         candidate.negative_evidence = [
             signal
             for signal in candidate.negative_evidence

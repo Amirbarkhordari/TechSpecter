@@ -18,7 +18,8 @@ _GENERIC_LITERAL = re.compile(r"""[:=]\s*['\"]([^'\"]*)['\"]""")
 _BEARER_VALUE = re.compile(r"Bearer\s+([A-Za-z0-9._~+/=-]{8,})", re.I)
 _CREDENTIAL_NAME = re.compile(
     r"""\b(password|passwd|pwd|username|user_name|login|token|secret|api[_-]?key|"""
-    r"""client_id|client_secret|access_key|secret_key|authorization|sid)\b""",
+    r"""client_id|client_secret|access_key|secret_key|authorization|sid|"""
+    r"""db_host|db_user|database_url|aws_access_key_id|aws_secret_access_key)\b""",
     re.I,
 )
 _PAIR_SPLIT = re.compile(r"\n")

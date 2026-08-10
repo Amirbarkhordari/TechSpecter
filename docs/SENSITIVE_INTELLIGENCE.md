@@ -28,26 +28,29 @@ candidate validation spine (`candidates/`).
 
 | Module | Responsibility |
 |--------|----------------|
-| `candidates/models.py` | `SensitiveCandidate`, evidence enums, `ValueStrength`, `ContextKind` |
-| `candidates/builder.py` | `DetectorMatch` → candidate (+ credential name for future correlation) |
+| `candidates/models.py` | `SensitiveCandidate`, evidence enums, `ValueStrength`, `ContextKind`, `SensitiveCorrelation` |
+| `candidates/builder.py` | `DetectorMatch` → candidate (+ credential name for correlation) |
 | `candidates/context.py` | Static / runtime / empty / placeholder / docs / fixture / form context |
 | `candidates/value.py` | Empty / placeholder / weak / runtime / provider / realistic classification |
 | `candidates/placeholders.py` | Centralized placeholder normalization + detection |
 | `candidates/runtime.py` | Centralized runtime / self / empty / form / template detection |
+| `candidates/policies.py` | Detector-specific confirmation requirements (consume evidence, no re-parsing) |
+| `candidates/correlation.py` | Candidate-scoped correlation (username/password, client, AWS, token, DB) |
+| `candidates/severity.py` | Central confidence/severity calibration after validation/correlation |
 | `candidates/validator.py` | Confirmation policy + negative-evidence precedence |
 | `candidates/quality_gate.py` | Final confirm / reject / candidate-only gate |
 
-**Context signals** include static assignment, runtime references (`process.env`, `getToken()`),
-self-reference, empty/`null`/`undefined`, placeholders, documentation/example snippets,
-test fixtures, generated templates, and HTML form fields.
+**Flow:** detectors emit `DetectorMatch` → candidates are validated → eligible candidates are
+correlated within the same asset/source/proximity scope → severity is calibrated → only
+confirmed candidates enter `FindingTracker`.
 
-**Value classification** distinguishes empty, placeholder, weak-generic, runtime, realistic,
-and structured/provider formats. Provider validators (JWT/PEM/AWS/GitHub) remain authoritative
-positive evidence (`PROVIDER_SPECIFIC_FORMAT`) and are stronger than entropy heuristics.
+**Correlation** is evidence, not automatic confirmation. Weak/placeholder/runtime pairs cannot
+escalate to Critical merely because related fields are nearby. Strong pairs add
+`CORRELATION` / `CREDENTIAL_PAIR` evidence and may emit a single deduplicated pair finding.
 
-**Negative evidence** (empty, placeholder, form, runtime, self-ref, template, …) is preserved on
-the candidate and blocks confirmation for generic keyword rules. Soft documentation/fixture
-noise does not blanket-suppress realistic or provider-validated secrets.
+**Detector policies** declare minimum value strength, disqualifying negatives, candidate-only
+allowance, and severity floors/ceilings per rule family (generic password, JWT/PEM/AWS,
+internal config, contact). Policies do not duplicate JWT/PEM/AWS/GitHub/entropy validators.
 
 ### Package layout
 
@@ -57,7 +60,7 @@ noise does not blanket-suppress realistic or provider-validated secrets.
 | `candidates/` | Candidate validation spine (see above) |
 | `rules/` | Extensible rule engine (`DetectionRule`, validators, catalog, `RuleEngine`) |
 | `javascript_intel.py` | Extract `window.__NEXT_DATA__`, `__INITIAL_STATE__`, `process.env`, etc. |
-| `correlator.py` | Correlate nearby username/password assignments (candidate evidence) |
+| `correlator.py` | Legacy regex helper + export of `CandidateCorrelator` |
 | `registry.py` | Pluggable detector registration |
 | `engine.py` | Orchestration |
 | `tracker.py` | Deduplicate confirmed findings only |

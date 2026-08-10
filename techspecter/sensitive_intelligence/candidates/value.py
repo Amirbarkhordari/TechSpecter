@@ -75,7 +75,9 @@ class ValueAnalyzer:
 
     def analyze(self, candidate: SensitiveCandidate) -> SensitiveCandidate:
         """Annotate candidate with value-based evidence (mutates and returns)."""
-        if candidate.subtype == "correlated-credentials":
+        if candidate.subtype == "correlated-credentials" or (
+            candidate.subtype or ""
+        ).startswith("correlated-"):
             return self._analyze_pair(candidate)
 
         value = candidate.analysis_value

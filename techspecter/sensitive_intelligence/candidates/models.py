@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from uuid import uuid4
 
 from techspecter.sensitive_intelligence.detectors.base import DetectorMatch
 from techspecter.sensitive_intelligence.models import (
@@ -59,6 +60,7 @@ class PositiveEvidence(StrEnum):
     HIGH_ENTROPY = "high_entropy"
     PROVIDER_SPECIFIC_FORMAT = "provider_specific_format"
     CREDENTIAL_PAIR = "credential_pair"
+    CORRELATION = "correlation"
     CONFIGURATION_ASSIGNMENT = "configuration_assignment"
     STRUCTURED_SECRET = "structured_secret"
 
@@ -79,6 +81,16 @@ class NegativeEvidence(StrEnum):
     HTML_ATTRIBUTE = "html_attribute"
     SELF_REFERENCE = "self_reference"
     CONTACT_ONLY = "contact_only"
+
+
+class CorrelationType(StrEnum):
+    """Supported sensitive evidence correlation relationships."""
+
+    USERNAME_PASSWORD_PAIR = "username_password_pair"
+    CLIENT_ID_SECRET_PAIR = "client_id_secret_pair"
+    AWS_ACCESS_KEY_SECRET_PAIR = "aws_access_key_secret_pair"
+    TOKEN_AUTHORIZATION_PAIR = "token_authorization_pair"
+    DATABASE_CREDENTIAL_SET = "database_credential_set"
 
 
 @dataclass(slots=True)
@@ -103,6 +115,9 @@ class SensitiveCandidate:
     original_confidence: float = 0.0
     original_severity: SeverityLevel = SeverityLevel.INFORMATIONAL
     adjusted_confidence: float = 0.0
+    adjusted_severity: SeverityLevel | None = None
+    candidate_id: str = field(default_factory=lambda: str(uuid4()))
+    correlation_ids: list[str] = field(default_factory=list)
     positive_evidence: list[PositiveEvidence] = field(default_factory=list)
     negative_evidence: list[NegativeEvidence] = field(default_factory=list)
     validation_state: ValidationState = ValidationState.PENDING
@@ -138,4 +153,32 @@ class SensitiveCandidate:
 
     @property
     def severity(self) -> SeverityLevel:
-        return self.original_severity
+        return self.adjusted_severity or self.original_severity
+
+    @property
+    def line_number(self) -> int | None:
+        return self.match.line_number
+
+
+@dataclass(slots=True)
+class SensitiveCorrelation:
+    """Relationship between validated sensitive candidates."""
+
+    correlation_id: str
+    correlation_type: CorrelationType
+    candidate_ids: list[str]
+    evidence_snippets: list[str]
+    confidence_contribution: float
+    relationship: str
+    source_url: str | None = None
+    source_file: str | None = None
+    asset_id: str | None = None
+    validation_state: ValidationState = ValidationState.PENDING
+    rejection_reason: str | None = None
+    line_number: int | None = None
+    subtype: str = "correlated-credentials"
+    description: str | None = None
+    recommendation: str | None = None
+    raw_value: str | None = None
+    severity_hint: SeverityLevel = SeverityLevel.HIGH
+    base_confidence: float = 90.0

@@ -8,10 +8,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from techspecter.models.discovery import DiscoveryResult
+from techspecter.sensitive_intelligence.candidates.correlation import CandidateCorrelator
 from techspecter.sensitive_intelligence.candidates.models import ValidationState
+from techspecter.sensitive_intelligence.candidates.severity import calibrate_candidate
 from techspecter.sensitive_intelligence.candidates.validator import SensitiveCandidateValidator
-from techspecter.sensitive_intelligence.correlator import correlate_credential_pairs
-from techspecter.sensitive_intelligence.detectors.base import BaseSensitiveDetector, DetectorMatch
 from techspecter.sensitive_intelligence.javascript_intel import extract_javascript_config_snippets
 from techspecter.sensitive_intelligence.models import (
     FindingCategory,
@@ -34,14 +34,14 @@ class SensitiveIntelligenceEngine:
 
     registry: DetectorRegistry = field(default_factory=DetectorRegistry)
     validator: SensitiveCandidateValidator = field(default_factory=SensitiveCandidateValidator)
+    correlator: CandidateCorrelator = field(default_factory=CandidateCorrelator)
 
     def build(self, discovery: DiscoveryResult) -> SensitiveIntelligenceReport:
-        """Run detectors, validate candidates, and confirm findings."""
+        """Run detectors, validate candidates, correlate, calibrate, and confirm."""
         started = time.perf_counter()
         target_url = str(discovery.target.url)
         assets = collect_text_assets(discovery)
         tracker = FindingTracker()
-        correlator = _CredentialCorrelatorDetector()
         candidate_stats = {"confirmed": 0, "rejected": 0, "candidate_only": 0}
 
         logger.info(
@@ -53,6 +53,7 @@ class SensitiveIntelligenceEngine:
         for asset in assets:
             scan_targets = [asset.content, *extract_javascript_config_snippets(asset.content)]
             for content in scan_targets:
+                batch = []
                 for detector in self.registry.all():
                     for match in detector.detect(content):
                         candidate = self.validator.validate_match(
@@ -60,14 +61,29 @@ class SensitiveIntelligenceEngine:
                             detector_id=detector.detector_id,
                             source=asset,
                         )
-                        _record_candidate_stat(candidate_stats, candidate.validation_state)
-                        tracker.add_confirmed_candidate(candidate)
-                for match in correlator.detect(content):
-                    candidate = self.validator.validate_match(
-                        match,
-                        detector_id=correlator.detector_id,
-                        source=asset,
-                    )
+                        batch.append(candidate)
+
+                correlations = self.correlator.correlate(batch)
+                correlated_candidates = self.correlator.apply_correlations(batch, correlations)
+
+                for candidate in batch:
+                    related = [
+                        item
+                        for item in correlations
+                        if candidate.candidate_id in item.candidate_ids
+                        or item.correlation_id in candidate.correlation_ids
+                    ]
+                    calibrate_candidate(candidate, correlations=related)
+                    _record_candidate_stat(candidate_stats, candidate.validation_state)
+                    tracker.add_confirmed_candidate(candidate)
+
+                for candidate in correlated_candidates:
+                    related = [
+                        item
+                        for item in correlations
+                        if item.correlation_id in candidate.correlation_ids
+                    ]
+                    calibrate_candidate(candidate, correlations=related)
                     _record_candidate_stat(candidate_stats, candidate.validation_state)
                     tracker.add_confirmed_candidate(candidate)
 
@@ -97,14 +113,6 @@ class SensitiveIntelligenceEngine:
             candidate_stats["candidate_only"],
         )
         return report
-
-
-class _CredentialCorrelatorDetector(BaseSensitiveDetector):
-    detector_id = "credential-correlator"
-    finding_type = FindingType.CREDENTIAL
-
-    def detect(self, content: str) -> list[DetectorMatch]:
-        return correlate_credential_pairs(content)
 
 
 def _record_candidate_stat(stats: dict[str, int], state: ValidationState) -> None:

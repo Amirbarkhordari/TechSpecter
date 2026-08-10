@@ -1,22 +1,36 @@
-"""Credential pair correlation for username/password findings."""
+"""Credential correlation helpers.
+
+Legacy content-regex correlation remains available for compatibility tests.
+Production correlation operates on validated ``SensitiveCandidate`` objects via
+``candidates.correlation.CandidateCorrelator``.
+"""
 
 from __future__ import annotations
 
 import re
 
+from techspecter.sensitive_intelligence.candidates.correlation import CandidateCorrelator
 from techspecter.sensitive_intelligence.detectors.base import DetectorMatch
 from techspecter.sensitive_intelligence.models import FindingCategory, FindingType, SeverityLevel
 
-_USERNAME = re.compile(r"(?:username|user_name|login)\s*[:=]\s*['\"]([^'\"]{2,})['\"]", re.I)
+_USERNAME = re.compile(
+    r"(?:username|user_name|login|db[_-]?user)\s*[:=]\s*['\"]([^'\"]{2,})['\"]",
+    re.I,
+)
 _PASSWORD = re.compile(r"(?:password|passwd|pwd)\s*[:=]\s*['\"]([^'\"]{4,})['\"]", re.I)
 _MAX_LINE_DISTANCE = 8
 
+__all__ = [
+    "CandidateCorrelator",
+    "correlate_credential_pairs",
+]
+
 
 def correlate_credential_pairs(content: str) -> list[DetectorMatch]:
-    """Detect correlated username/password pairs within the same asset.
+    """Legacy proximity detector for username/password assignments.
 
-    Emits detector matches as evidence producers. Confirmation is deferred to the
-    sensitive candidate validation spine (values must be sufficiently strong).
+    Emits detector matches as evidence producers only. Confirmation and severity
+    decisions are deferred to the candidate validation + correlation spine.
     """
     lines = content.splitlines()
     indexed: list[tuple[str, str, int]] = []

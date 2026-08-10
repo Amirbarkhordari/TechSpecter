@@ -114,21 +114,16 @@ def is_runtime_reference(value: str | None, *, evidence: str | None = None) -> b
         stripped = value.strip()
         if _RUNTIME_VALUE.match(stripped):
             return True
-        # Short dotted identifiers that are not JWT-shaped.
-        if (
-            re.fullmatch(r"[A-Za-z_$][\w.$]*", stripped)
-            and "." in stripped
-            and not stripped.lower().startswith(("eyj", "akia", "ghp_", "sk_"))
-            and (
-                stripped.lower().startswith(("process.env", "env.", "config.", "settings.", "secrets."))
-                or (stripped.count(".") != 2 and len(stripped) < 48)
-            )
-        ):
+        lowered = stripped.lower()
+        if lowered.startswith(("process.env", "env.", "environment.", "config.", "settings.", "secrets.")):
+            return True
+        # Object property paths such as config.password / settings.secret.
+        if re.fullmatch(r"[A-Za-z_$][\w]*\.(?:password|passwd|pwd|secret|token|key|value|api_?key)", stripped, re.I):
             return True
     if evidence and _RUNTIME_ASSIGNMENT.search(evidence):
         # Ignore when the same snippet also has a quoted literal assignment.
         if not re.search(
-            r"""(?:password|passwd|pwd|token|secret|api[_-]?key|key)\s*[:=]\s*['\"][^'\"]+['\"]""",
+            r"""(?:password|passwd|pwd|token|secret|api[_-]?key|key|client_secret)\s*[:=]\s*['\"][^'\"]+['\"]""",
             evidence,
             re.I,
         ):

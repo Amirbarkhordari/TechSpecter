@@ -61,7 +61,7 @@ class FindingTracker:
             finding_type=match.finding_type,
             category=resolve_finding_category(match),
             subtype=match.subtype,
-            severity=match.severity,
+            severity=candidate.severity,
             confidence=candidate.confidence,
             confidence_level=BaseSensitiveDetector.confidence_level(candidate.confidence),
             matched_value=match.matched_value,
