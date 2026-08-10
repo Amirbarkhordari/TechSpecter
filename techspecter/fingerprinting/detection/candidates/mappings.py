@@ -7,6 +7,8 @@ discovery — not a final-output whitelist and not generic keyword scanning.
 
 from __future__ import annotations
 
+import re
+
 # npm / package path → (technology_id, display_name, category)
 PACKAGE_TECHNOLOGY_MAP: dict[str, tuple[str, str, str]] = {
     "react": ("react", "React", "framework"),
@@ -105,6 +107,7 @@ CSS_TECHNOLOGY_MAP: dict[str, tuple[str, str, str]] = {
     "bootstrap": ("bootstrap", "Bootstrap", "css-framework"),
     "tailwindcss": ("tailwindcss", "Tailwind CSS", "css-framework"),
     "tailwind": ("tailwindcss", "Tailwind CSS", "css-framework"),
+    "cloudflare": ("cloudflare", "Cloudflare", "cdn"),
 }
 
 # HTML framework hint / generator key → technology
@@ -119,6 +122,7 @@ HTML_TECHNOLOGY_MAP: dict[str, tuple[str, str, str]] = {
     "wordpress": ("wordpress", "WordPress", "cms"),
     "drupal": ("drupal", "Drupal", "cms"),
     "gatsby": ("gatsby", "Gatsby", "meta-framework"),
+    "cloudflare": ("cloudflare", "Cloudflare", "cdn"),
 }
 
 # HTTP header name (lower) + value substring (lower) → technology
@@ -173,6 +177,34 @@ GENERIC_MARKER_BLOCKLIST: frozenset[str] = frozenset(
     },
 )
 
+# Path / framework-internal segments that must never become package identities.
+INVALID_PACKAGE_NAMES: frozenset[str] = frozenset(
+    {
+        "chunks",
+        "static",
+        "media",
+        "font",
+        "image",
+        "images",
+        "assets",
+        "public",
+        "pages",
+        "page",
+        "_next",
+        "_nuxt",
+        "next",
+        "webpack",
+        "node_modules",
+        "favicon",
+        "robots",
+        "sitemap",
+        "manifest",
+        "browserconfig",
+        "humans",
+        "ads",
+    },
+)
+
 # Ambiguous short names that must not auto-confirm without strong multi-signal evidence.
 CONSERVATIVE_PACKAGE_NAMES: frozenset[str] = frozenset(
     {
@@ -200,7 +232,64 @@ CONSERVATIVE_PACKAGE_NAMES: frozenset[str] = frozenset(
         "render",
         "chunk",
         "bundle",
+        "text",
+        "code",
+        "root",
+        "style",
+        "styles",
+        "css",
+        "js",
+        "ts",
+        "tsx",
+        "jsx",
+        "data",
+        "error",
+        "errors",
+        "route",
+        "routes",
+        "server",
+        "client",
+        "browser",
+        "node",
+        "vendor",
+        "polyfill",
+        "compiled",
+        "build",
+        "module",
+        "modules",
+        "package",
+        "packages",
+        "ci",
+        "dev",
+        "prod",
+        "production",
+        "development",
     },
+)
+
+# npm package names must match this shape (optional scope + package root).
+_VALID_NPM_PACKAGE = re.compile(
+    r"^(?:@[a-z0-9][\w.~-]*/)?[a-z0-9][\w.~-]*$",
+    re.IGNORECASE,
+)
+
+# Tailwind / utility-class style tokens are not package identities.
+_CSS_UTILITY_PREFIX = re.compile(
+    r"^(?:"
+    r"bg|text|border|ring|from|to|via|flex|grid|gap|grow|shrink|basis|"
+    r"p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|"
+    r"w|h|min|max|size|rounded|shadow|opacity|z|"
+    r"top|left|right|bottom|inset|col|row|items|justify|self|place|"
+    r"font|leading|tracking|align|whitespace|overflow|object|"
+    r"transition|duration|ease|animate|cursor|pointer|select|"
+    r"space|divide|outline|blur|content|aspect|columns|break|box|"
+    r"float|clear|isolation|overscroll|visible|invisible|sr|"
+    r"underline|line|decoration|list|table|border|divide|outline|"
+    r"accent|caret|fill|stroke|scroll|snap|touch|will|backface|"
+    r"transform|translate|rotate|skew|scale|origin|filter|"
+    r"backdrop|mix|contrast|brightness|grayscale|invert|saturate|sepia"
+    r")-",
+    re.IGNORECASE,
 )
 
 CONSERVATIVE_RUNTIME_NAMES: frozenset[str] = frozenset(CONSERVATIVE_PACKAGE_NAMES)
@@ -292,10 +381,59 @@ def is_url_like_module(value: str) -> bool:
     return cleaned.startswith(("http://", "https://", "data:", "blob:", "file:"))
 
 
+def is_valid_package_identity(value: str) -> bool:
+    """Return True when a value is a plausible npm/package identity.
+
+    Rejects prose, CSS utilities, path segments, URLs, and other non-package
+    strings that can appear in bundles but must never become technologies.
+    """
+    cleaned = value.strip().strip("\"'")
+    if not cleaned or len(cleaned) > 214:
+        return False
+    if any(ch.isspace() for ch in cleaned):
+        return False
+    if is_relative_module(cleaned) or is_url_like_module(cleaned):
+        return False
+    if "\\" in cleaned or "?" in cleaned or "#" in cleaned:
+        return False
+    if "${" in cleaned or "`" in cleaned:
+        return False
+    lowered = cleaned.lower().replace("\\", "/")
+    if lowered.startswith(("www.", "npmjs.com", "github.com", "unpkg.com", "cdn.")):
+        return False
+    # Version-only tokens
+    if re.fullmatch(r"v?\d+(?:\.\d+){1,3}(?:[-+][\w.-]+)?", cleaned, flags=re.IGNORECASE):
+        return False
+    key = normalize_package_key(cleaned)
+    if not key:
+        return False
+    basename = lowered.rsplit("/", 1)[-1]
+    if "node_modules/" not in lowered and basename.endswith(
+        (".js", ".css", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".map"),
+    ):
+        return False
+    root = key.split("/")[-1] if key.startswith("@") else key
+    if len(root) < 2:
+        return False
+    if root in INVALID_PACKAGE_NAMES or key in INVALID_PACKAGE_NAMES:
+        return False
+    if _CSS_UTILITY_PREFIX.match(root) or _CSS_UTILITY_PREFIX.match(key):
+        return False
+    if root in GENERIC_CSS_SELECTORS:
+        return False
+    if not _VALID_NPM_PACKAGE.match(key):
+        return False
+    if root in {"_next", "_nuxt", "_app", "_document", "_error"} or root.startswith("_next"):
+        return False
+    return True
+
+
 def normalize_package_key(value: str) -> str:
     """Normalize a package path or specifier to a package-root lookup key."""
     cleaned = value.strip().strip("\"'")
     if is_relative_module(cleaned) or is_url_like_module(cleaned):
+        return ""
+    if any(ch.isspace() for ch in cleaned):
         return ""
     lowered = cleaned.lower()
     if "node_modules/" in lowered:
@@ -333,13 +471,11 @@ def is_structured_package_evidence(item: object) -> bool:
     }:
         return False
     value = item.matched_value or ""
-    if is_relative_module(value) or is_url_like_module(value):
-        return False
-    if not normalize_package_key(value):
+    if not is_valid_package_identity(value):
         return False
     # IMPORT_EXPORT must be an import, not an export name
     if item.evidence_type == EvidenceType.IMPORT_EXPORT:
-        return item.metadata.get("kind") in {None, "import"}
+        return item.metadata.get("kind") in {None, "import", "dynamic_import"}
     if item.evidence_type == EvidenceType.SOURCE_MAP_METADATA:
         return "node_modules/" in value.replace("\\", "/").lower()
     return True
@@ -347,6 +483,11 @@ def is_structured_package_evidence(item: object) -> bool:
 
 def lookup_package(value: str) -> tuple[str, str, str] | None:
     """Resolve a package identifier to technology knowledge when known."""
+    return lookup_package_raw(value)
+
+
+def lookup_package_raw(value: str) -> tuple[str, str, str] | None:
+    """Resolve a package identifier against the knowledge map only."""
     if is_relative_module(value) or is_url_like_module(value):
         return None
     key = normalize_package_key(value)
@@ -377,10 +518,12 @@ def resolve_package_identity(
     key = normalize_package_key(value)
     if not key:
         return None
-    known = lookup_package(value)
+    known = lookup_package_raw(value)
     if known is not None:
         tech_id, name, category = known
         return tech_id, name, category, True
+    if not is_valid_package_identity(value):
+        return None
     return package_technology_id(key), key, "unknown", False
 
 
@@ -545,7 +688,7 @@ def is_generic_css_selector(value: str) -> bool:
     if not cleaned:
         return True
     root = cleaned.split(":")[0].split("(")[0]
-    return root in GENERIC_CSS_SELECTORS or root in CONSERVATIVE_PACKAGE_NAMES
+    return root in GENERIC_CSS_SELECTORS
 
 
 def resolve_css_identity(

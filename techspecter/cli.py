@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any
@@ -770,7 +771,16 @@ def fingerprint_command(
 
     if json_output:
         payload = _serialize_fingerprint_result(result)
-        console.print(orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode("utf-8"))
+        encoded = orjson.dumps(payload, option=orjson.OPT_INDENT_2)
+        if output:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(encoded)
+            console.print(f"[green]JSON written to[/green] {output_path}")
+        else:
+            # Prefer UTF-8 even on legacy Windows code pages.
+            sys.stdout.buffer.write(encoded + b"\n")
+            sys.stdout.buffer.flush()
         if compare_wappalyzer:
             console.print("\n[bold]Running Wappalyzer comparison benchmark…[/bold]")
             run_benchmark(

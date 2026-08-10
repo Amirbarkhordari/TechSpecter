@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 
+from techspecter.fingerprinting.detection.candidates.mappings import is_valid_package_identity
 from techspecter.fingerprinting.evidence.models import EvidenceType
 from techspecter.fingerprinting.javascript.extractors.patterns import (
     COPYRIGHT,
@@ -60,6 +61,8 @@ def extract_package_findings(
 
     for match in _NODE_MODULES.finditer(content):
         package_name = match.group(1)
+        if not is_valid_package_identity(package_name):
+            continue
         if package_name in seen:
             continue
         seen.add(package_name)
@@ -76,6 +79,8 @@ def extract_package_findings(
     for match in _PACKAGE_JSON.finditer(content):
         package_name = match.group(1)
         version = match.group(2)
+        if not is_valid_package_identity(package_name):
+            continue
         findings.append(
             ExtractionFinding(
                 category="package",
@@ -99,6 +104,8 @@ def extract_package_findings(
     for imp in parsed.imports:
         module = imp.module
         if not module or module in seen:
+            continue
+        if not is_valid_package_identity(module):
             continue
         seen.add(module)
         findings.append(
@@ -131,21 +138,22 @@ def extract_package_findings(
             ),
         )
 
-    if NPM_PACKAGE.search(content[:8192]):
-        for match in NPM_PACKAGE.finditer(content[:8192]):
-            value = match.group(0)
-            if value in seen:
-                continue
-            seen.add(value)
-            findings.append(
-                ExtractionFinding(
-                    category="package",
-                    evidence_type=EvidenceType.PACKAGE_REFERENCE.value,
-                    matched_value=value,
-                    matched_pattern=NPM_PACKAGE.pattern,
-                    reason="NPM package identifier observed",
-                ),
-            )
+    for match in NPM_PACKAGE.finditer(content[:8192]):
+        value = match.group(1) or match.group(2) or ""
+        if not value or not is_valid_package_identity(value):
+            continue
+        if value in seen:
+            continue
+        seen.add(value)
+        findings.append(
+            ExtractionFinding(
+                category="package",
+                evidence_type=EvidenceType.PACKAGE_REFERENCE.value,
+                matched_value=value,
+                matched_pattern=NPM_PACKAGE.pattern,
+                reason="NPM package identifier observed",
+            ),
+        )
 
     findings.extend(_extract_manifest_json(content))
     return tuple(findings)

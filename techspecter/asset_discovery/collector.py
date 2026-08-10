@@ -13,7 +13,7 @@ from techspecter.asset_discovery.download_status import (
 )
 from techspecter.asset_discovery.hash import sha256_hex
 from techspecter.asset_discovery.inventory import AssetInventoryBuilder, inventory_key
-from techspecter.asset_discovery.models import AssetRecord
+from techspecter.asset_discovery.models import AssetCategory, AssetDownloadStatus, AssetRecord
 from techspecter.downloader.http_client import AsyncHttpClient
 from techspecter.exceptions import DownloaderError
 
@@ -22,6 +22,44 @@ logger = logging.getLogger(__name__)
 DEFAULT_MAX_CONCURRENCY = 8
 DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024
 _TEXT_PREFIXES = ("text/", "application/json", "application/xml", "application/javascript")
+
+# Binary / media assets are discovered for inventory completeness but are not
+# useful for text-based technology evidence and must not block fingerprinting.
+_SKIP_DOWNLOAD_CATEGORIES = frozenset(
+    {
+        AssetCategory.IMAGE,
+        AssetCategory.FONT,
+        AssetCategory.WASM,
+    },
+)
+_SKIP_DOWNLOAD_EXTENSIONS = frozenset(
+    {
+        ".mp4",
+        ".webm",
+        ".mkv",
+        ".avi",
+        ".mov",
+        ".m4v",
+        ".mp3",
+        ".wav",
+        ".ogg",
+        ".flac",
+        ".woff",
+        ".woff2",
+        ".ttf",
+        ".eot",
+        ".otf",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".svg",
+        ".ico",
+        ".bmp",
+        ".avif",
+    },
+)
 
 
 @dataclass(slots=True)
@@ -54,12 +92,32 @@ class AssetCollector:
 
         skip = skip_urls or frozenset()
         pending: list[str] = []
+        skipped = 0
         for key, record in builder.records.items():
             if record.download_success and record.sha256:
                 continue
             if key in skip:
                 continue
+            if _should_skip_asset_download(record):
+                builder.upsert_download(
+                    url=record.url,
+                    http_status=record.http_status,
+                    content_type=record.content_type,
+                    encoding=record.encoding,
+                    file_size=record.file_size,
+                    sha256=record.sha256,
+                    download_success=False,
+                    download_duration_ms=0.0,
+                    response_time_ms=0.0,
+                    error_message="Skipped non-text asset (not required for technology evidence)",
+                    download_status=AssetDownloadStatus.SKIPPED,
+                )
+                skipped += 1
+                continue
             pending.append(record.url)
+
+        if skipped:
+            logger.info("Skipped %d non-text assets (image/font/media/wasm)", skipped)
 
         if not pending:
             logger.info("No pending assets to download")
@@ -197,6 +255,16 @@ def _status_from_exception(exc: BaseException) -> int | None:
 
         return _status_from_message(str(exc))
     response = getattr(exc, "response", None)
+    return getattr(response, "status_code", None)
+
+
+def _should_skip_asset_download(record: AssetRecord) -> bool:
+    """Return True when an asset cannot contribute text technology evidence."""
+    if record.category in _SKIP_DOWNLOAD_CATEGORIES:
+        return True
+    name = (record.filename or "").lower()
+    url = (record.url or "").lower().split("?", 1)[0]
+    return any(name.endswith(ext) or url.endswith(ext) for ext in _SKIP_DOWNLOAD_EXTENSIONS)
     if response is not None:
         status_code = getattr(response, "status_code", None)
         if isinstance(status_code, int):

@@ -97,7 +97,14 @@ class CandidateValidator:
             )
 
         if any(
-            is_relative_module(item.matched_value or "") for item in candidate.evidence
+            item.evidence_type
+            in {
+                EvidenceType.PACKAGE_REFERENCE,
+                EvidenceType.IMPORT_EXPORT,
+                EvidenceType.SOURCE_MAP_METADATA,
+            }
+            and is_relative_module(item.matched_value or "")
+            for item in candidate.evidence
         ):
             return None, candidate.model_copy(
                 update={

@@ -120,6 +120,28 @@ class CSSAnalyzer(EvidenceCollector):
                     metadata=metadata,
                 ),
             )
+        # Structured CDN path markers (e.g. Cloudflare challenge assets).
+        if "/cdn-cgi/" in url.replace("\\", "/").lower():
+            evidence.append(
+                Evidence(
+                    source=EvidenceSource.CSS,
+                    evidence_type=EvidenceType.CSS_MARKER,
+                    collector=self.name,
+                    file=filename,
+                    url=url,
+                    matched_value="/cdn-cgi/",
+                    matched_pattern="/cdn-cgi/",
+                    category="css",
+                    reason="Cloudflare CDN path marker observed on stylesheet URL",
+                    confidence_hint=85.0,
+                    timestamp=timestamp,
+                    metadata={
+                        "css_family": "cloudflare",
+                        "kind": "cdn_path",
+                        **({"asset_id": asset_id} if asset_id else {}),
+                    },
+                ),
+            )
         return evidence
 
 

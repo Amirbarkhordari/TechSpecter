@@ -220,7 +220,9 @@ CandidateValidator + MatchQualityGate
 confirmed TechnologyMatch  OR  rejected (candidate-only / noise)
 ```
 
-Relative imports (`./`, `../`) never become package identities. Ambiguous names (`utils`, `core`, …) require multi-signal evidence before confirmation. Missing catalog metadata does not invalidate evidence-backed discovery.
+Relative imports (`./`, `../`) never become package identities. Ambiguous names (`utils`, `core`, …) require multi-signal evidence before confirmation. Prose, CSS utility classes, path segments (`chunks`, `_next`), and bare filenames are rejected as package identities. Missing catalog metadata does not invalidate evidence-backed discovery.
+
+Asset discovery skips downloading binary/media assets (images, fonts, video, wasm) that cannot contribute text technology evidence.
 
 Each `TechnologyMatch` retains provenance: source file, matcher, matched pattern/value, structured evidence, and optional version attribution scoped per technology.
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -155,8 +156,10 @@ def test_fingerprint_command_debug_fingerprint_flag(mock_analyze: AsyncMock) -> 
 
 
 @patch("techspecter.cli.UnifiedDetectionService.analyze_url", new_callable=AsyncMock)
-def test_fingerprint_command_json_output(mock_analyze: AsyncMock) -> None:
-    """Verify fingerprint command supports JSON output."""
+def test_fingerprint_command_json_output_to_file(
+    mock_analyze: AsyncMock, tmp_path: Path
+) -> None:
+    """Verify --json --output writes UTF-8 JSON without dumping to stdout."""
     mock_analyze.return_value = FingerprintAnalysisResult(
         target_url="https://example.com",
         detection=DetectionResult(
@@ -167,10 +170,17 @@ def test_fingerprint_command_json_output(mock_analyze: AsyncMock) -> None:
         ),
         elapsed_ms=50.0,
     )
-    result = runner.invoke(app, ["fingerprint", "https://example.com", "--json"])
+    output = tmp_path / "out.json"
+    result = runner.invoke(
+        app,
+        ["fingerprint", "https://example.com", "--json", "--output", str(output)],
+    )
     assert result.exit_code == 0
-    assert '"target_url": "https://example.com"' in result.stdout
-    assert '"detection"' in result.stdout
+    assert output.exists()
+    payload = output.read_text(encoding="utf-8")
+    assert '"target_url": "https://example.com"' in payload
+    assert '"detection"' in payload
+    assert '"target_url": "https://example.com"' not in result.stdout
 
 
 @respx.mock

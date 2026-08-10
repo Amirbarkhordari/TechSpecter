@@ -180,17 +180,28 @@ async def test_dns_failure_is_recorded_and_scan_continues() -> None:
 
 
 @pytest.mark.asyncio
-async def test_timeout_is_classified() -> None:
-    """Verify timeout failures are recorded without aborting collection."""
-    builder = _builder_with_assets("https://example.com/slow.js")
+async def test_non_text_media_assets_are_skipped_without_download() -> None:
+    """Binary/media assets must not be downloaded for technology evidence."""
+    builder = AssetInventoryBuilder()
+    builder.add_reference(
+        _reference("https://example.com/video.mp4", category=AssetCategory.IMAGE),
+    )
+    builder.add_reference(
+        _reference("https://example.com/app.js", category=AssetCategory.JAVASCRIPT),
+    )
     client = MagicMock(spec=AsyncHttpClient)
-    client.get = AsyncMock(side_effect=httpx.TimeoutException("Request timed out"))
+    client.get = AsyncMock(
+        return_value=_mock_response("https://example.com/app.js", text="console.log(1)"),
+    )
     collector = AssetCollector(client=client)
 
     await collector.enrich_inventory(builder)
 
-    asset = builder.build(target_url="https://example.com/").assets[0]
-    assert asset.download_status == AssetDownloadStatus.TIMEOUT
+    inventory = builder.build(target_url="https://example.com/")
+    by_url = {asset.url: asset for asset in inventory.assets}
+    assert by_url["https://example.com/video.mp4"].download_status == AssetDownloadStatus.SKIPPED
+    assert by_url["https://example.com/app.js"].download_status == AssetDownloadStatus.DOWNLOADED
+    assert client.get.await_count == 1
 
 
 @pytest.mark.asyncio

@@ -14,7 +14,7 @@ GITHUB_URL = re.compile(
     re.IGNORECASE,
 )
 NPM_PACKAGE = re.compile(
-    r"(?:npm(?:js)?\.com/package/|@?[\w.-]+/[\w.-]+|node_modules/(@?[\w.-]+(?:/[\w.-]+)?))",
+    r"(?:npm(?:js)?\.com/package/(@?[\w.-]+(?:/[\w.-]+)?)|node_modules/(@?[\w.-]+(?:/[\w.-]+)?))",
     re.IGNORECASE,
 )
 LICENSE_HEADER = re.compile(

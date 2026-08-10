@@ -480,7 +480,21 @@ def test_legacy_and_candidate_dedupe() -> None:
     assert len(webpack) == 1
 
 
-def test_tailwind_structural_css_detection() -> None:
+def test_cloudflare_cdn_cgi_path_produces_candidate() -> None:
+    collection = _collection(
+        _evidence(
+            evidence_type=EvidenceType.CSS_MARKER,
+            matched_value="/cdn-cgi/",
+            file="static-pages-2.6.0.css",
+            url="https://example.com/cdn-cgi/assets/css/static-pages-2.6.0.css",
+            source=EvidenceSource.CSS,
+            metadata={"css_family": "cloudflare", "kind": "cdn_path"},
+            confidence_hint=85.0,
+        ),
+    )
+    result = CandidateDetectionPipeline().detect(collection)
+    assert "cloudflare" in {item.technology.id for item in result.matches}
+
     content = "@tailwind base;\n@tailwind components;\n@tailwind utilities;\n"
     findings = extract_css_findings(content)
     assert any(item.metadata.get("css_family") == "tailwindcss" for item in findings)
