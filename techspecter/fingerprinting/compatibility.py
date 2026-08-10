@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from techspecter.fingerprinting.detection.candidates import CandidateDetectionPipeline
 from techspecter.fingerprinting.detection.models import ExplainableDetectionResult
 from techspecter.fingerprinting.detection.pipeline import EvidenceDetectionPipeline
 from techspecter.fingerprinting.evidence.models import EvidenceCollection
@@ -24,6 +25,7 @@ class FingerprintCompatibilityLayer:
         detection_pipeline: FingerprintPipeline | None = None,
         evidence_pipeline: EvidencePipeline | None = None,
         evidence_detection_pipeline: EvidenceDetectionPipeline | None = None,
+        candidate_pipeline: CandidateDetectionPipeline | None = None,
     ) -> None:
         """Initialize compatibility layer with injectable pipelines."""
         self._detection_pipeline = detection_pipeline or FingerprintPipeline()
@@ -31,6 +33,7 @@ class FingerprintCompatibilityLayer:
         self._evidence_detection_pipeline = (
             evidence_detection_pipeline or EvidenceDetectionPipeline()
         )
+        self._candidate_pipeline = candidate_pipeline or CandidateDetectionPipeline()
 
     def detect(self, discovery: DiscoveryResult) -> DetectionResult:
         """Run legacy technology detection unchanged."""
@@ -43,6 +46,10 @@ class FingerprintCompatibilityLayer:
     def detect_from_evidence(self, collection: EvidenceCollection) -> ExplainableDetectionResult:
         """Run explainable evidence-based detection."""
         return self._evidence_detection_pipeline.detect(collection)
+
+    def detect_candidates(self, collection: EvidenceCollection) -> DetectionResult:
+        """Run evidence-driven candidate generation and validation."""
+        return self._candidate_pipeline.detect(collection)
 
     def analyze(
         self,

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from techspecter.configuration.models import ProvidersConfig
 from techspecter.crawler.discovery import DiscoveryPipeline
 from techspecter.fingerprinting.compatibility import FingerprintCompatibilityLayer
+from techspecter.fingerprinting.detection.candidates import CandidateDetectionPipeline
 from techspecter.fingerprinting.models import FingerprintAnalysisResult
 from techspecter.fingerprinting.pipeline.result_merger import merge_detection_results
 from techspecter.fingerprinting.rebuild import rebuild_fingerprint_analysis_models  # noqa: F401
@@ -40,7 +41,9 @@ class UnifiedDetectionService:
     providers_config: ProvidersConfig = field(default_factory=ProvidersConfig)
     intelligence_engine: TechnologyIntelligenceEngine | None = None
     compatibility_layer: FingerprintCompatibilityLayer | None = None
+    candidate_pipeline: CandidateDetectionPipeline | None = None
     collect_evidence: bool = True
+    use_candidate_detection: bool = True
 
     async def analyze_url(
         self,
@@ -92,6 +95,15 @@ class UnifiedDetectionService:
                 len(explainable.detection.matches),
             )
             detection_inputs.append(explainable.detection)
+
+            if self.use_candidate_detection:
+                candidate_detection = self._candidates().detect(evidence_collection)
+                logger.info(
+                    "Evidence-driven candidates for %s produced %d confirmed technologies",
+                    target.url,
+                    len(candidate_detection.matches),
+                )
+                detection_inputs.append(candidate_detection)
 
         merged = merge_detection_results(*detection_inputs, apply_quality_gate=True)
 
@@ -174,3 +186,9 @@ class UnifiedDetectionService:
         if self.compatibility_layer is None:
             self.compatibility_layer = FingerprintCompatibilityLayer()
         return self.compatibility_layer
+
+    def _candidates(self) -> CandidateDetectionPipeline:
+        """Return evidence-driven candidate detection pipeline."""
+        if self.candidate_pipeline is None:
+            self.candidate_pipeline = CandidateDetectionPipeline()
+        return self.candidate_pipeline

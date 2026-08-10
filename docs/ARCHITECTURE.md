@@ -146,16 +146,22 @@ Target assets
     ↓
 Evidence collection (technology=None)
     ↓
-Signature / fingerprint evaluation (knowledge catalog)
-    ↓
-Evidence-backed TechnologyMatch (detection_basis=evidence)
-    ↓
-Quality gate (evidence strength, not registry membership)
-    ↓
-Provider merge + Technology Intelligence
-    ↓
-Reporting
+┌──────────────────────────────┬─────────────────────────────┐
+│ Fingerprint / signature path │ Candidate discovery path    │
+│ (closed-world knowledge)     │ EvidenceIndexer             │
+│                              │ → TechnologyCandidate       │
+│                              │ → CandidateValidator        │
+└──────────────┬───────────────┴──────────────┬──────────────┘
+               └──────────────┬───────────────┘
+                              ↓
+               Evidence-backed TechnologyMatch
+                              ↓
+               Quality gate + merge
+                              ↓
+               Technology Intelligence / Reporting
 ```
+
+**Candidate ≠ confirmed technology.** Only validated candidates with strong structured evidence (package, runtime, import, bundle, technology-specific HTTP) become confirmed matches. Generic `STRING_LITERAL` values never generate or confirm technologies by themselves.
 
 Each `TechnologyMatch` retains provenance: source file, matcher, matched pattern/value, structured evidence, and optional version attribution scoped per technology.
 

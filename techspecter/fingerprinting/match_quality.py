@@ -148,7 +148,17 @@ def is_strong_evidence(item: PatternEvidence) -> bool:
     """Return True when structured evidence is strong enough to confirm alone."""
     if is_strong_pattern(item.matcher, item.pattern):
         return True
-    if item.matcher in {"runtime", "javascript", "html"} and item.weight >= 70.0:
+    if item.matcher in {
+        "runtime",
+        "javascript",
+        "html",
+        "runtime_pattern",
+        "package_reference",
+        "bundle_marker",
+        "bundle_runtime",
+        "import_export",
+        "http_header",
+    } and item.weight >= 70.0:
         return True
     return item.matcher == "regex" and item.weight >= 25.0
 
