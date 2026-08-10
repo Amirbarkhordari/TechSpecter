@@ -56,6 +56,7 @@ class EntropySecretDetector(BaseSensitiveDetector):
                     rule_name="High Entropy Secret",
                     description="High-entropy secret-like assignment detected.",
                     recommendation="Verify whether the value is a secret and move it server-side.",
+                    raw_value=token,
                 ),
             )
         return results
@@ -87,14 +88,20 @@ class EntropySecretDetector(BaseSensitiveDetector):
                     recommendation=(
                         "Inspect the encoded value and rotate if it contains credentials."
                     ),
+                    raw_value=token,
                 ),
             )
         return results
 
 
-def _shannon_entropy(value: str) -> float:
+def shannon_entropy(value: str) -> float:
+    """Compute Shannon entropy for a string value."""
     if not value:
         return 0.0
     counts = Counter(value)
     length = len(value)
     return -sum((count / length) * math.log2(count / length) for count in counts.values())
+
+
+def _shannon_entropy(value: str) -> float:
+    return shannon_entropy(value)

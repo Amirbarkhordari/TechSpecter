@@ -16,7 +16,7 @@ from techspecter.sensitive_intelligence.models import (
 
 @dataclass(frozen=True, slots=True)
 class DetectorMatch:
-    """Raw match produced by a detector before deduplication."""
+    """Raw match produced by a detector before candidate validation."""
 
     finding_type: FindingType
     subtype: str
@@ -33,6 +33,7 @@ class DetectorMatch:
     rule_name: str | None = None
     description: str | None = None
     recommendation: str | None = None
+    raw_value: str | None = None
 
 
 class BaseSensitiveDetector(ABC):
@@ -78,6 +79,7 @@ class BaseSensitiveDetector(ABC):
                         byte_offset=start,
                         column_number=start - line_start + 1,
                         category=_category_for_finding_type(ftype),
+                        raw_value=raw,
                     ),
                 )
         return matches

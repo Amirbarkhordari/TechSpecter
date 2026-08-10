@@ -73,6 +73,7 @@ class RuleEngine:
                     rule_name=rule.name,
                     description=rule.description,
                     recommendation=rule.recommendation,
+                    raw_value=raw,
                 ),
             )
         return results

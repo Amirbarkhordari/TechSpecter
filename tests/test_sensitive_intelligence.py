@@ -156,7 +156,7 @@ def test_report_models_for_export() -> None:
                 url="https://example.com/app.js",
                 filename="app.js",
                 download_success=True,
-                content="const email = 'dev@example.com';",
+                content=f'const token = "{JWT_SAMPLE}";',
             ),
         ],
     )

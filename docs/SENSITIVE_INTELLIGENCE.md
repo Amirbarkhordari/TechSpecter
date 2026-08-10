@@ -10,25 +10,32 @@ DiscoveryPipeline.run()
   └── SensitiveIntelligenceEngine.build()
         ├── collect_text_assets()          # reuse downloaded assets only
         ├── extract_javascript_config_snippets()
-        ├── DetectorRegistry
-        │     ├── RuleEngineDetector (secrets / credentials / config / dev artifacts)
-        │     ├── EntropySecretDetector
-        │     └── contact-info detectors (email, phone, …)
-        ├── correlate_credential_pairs()
-        ├── FindingTracker (dedupe + attribution)
+        ├── DetectorRegistry → DetectorMatch (evidence only)
+        ├── correlate_credential_pairs() → DetectorMatch (evidence only)
+        ├── SensitiveCandidateValidator
+        │     ├── build SensitiveCandidate
+        │     ├── ContextAnalyzer / ValueAnalyzer
+        │     ├── positive / negative evidence
+        │     └── SensitiveMatchQualityGate
+        ├── FindingTracker (confirmed candidates only; dedupe + attribution)
         └── SensitiveIntelligenceReport
 ```
+
+`DetectorMatch` is **not** automatically a confirmed finding. Confirmation requires the
+candidate validation spine (`candidates/`).
 
 ### Package layout
 
 | Module | Responsibility |
 |--------|----------------|
 | `models.py` | Finding types, categories, severity, confidence, evidence models |
+| `candidates/` | `SensitiveCandidate`, context/value analysis, validator, quality gate |
 | `rules/` | Extensible rule engine (`DetectionRule`, validators, catalog, `RuleEngine`) |
 | `javascript_intel.py` | Extract `window.__NEXT_DATA__`, `__INITIAL_STATE__`, `process.env`, etc. |
-| `correlator.py` | Correlate nearby username/password assignments |
+| `correlator.py` | Correlate nearby username/password assignments (candidate evidence) |
 | `registry.py` | Pluggable detector registration |
 | `engine.py` | Orchestration |
+| `tracker.py` | Deduplicate confirmed findings only |
 | `report.py` | Full CLI section: **Secret & Sensitive Intelligence** |
 | `cli_display.py` | Fingerprint CLI filtering and concise rendering |
 | `display_utils.py` | Safe Rich markup escaping for evidence output |

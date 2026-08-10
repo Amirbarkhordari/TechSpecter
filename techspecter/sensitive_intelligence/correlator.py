@@ -13,7 +13,11 @@ _MAX_LINE_DISTANCE = 8
 
 
 def correlate_credential_pairs(content: str) -> list[DetectorMatch]:
-    """Detect correlated username/password pairs within the same asset."""
+    """Detect correlated username/password pairs within the same asset.
+
+    Emits detector matches as evidence producers. Confirmation is deferred to the
+    sensitive candidate validation spine (values must be sufficiently strong).
+    """
     lines = content.splitlines()
     indexed: list[tuple[str, str, int]] = []
     for line_number, line in enumerate(lines, start=1):
@@ -27,8 +31,8 @@ def correlate_credential_pairs(content: str) -> list[DetectorMatch]:
     matches: list[DetectorMatch] = []
     usernames = [item for item in indexed if item[0] == "username"]
     passwords = [item for item in indexed if item[0] == "password"]
-    for _, _, user_line in usernames:
-        for _, _, pwd_line in passwords:
+    for _, user_value, user_line in usernames:
+        for _, password_value, pwd_line in passwords:
             if abs(user_line - pwd_line) > _MAX_LINE_DISTANCE:
                 continue
             start_line = min(user_line, pwd_line)
@@ -51,6 +55,7 @@ def correlate_credential_pairs(content: str) -> list[DetectorMatch]:
                     rule_name="Correlated Credentials",
                     description="Username and password assignments found near each other.",
                     recommendation="Remove hardcoded credential pairs from client-side assets.",
+                    raw_value=f"{user_value}\n{password_value}",
                 ),
             )
             break

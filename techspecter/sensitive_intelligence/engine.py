@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from techspecter.models.discovery import DiscoveryResult
+from techspecter.sensitive_intelligence.candidates.models import ValidationState
+from techspecter.sensitive_intelligence.candidates.validator import SensitiveCandidateValidator
 from techspecter.sensitive_intelligence.correlator import correlate_credential_pairs
 from techspecter.sensitive_intelligence.detectors.base import BaseSensitiveDetector, DetectorMatch
 from techspecter.sensitive_intelligence.javascript_intel import extract_javascript_config_snippets
@@ -31,14 +33,16 @@ class SensitiveIntelligenceEngine:
     """Analyze downloaded textual assets for sensitive data and secrets."""
 
     registry: DetectorRegistry = field(default_factory=DetectorRegistry)
+    validator: SensitiveCandidateValidator = field(default_factory=SensitiveCandidateValidator)
 
     def build(self, discovery: DiscoveryResult) -> SensitiveIntelligenceReport:
-        """Run all detectors against discovered textual assets."""
+        """Run detectors, validate candidates, and confirm findings."""
         started = time.perf_counter()
         target_url = str(discovery.target.url)
         assets = collect_text_assets(discovery)
         tracker = FindingTracker()
         correlator = _CredentialCorrelatorDetector()
+        candidate_stats = {"confirmed": 0, "rejected": 0, "candidate_only": 0}
 
         logger.info(
             "Sensitive intelligence starting for %s: %d textual assets",
@@ -51,9 +55,21 @@ class SensitiveIntelligenceEngine:
             for content in scan_targets:
                 for detector in self.registry.all():
                     for match in detector.detect(content):
-                        tracker.add_match(match, detector=detector, source=asset)
+                        candidate = self.validator.validate_match(
+                            match,
+                            detector_id=detector.detector_id,
+                            source=asset,
+                        )
+                        _record_candidate_stat(candidate_stats, candidate.validation_state)
+                        tracker.add_confirmed_candidate(candidate)
                 for match in correlator.detect(content):
-                    tracker.add_match(match, detector=correlator, source=asset)
+                    candidate = self.validator.validate_match(
+                        match,
+                        detector_id=correlator.detector_id,
+                        source=asset,
+                    )
+                    _record_candidate_stat(candidate_stats, candidate.validation_state)
+                    tracker.add_confirmed_candidate(candidate)
 
         findings = sorted(
             tracker.all(),
@@ -70,11 +86,15 @@ class SensitiveIntelligenceEngine:
             generated_at=datetime.now(tz=UTC),
         )
         logger.info(
-            "Sensitive intelligence complete for %s: %d findings from %d assets (%.0f ms)",
+            "Sensitive intelligence complete for %s: %d findings from %d assets "
+            "(%.0f ms; confirmed=%d rejected=%d candidate_only=%d)",
             target_url,
             summary.total_findings,
             len(assets),
             elapsed_ms,
+            candidate_stats["confirmed"],
+            candidate_stats["rejected"],
+            candidate_stats["candidate_only"],
         )
         return report
 
@@ -85,6 +105,15 @@ class _CredentialCorrelatorDetector(BaseSensitiveDetector):
 
     def detect(self, content: str) -> list[DetectorMatch]:
         return correlate_credential_pairs(content)
+
+
+def _record_candidate_stat(stats: dict[str, int], state: ValidationState) -> None:
+    if state == ValidationState.CONFIRMED:
+        stats["confirmed"] += 1
+    elif state == ValidationState.REJECTED:
+        stats["rejected"] += 1
+    else:
+        stats["candidate_only"] += 1
 
 
 def _build_summary(
