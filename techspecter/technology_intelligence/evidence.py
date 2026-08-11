@@ -164,7 +164,7 @@ def build_version_attribution(
             source_url=match.source_url,
             source_asset_id=attributor.asset_id(match.source_url),
             matched_pattern=_strip_evidence_prefixes(raw_pattern) if raw_pattern else None,
-            matched_text=match.version_reason,
+            matched_text=match.version,
             confidence=match.version_confidence or match.confidence,
             extractor_id=match.version_source,
             alternative_candidates=list(

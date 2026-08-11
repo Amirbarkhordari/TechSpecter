@@ -71,6 +71,8 @@ class TechnologyIntelligenceEngine:
                 match.technology.id,
                 resources_for_match(match, resources),
                 technology_confidence=match.confidence,
+                preferred_source_url=match.source_url,
+                preferred_filename=match.filename or match.source_file,
             )
             if version_result is not None:
                 evidence.extend(

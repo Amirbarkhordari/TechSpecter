@@ -82,8 +82,15 @@ def source_identity(candidate: VersionCandidate) -> str:
 
 def score_version_groups(
     candidates: tuple[VersionCandidate, ...] | list[VersionCandidate],
+    *,
+    preferred_source_urls: tuple[str, ...] | list[str] = (),
+    preferred_filenames: tuple[str, ...] | list[str] = (),
 ) -> list[VersionGroupScore]:
     """Group candidates by version and score each group."""
+    preferred = _PreferredProvenance(
+        urls=tuple(item for item in preferred_source_urls if item),
+        filenames=tuple(item for item in preferred_filenames if item),
+    )
     by_version: dict[str, list[VersionCandidate]] = defaultdict(list)
     for candidate in candidates:
         if not is_valid_version(candidate.version):
@@ -92,7 +99,7 @@ def score_version_groups(
 
     groups: list[VersionGroupScore] = []
     for version, items in by_version.items():
-        groups.append(_score_group(version, items))
+        groups.append(_score_group(version, items, preferred=preferred))
     groups.sort(key=lambda item: (-item.score, -item.ownership_confidence, item.version))
     return groups
 
@@ -101,11 +108,17 @@ def resolve_primary_version(
     candidates: tuple[VersionCandidate, ...] | list[VersionCandidate],
     *,
     technology_confidence: float | None = None,
+    preferred_source_urls: tuple[str, ...] | list[str] = (),
+    preferred_filenames: tuple[str, ...] | list[str] = (),
 ) -> PrimaryVersionResolution:
     """Resolve primary/alternate versions for one technology.
 
     Technology confidence is accepted for provenance only and never drives
     version selection.
+
+    Optional preferred source URL/filename values come from TechnologyMatch
+    primary provenance and may break otherwise equal strong conflicts without
+    preferring newer numeric versions.
     """
     _ = technology_confidence
     candidate_tuple = tuple(candidates)
@@ -129,7 +142,11 @@ def resolve_primary_version(
             candidate_count=len(candidate_tuple),
         )
 
-    groups = score_version_groups(valid)
+    groups = score_version_groups(
+        valid,
+        preferred_source_urls=preferred_source_urls,
+        preferred_filenames=preferred_filenames,
+    )
     strong = [group for group in groups if group.confirmable]
     weak = [group for group in groups if not group.confirmable]
 
@@ -244,12 +261,25 @@ def resolve_primary_version(
     )
 
 
-def _score_group(version: str, items: list[VersionCandidate]) -> VersionGroupScore:
+@dataclass(frozen=True, slots=True)
+class _PreferredProvenance:
+    urls: tuple[str, ...] = ()
+    filenames: tuple[str, ...] = ()
+
+
+def _score_group(
+    version: str,
+    items: list[VersionCandidate],
+    *,
+    preferred: _PreferredProvenance | None = None,
+) -> VersionGroupScore:
+    preferred = preferred or _PreferredProvenance()
     confirmable_items = [item for item in items if candidate_supports_confirmation(item)]
     ranked_items = confirmable_items or items
     best = max(
         ranked_items,
         key=lambda item: (
+            _candidate_score(item, preferred=preferred),
             item.ownership_confidence,
             item.priority,
             item.version_confidence,
@@ -260,14 +290,12 @@ def _score_group(version: str, items: list[VersionCandidate]) -> VersionGroupSco
     ownership = max(item.ownership_confidence for item in ranked_items)
     confirmable = bool(confirmable_items)
 
-    score = best.priority * 0.50
-    score += ownership * 0.35
+    score = _candidate_score(best, preferred=preferred)
     if independent > 1:
         score += min(
             _MAX_CORROBORATION,
             (independent - 1) * _CORROBORATION_PER_SOURCE,
         )
-    score += _evidence_quality_bonus(best)
     if not confirmable:
         score = min(score * 0.40, 40.0)
 
@@ -280,6 +308,8 @@ def _score_group(version: str, items: list[VersionCandidate]) -> VersionGroupSco
         reason_parts.append("confirmable")
     else:
         reason_parts.append("weak/reference")
+    if _preferred_provenance_bonus(best, preferred) > 0:
+        reason_parts.append("preferred_match_provenance")
 
     return VersionGroupScore(
         version=version,
@@ -292,6 +322,58 @@ def _score_group(version: str, items: list[VersionCandidate]) -> VersionGroupSco
         best_candidate=best,
         reason="; ".join(reason_parts),
     )
+
+
+def _candidate_score(
+    candidate: VersionCandidate,
+    *,
+    preferred: _PreferredProvenance,
+) -> float:
+    score = candidate.priority * 0.50
+    score += candidate.ownership_confidence * 0.35
+    score += _evidence_quality_bonus(candidate)
+    score += _path_version_agreement_bonus(candidate)
+    score += _preferred_provenance_bonus(candidate, preferred)
+    return score
+
+
+def _normalize_url(value: str) -> str:
+    return value.strip().split("?", 1)[0].rstrip("/")
+
+
+def _preferred_provenance_bonus(
+    candidate: VersionCandidate,
+    preferred: _PreferredProvenance,
+) -> float:
+    """Bonus when a candidate originates from TechnologyMatch primary provenance."""
+    url = (candidate.source_url or candidate.resource or "").strip()
+    filename = (candidate.source_file or "").strip()
+    if url:
+        normalized = _normalize_url(url)
+        for preferred_url in preferred.urls:
+            preferred_norm = _normalize_url(preferred_url)
+            if normalized == preferred_norm or normalized.endswith(preferred_norm) or preferred_norm.endswith(normalized):
+                return 20.0
+    if filename:
+        file_l = filename.lower()
+        for preferred_name in preferred.filenames:
+            name_l = preferred_name.strip().lower()
+            if not name_l:
+                continue
+            if file_l == name_l or file_l.endswith(name_l) or name_l.endswith(file_l):
+                return 20.0
+    return 0.0
+
+
+def _path_version_agreement_bonus(candidate: VersionCandidate) -> float:
+    """Small generic bonus when asset path/filename contains the extracted version."""
+    version = (candidate.version or "").strip().lower()
+    if not version:
+        return 0.0
+    haystack = f"{candidate.source_file or ''} {candidate.source_url or ''}".lower()
+    if version in haystack:
+        return 8.0
+    return 0.0
 
 
 def _evidence_quality_bonus(candidate: VersionCandidate) -> float:

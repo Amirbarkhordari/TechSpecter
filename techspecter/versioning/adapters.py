@@ -121,6 +121,8 @@ def resolve_extracted_versions(
     *,
     technology_id: str,
     technology_confidence: float | None = None,
+    preferred_source_urls: tuple[str, ...] | list[str] = (),
+    preferred_filenames: tuple[str, ...] | list[str] = (),
 ) -> PrimaryVersionResolution:
     """Run canonical primary/alternate resolution on extractor observations."""
     from techspecter.versioning.resolution import resolve_primary_version
@@ -129,6 +131,8 @@ def resolve_extracted_versions(
     return resolve_primary_version(
         candidates,
         technology_confidence=technology_confidence,
+        preferred_source_urls=preferred_source_urls,
+        preferred_filenames=preferred_filenames,
     )
 
 

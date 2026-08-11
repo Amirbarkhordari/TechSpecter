@@ -454,3 +454,109 @@ def test_js_path_and_evidence_path_equivalent_semantics_for_owned_package() -> N
     evidence_outcome = resolve_primary_version(evidence)
     assert js_outcome.primary_version == evidence_outcome.primary_version == "8.8.8"
     assert js_outcome.attribution_state == evidence_outcome.attribution_state
+
+
+def test_match_provenance_breaks_equal_affinity_conflicts() -> None:
+    """Primary TechnologyMatch source selects among equally strong owned assets."""
+    owned_a = _js(
+        "3.6.0",
+        technology_id="examplelib",
+        method=VersionEvidenceType.BANNER,
+        url="https://cdn.example.com/examplelib-3.6.0.min.js",
+        filename="examplelib-3.6.0.min.js",
+    )
+    owned_b = _js(
+        "3.5.1",
+        technology_id="examplelib",
+        method=VersionEvidenceType.BANNER,
+        url="https://cdn.example.com/examplelib-3.5.1.min.js",
+        filename="examplelib-3.5.1.min.js",
+    )
+    without_pref = resolve_extracted_versions(
+        [owned_a, owned_b],
+        technology_id="examplelib",
+    )
+    assert without_pref.primary_version == UNKNOWN_VERSION
+    assert set(without_pref.alternate_versions) == {"3.5.1", "3.6.0"}
+
+    with_pref = resolve_extracted_versions(
+        [owned_a, owned_b],
+        technology_id="examplelib",
+        preferred_source_urls=["https://cdn.example.com/examplelib-3.6.0.min.js"],
+        preferred_filenames=["examplelib-3.6.0.min.js"],
+    )
+    assert with_pref.primary_version == "3.6.0"
+    assert with_pref.attribution_state == VersionAttributionState.CONFIRMED
+    assert with_pref.confidence > 0.0
+    assert "3.5.1" in with_pref.alternate_versions
+
+
+def test_engine_uses_match_provenance_for_conflicting_owned_assets() -> None:
+    from techspecter.versioning.engine import JavaScriptResourceContent, VersionDetectionEngine
+
+    resources = [
+        JavaScriptResourceContent(
+            url="https://code.example.com/examplelib-3.6.0.min.js",
+            filename="examplelib-3.6.0.min.js",
+            content="/*! ExampleLib v3.6.0 */\n",
+        ),
+        JavaScriptResourceContent(
+            url="https://cdn.example.com/examplelib-3.5.1.min.dc5e7f18c8.js",
+            filename="examplelib-3.5.1.min.dc5e7f18c8.js",
+            content="/*! ExampleLib v3.5.1 */\n",
+        ),
+    ]
+    # Register temporary extractor via direct resolve path using jquery-like pattern.
+    from techspecter.versioning.extractors.base import ExtractionPattern, PatternVersionExtractor
+    import re
+
+    class _ExampleLib(PatternVersionExtractor):
+        technology_id = "examplelib"
+        content_markers = frozenset({"ExampleLib"})
+        patterns = (
+            ExtractionPattern(
+                re.compile(r"ExampleLib\s+v?([\d.]+)"),
+                VersionEvidenceType.BANNER,
+                "banner",
+            ),
+        )
+
+    engine = VersionDetectionEngine()
+    engine.registry.register(_ExampleLib())
+    result = engine.detect_for_technology(
+        "examplelib",
+        resources,
+        preferred_source_url="https://code.example.com/examplelib-3.6.0.min.js",
+        preferred_filename="examplelib-3.6.0.min.js",
+    )
+    assert result is not None
+    assert result.version == "3.6.0"
+    assert result.confidence > 0.0
+    assert "3.5.1" in result.alternate_versions
+
+
+def test_equal_owned_conflicts_without_provenance_remain_ambiguous() -> None:
+    outcome = resolve_extracted_versions(
+        [
+            _js(
+                "2.0.0",
+                technology_id="lib-y",
+                method=VersionEvidenceType.BANNER,
+                filename="lib-y-2.0.0.min.js",
+                url="https://cdn.example.com/lib-y-2.0.0.min.js",
+            ),
+            _js(
+                "1.0.0",
+                technology_id="lib-y",
+                method=VersionEvidenceType.BANNER,
+                filename="lib-y-1.0.0.min.js",
+                url="https://cdn.example.com/lib-y-1.0.0.min.js",
+            ),
+        ],
+        technology_id="lib-y",
+    )
+    assert outcome.primary_version == UNKNOWN_VERSION
+    assert outcome.conflict_class in {
+        VersionConflictClass.AMBIGUOUS,
+        VersionConflictClass.STRONG_CONFLICT,
+    }

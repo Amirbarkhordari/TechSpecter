@@ -112,10 +112,15 @@ Canonical resolution (`resolve_primary_version`) alone selects Primary / Alterna
 Technology Intelligence consumes that canonical result.
 
 **Asset affinity (generic):** banner/filename/source-map style methods require the asset
-identity (filename/URL tokens) to align with the technology before they become confirmable.
-Self-proving methods (runtime constants, framework objects, package identifiers) do not
-need asset-name affinity. Incidental mentions in unrelated assets remain associated
-evidence and **must not veto** stronger owned candidates.
+identity (filename/URL tokens) to align with the technology before they become strongly
+owned. Self-proving methods (runtime constants, framework objects, package identifiers)
+do not need asset-name affinity. Incidental mentions in unrelated assets remain weaker
+and **must not veto** stronger owned candidates.
+
+**Match provenance (generic):** when two equally strong technology-owned versions conflict,
+the TechnologyMatch primary `source_url` / `filename` may break the tie. This does **not**
+prefer newer numeric versions. Without a clear provenance or quality margin, Unknown /
+Ambiguous remains correct.
 
 A valid extracted version must not become Unknown solely because weaker evidence exists
 elsewhere.

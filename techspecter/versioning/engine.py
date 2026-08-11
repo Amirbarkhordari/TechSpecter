@@ -110,6 +110,8 @@ class VersionDetectionEngine:
         resources: list[JavaScriptResourceContent],
         *,
         technology_confidence: float | None = None,
+        preferred_source_url: str | None = None,
+        preferred_filename: str | None = None,
     ) -> TechnologyVersionResult | None:
         """Extract JS version evidence and resolve via the canonical resolver."""
         extractor = self.registry.get(technology_id)
@@ -163,6 +165,8 @@ class VersionDetectionEngine:
             extracted,
             technology_id=technology_id,
             technology_confidence=technology_confidence,
+            preferred_source_urls=(preferred_source_url,) if preferred_source_url else (),
+            preferred_filenames=(preferred_filename,) if preferred_filename else (),
         )
         result = technology_version_result_from_resolution(
             technology_id=extractor.technology_id,
@@ -206,6 +210,8 @@ class VersionDetectionEngine:
             match.technology.id,
             resources_for_match(match, resources),
             technology_confidence=match.confidence,
+            preferred_source_url=match.source_url,
+            preferred_filename=match.filename or match.source_file,
         )
         if result is None:
             return match
