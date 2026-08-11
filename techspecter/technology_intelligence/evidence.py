@@ -183,14 +183,22 @@ def build_version_attribution(
         if primary
         else (match.matched_patterns[0] if match.matched_patterns else None)
     )
+    detected = version_result.version
+    is_unknown = detected in ("Unknown", "", None)
+    # When canonical resolution leaves Unknown/Ambiguous, retain matched evidence for
+    # provenance but do not imply the first evidence item is a confirmed primary.
+    matched_text = primary.matched_value if primary else None
+    confidence = version_result.confidence
+    if is_unknown:
+        confidence = version_result.version_confidence or 0.0
     return VersionAttributionRecord(
-        detected_version=version_result.version,
+        detected_version=detected,
         source_file=source_file,
         source_url=source_url,
         source_asset_id=attributor.asset_id(source_url),
         matched_pattern=_strip_evidence_prefixes(raw_pattern) if raw_pattern else None,
-        matched_text=primary.matched_value if primary else None,
-        confidence=version_result.confidence,
+        matched_text=matched_text,
+        confidence=confidence,
         extractor_id=version_result.method.value,
         alternative_candidates=list(
             match.alternate_versions or version_result.rejected_candidates,

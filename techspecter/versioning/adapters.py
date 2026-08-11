@@ -41,31 +41,6 @@ def source_label_for_method(method: VersionEvidenceType) -> str:
     return _METHOD_TO_SOURCE.get(method, "content")
 
 
-def _ownership_for_js_method(
-    method: VersionEvidenceType,
-    *,
-    stamped_class: VersionOwnershipClass | None,
-    stamped_confidence: float,
-) -> tuple[VersionOwnershipClass, float]:
-    """Derive technology-scoped ownership that respects extraction method quality.
-
-    Extractors are technology-scoped, but weak reference/literal methods must not
-    inherit default OWNED@95 confirmability. Callers may still stamp stronger
-    ownership explicitly for strong methods.
-    """
-    from techspecter.versioning.confidence import method_supports_confirmation
-
-    if not method_supports_confirmation(method):
-        # Keep technology scope, but remain below confirmation thresholds.
-        return VersionOwnershipClass.ASSOCIATED, min(stamped_confidence, 60.0)
-
-    ownership_class = stamped_class or VersionOwnershipClass.OWNED
-    ownership_confidence = stamped_confidence
-    if ownership_class == VersionOwnershipClass.OWNED and ownership_confidence < 65.0:
-        ownership_confidence = max(ownership_confidence, 95.0)
-    return ownership_class, ownership_confidence
-
-
 def extracted_versions_to_candidates(
     extracted: list[ExtractedVersion] | tuple[ExtractedVersion, ...],
     *,
@@ -74,10 +49,12 @@ def extracted_versions_to_candidates(
     """Convert JS extractor output into canonical VersionCandidate observations.
 
     Extractors remain responsible for extraction only. Ownership is technology-scoped
-    because each extractor is registered to a single technology_id.
+    and further gated by extraction method quality plus asset affinity so incidental
+    mentions in unrelated assets cannot veto strong owned evidence.
     """
     from techspecter.fingerprinting.detection.version.candidates import VersionCandidate
     from techspecter.versioning.confidence import score_method as score_extraction_method
+    from techspecter.versioning.ownership import js_extraction_ownership
 
     candidates: list[VersionCandidate] = []
     seen: set[tuple[str, str, str | None]] = set()
@@ -94,8 +71,11 @@ def extracted_versions_to_candidates(
         version_confidence = (
             item.version_confidence if item.version_confidence is not None else item.confidence
         )
-        ownership_class, ownership_confidence = _ownership_for_js_method(
-            item.method,
+        ownership = js_extraction_ownership(
+            technology_id,
+            method=item.method.value,
+            filename=item.filename,
+            source_url=item.source_url,
             stamped_class=item.ownership_class,
             stamped_confidence=item.ownership_confidence,
         )
@@ -111,6 +91,7 @@ def extracted_versions_to_candidates(
                 metadata={
                     "origin": "js_extractor",
                     "method": item.method.value,
+                    "ownership_basis": ownership.basis,
                 },
                 source_url=item.source_url,
                 source_file=item.filename,
@@ -124,9 +105,9 @@ def extracted_versions_to_candidates(
                     item.matched_value
                     or (primary_evidence.matched_value if primary_evidence else item.version)
                 ),
-                ownership_class=ownership_class,
-                ownership_confidence=ownership_confidence,
-                ownership_basis="js_extractor_technology_scope",
+                ownership_class=ownership.ownership_class,
+                ownership_confidence=ownership.ownership_confidence,
+                ownership_basis=ownership.basis,
                 version_confidence=version_confidence,
                 technology_confidence=None,
                 attribution_state=VersionAttributionState.CANDIDATE,

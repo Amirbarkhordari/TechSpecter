@@ -296,15 +296,26 @@ def _score_group(version: str, items: list[VersionCandidate]) -> VersionGroupSco
 
 def _evidence_quality_bonus(candidate: VersionCandidate) -> float:
     source = candidate.source.lower()
+    bonus = 0.0
     if source in {"package", "package_metadata", "manifest"}:
-        return 5.0
-    if source in {"runtime", "build_metadata", "version_candidate"}:
-        return 4.0
-    if source in {"banner", "metadata", "sourcemap", "source_map"}:
-        return 3.0
-    if candidate.ownership_class == VersionOwnershipClass.ASSOCIATED:
-        return 1.0
-    return 0.0
+        bonus = 5.0
+    elif source in {"runtime", "build_metadata", "version_candidate"}:
+        bonus = 4.0
+    elif source in {"banner", "metadata", "sourcemap", "source_map"}:
+        bonus = 3.0
+    elif candidate.ownership_class == VersionOwnershipClass.ASSOCIATED:
+        bonus = 1.0
+
+    # Asset-affinity-backed JS observations outrank low-affinity incidental hits
+    # by more than the strong-conflict margin without technology-specific rules.
+    basis = (candidate.ownership_basis or "").lower()
+    if basis == "js_asset_affinity":
+        bonus += 12.0
+    elif basis == "js_extractor_low_affinity":
+        bonus -= 2.0
+    elif basis == "js_self_proving_method":
+        bonus += 6.0
+    return bonus
 
 
 def _retain_as_alternate(group: VersionGroupScore) -> bool:

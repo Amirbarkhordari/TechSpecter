@@ -111,6 +111,15 @@ Confirmation requires **both**:
 Canonical resolution (`resolve_primary_version`) alone selects Primary / Alternate / Unknown.
 Technology Intelligence consumes that canonical result.
 
+**Asset affinity (generic):** banner/filename/source-map style methods require the asset
+identity (filename/URL tokens) to align with the technology before they become confirmable.
+Self-proving methods (runtime constants, framework objects, package identifiers) do not
+need asset-name affinity. Incidental mentions in unrelated assets remain associated
+evidence and **must not veto** stronger owned candidates.
+
+A valid extracted version must not become Unknown solely because weaker evidence exists
+elsewhere.
+
 ## Pipeline
 
 ```

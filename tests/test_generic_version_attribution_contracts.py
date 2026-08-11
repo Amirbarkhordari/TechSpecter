@@ -30,8 +30,8 @@ def _js(
     *,
     technology_id: str = "tech-a",
     method: VersionEvidenceType = VersionEvidenceType.RUNTIME_CONSTANT,
-    url: str = "https://example.com/a.js",
-    filename: str = "a.js",
+    url: str | None = None,
+    filename: str | None = None,
     confidence: float | None = None,
 ) -> ExtractedVersion:
     conf, level = (
@@ -43,6 +43,8 @@ def _js(
         from techspecter.versioning.confidence import score_method
 
         conf, level = score_method(method)
+    resolved_filename = filename or f"{technology_id}.js"
+    resolved_url = url or f"https://example.com/{resolved_filename}"
     return ExtractedVersion(
         version=version,
         confidence=conf,
@@ -53,16 +55,16 @@ def _js(
                 evidence_type=method,
                 matched_value=version,
                 pattern=r"version",
-                source_url=url,
-                filename=filename,
+                source_url=resolved_url,
+                filename=resolved_filename,
             ),
         ],
         extractor_id=f"{technology_id}-extractor",
-        source_url=url,
-        filename=filename,
+        source_url=resolved_url,
+        filename=resolved_filename,
         technology_id=technology_id,
         # Default ExtractedVersion ownership is OWNED@95; adapters must still
-        # gate weak methods generically.
+        # gate weak methods and incidental asset affinity generically.
         ownership_class=VersionOwnershipClass.OWNED,
         ownership_confidence=95.0,
         matched_value=version,
@@ -314,3 +316,141 @@ def test_legacy_and_js_candidate_semantics_align_on_confirmability() -> None:
     )
     assert candidate_supports_confirmation(js)
     assert candidate_supports_confirmation(evidence)
+
+
+def test_tech_c_package_version_confirms() -> None:
+    outcome = resolve_extracted_versions(
+        [_js("2.3.4", technology_id="tech-c", method=VersionEvidenceType.PACKAGE_IDENTIFIER)],
+        technology_id="tech-c",
+    )
+    assert outcome.primary_version == "2.3.4"
+    assert outcome.attribution_state == VersionAttributionState.CONFIRMED
+
+
+def test_explicit_banner_on_affinity_asset_confirms() -> None:
+    """Owned banner evidence on a technology-named asset remains primary."""
+    outcome = resolve_extracted_versions(
+        [
+            _js(
+                "3.6.0",
+                technology_id="generic-library",
+                method=VersionEvidenceType.BANNER,
+                url="https://cdn.example.com/generic-library-3.6.0.min.js",
+                filename="generic-library-3.6.0.min.js",
+            ),
+        ],
+        technology_id="generic-library",
+    )
+    assert outcome.primary_version == "3.6.0"
+    assert outcome.attribution_state == VersionAttributionState.CONFIRMED
+    assert outcome.confidence > 0.0
+
+
+def test_incidental_banner_cannot_veto_owned_banner() -> None:
+    """Incidental banner mentions in unrelated assets must not create strong conflicts."""
+    outcome = resolve_extracted_versions(
+        [
+            _js(
+                "3.6.0",
+                technology_id="generic-library",
+                method=VersionEvidenceType.BANNER,
+                url="https://cdn.example.com/generic-library-3.6.0.min.js",
+                filename="generic-library-3.6.0.min.js",
+            ),
+            _js(
+                "1.2.3",
+                technology_id="generic-library",
+                method=VersionEvidenceType.BANNER,
+                url="https://cdn.example.com/app.bundle.js",
+                filename="app.bundle.js",
+            ),
+        ],
+        technology_id="generic-library",
+    )
+    assert outcome.primary_version == "3.6.0"
+    assert outcome.attribution_state == VersionAttributionState.CONFIRMED
+    assert outcome.conflict_class in {
+        VersionConflictClass.WEAK_ALTERNATE,
+        VersionConflictClass.NO_CONFLICT,
+    }
+
+
+def test_confirmed_version_not_lost_to_weaker_unrelated_candidate() -> None:
+    outcome = resolve_extracted_versions(
+        [
+            _js(
+                "3.6.0",
+                technology_id="library-a",
+                method=VersionEvidenceType.RUNTIME_CONSTANT,
+                filename="library-a.js",
+            ),
+            _js(
+                "9.9.9",
+                technology_id="library-a",
+                method=VersionEvidenceType.GENERIC_LITERAL,
+                filename="noise.js",
+                url="https://example.com/noise.js",
+            ),
+            _js(
+                "0.1.0",
+                technology_id="library-a",
+                method=VersionEvidenceType.BANNER,
+                filename="unrelated-app.js",
+                url="https://example.com/unrelated-app.js",
+            ),
+        ],
+        technology_id="library-a",
+    )
+    assert outcome.primary_version == "3.6.0"
+    assert outcome.attribution_state == VersionAttributionState.CONFIRMED
+
+
+def test_empty_match_scope_still_resolves_from_available_resources() -> None:
+    from techspecter.versioning.engine import (
+        JavaScriptResourceContent,
+        VersionDetectionEngine,
+        resources_for_match,
+    )
+
+    match = TechnologyMatch(
+        technology=Technology(id="jquery", name="jQuery", category="javascript-libraries"),
+        confidence=100.0,
+    )
+    resources = [
+        JavaScriptResourceContent(
+            url="https://cdn.example.com/jquery-3.6.0.min.js",
+            filename="jquery-3.6.0.min.js",
+            content="/*! jQuery v3.6.0 | (c) OpenJS Foundation */",
+        ),
+        JavaScriptResourceContent(
+            url="https://cdn.example.com/app.js",
+            filename="app.js",
+            content="/* mentions jQuery v1.4.0 historically */\njQuery v1.4.0\n",
+        ),
+    ]
+    scoped = resources_for_match(match, resources)
+    assert len(scoped) == 2
+    result = VersionDetectionEngine().detect_for_technology("jquery", scoped)
+    assert result is not None
+    assert result.version == "3.6.0"
+    assert result.confidence > 0.0
+
+
+def test_js_path_and_evidence_path_equivalent_semantics_for_owned_package() -> None:
+    js = extracted_versions_to_candidates(
+        [_js("8.8.8", method=VersionEvidenceType.PACKAGE_IDENTIFIER, technology_id="lib-x")],
+        technology_id="lib-x",
+    )
+    evidence = (
+        _candidate(
+            "8.8.8",
+            technology_id="lib-x",
+            source="package",
+            evidence_type="package_identifier",
+            method="package_identifier",
+        ),
+    )
+    js_outcome = resolve_primary_version(js)
+    evidence_outcome = resolve_primary_version(evidence)
+    assert js_outcome.primary_version == evidence_outcome.primary_version == "8.8.8"
+    assert js_outcome.attribution_state == evidence_outcome.attribution_state

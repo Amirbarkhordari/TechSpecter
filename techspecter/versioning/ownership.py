@@ -170,6 +170,122 @@ def ownership_supports_confirmation(assessment: VersionOwnershipAssessment) -> b
     return False
 
 
+# Methods that prove the library is present without needing asset-name affinity.
+_SELF_PROVING_METHODS = frozenset(
+    {
+        "runtime_constant",
+        "framework_object",
+        "package_identifier",
+        "package_manifest",
+        "build_metadata",
+        "technology_marker",
+    },
+)
+
+
+def asset_affinity_for_technology(
+    technology_id: str,
+    *,
+    filename: str | None = None,
+    source_url: str | None = None,
+) -> float:
+    """Return 0–100 affinity between an asset identity and a technology id.
+
+    Generic token matching only — no technology-specific branches beyond the
+    shared package-token helpers used elsewhere for ownership.
+    """
+    tokens = _package_tokens(technology_id)
+    file_part = (filename or "").lower()
+    url_part = (source_url or "").lower()
+    haystack = f"{file_part} {url_part}".strip()
+    if not haystack:
+        return 0.0
+
+    best = 0.0
+    for token in tokens:
+        if len(token) < 2:
+            continue
+        if token in file_part:
+            best = max(best, 95.0)
+        elif f"/{token}" in url_part or f"{token}@" in url_part or f"{token}-" in url_part:
+            best = max(best, 90.0)
+        elif token in url_part:
+            best = max(best, 75.0)
+    return best
+
+
+def method_requires_asset_affinity(method: str | None) -> bool:
+    """Return True when a method needs asset affinity to confirm ownership."""
+    if not method:
+        return False
+    return method.strip().lower() not in _SELF_PROVING_METHODS
+
+
+def js_extraction_ownership(
+    technology_id: str,
+    *,
+    method: str,
+    filename: str | None = None,
+    source_url: str | None = None,
+    stamped_class: VersionOwnershipClass | None = None,
+    stamped_confidence: float = 95.0,
+) -> VersionOwnershipAssessment:
+    """Classify JS-extractor ownership using method strength and asset affinity.
+
+    Extractors are technology-scoped, but a banner/filename hit inside an
+    unrelated asset must not inherit confirmable OWNED ownership. Self-proving
+    methods (runtime/package/framework) remain strongly owned.
+    """
+    from techspecter.versioning.confidence import method_supports_confirmation
+
+    if not method_supports_confirmation(method):
+        return VersionOwnershipAssessment(
+            technology_id=technology_id,
+            ownership_class=VersionOwnershipClass.ASSOCIATED,
+            ownership_confidence=min(stamped_confidence, 60.0),
+            reason="Weak extraction method remains associated, not confirmable",
+            basis="js_weak_method",
+        )
+
+    if not method_requires_asset_affinity(method):
+        ownership_class = stamped_class or VersionOwnershipClass.OWNED
+        ownership_confidence = stamped_confidence
+        if ownership_class == VersionOwnershipClass.OWNED and ownership_confidence < 65.0:
+            ownership_confidence = max(ownership_confidence, 95.0)
+        return VersionOwnershipAssessment(
+            technology_id=technology_id,
+            ownership_class=ownership_class,
+            ownership_confidence=ownership_confidence,
+            reason="Self-proving extraction method owns the version observation",
+            basis="js_self_proving_method",
+        )
+
+    affinity = asset_affinity_for_technology(
+        technology_id,
+        filename=filename,
+        source_url=source_url,
+    )
+    if affinity >= 70.0:
+        return VersionOwnershipAssessment(
+            technology_id=technology_id,
+            ownership_class=VersionOwnershipClass.OWNED,
+            ownership_confidence=max(stamped_confidence, 90.0),
+            reason="Asset identity matches technology tokens for owned banner/path evidence",
+            basis="js_asset_affinity",
+        )
+
+    # Technology-scoped extractor found evidence, but the asset identity is weak.
+    # Remain confirmable alone (OWNED at reduced confidence) while scoring below
+    # affinity-backed candidates so incidental mentions cannot veto owned assets.
+    return VersionOwnershipAssessment(
+        technology_id=technology_id,
+        ownership_class=VersionOwnershipClass.OWNED,
+        ownership_confidence=70.0,
+        reason="Technology-scoped extraction without strong asset affinity",
+        basis="js_extractor_low_affinity",
+    )
+
+
 def _package_tokens(technology_id: str) -> tuple[str, ...]:
     normalized = technology_id.lower().replace("_", "-")
     if normalized.startswith("package:"):

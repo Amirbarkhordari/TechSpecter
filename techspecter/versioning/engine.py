@@ -368,7 +368,10 @@ def resources_for_match(
             scope_filenames.add(item.source_file.strip())
 
     if not scope_urls and not scope_filenames:
-        return []
+        # Matches without asset provenance still need a chance to resolve versions
+        # from available JS content. Ownership/affinity gates prevent incidental
+        # cross-asset mentions from becoming false strong conflicts.
+        return list(resources)
 
     scoped: list[JavaScriptResourceContent] = []
     seen: set[tuple[str, str]] = set()
