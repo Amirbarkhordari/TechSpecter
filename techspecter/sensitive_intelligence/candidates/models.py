@@ -81,6 +81,9 @@ class NegativeEvidence(StrEnum):
     HTML_ATTRIBUTE = "html_attribute"
     SELF_REFERENCE = "self_reference"
     CONTACT_ONLY = "contact_only"
+    METADATA_AS_VALUE = "metadata_as_value"
+    MISSING_SOURCE_VALUE = "missing_source_value"
+    CREDENTIAL_NAME_AS_VALUE = "credential_name_as_value"
 
 
 class CorrelationType(StrEnum):

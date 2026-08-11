@@ -8,6 +8,7 @@ VERSION_SOURCE_PRIORITIES: dict[str, float] = {
     "package": 100.0,
     "package_metadata": 100.0,
     "runtime": 95.0,
+    "version_candidate": 90.0,
     "manifest": 90.0,
     "build_metadata": 85.0,
     "metadata": 85.0,
@@ -39,7 +40,7 @@ _EVIDENCE_TYPE_SOURCES: dict[str, str] = {
     EvidenceType.SCRIPT_CONTENT.value: "comment",
     EvidenceType.STRING_LITERAL.value: "comment",
     EvidenceType.FILENAME.value: "filename",
-    EvidenceType.VERSION_CANDIDATE.value: "content",
+    EvidenceType.VERSION_CANDIDATE.value: "version_candidate",
     EvidenceType.HTTP_HEADER.value: "metadata",
     EvidenceType.HTTP_METADATA.value: "metadata",
 }

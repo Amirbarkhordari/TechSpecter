@@ -96,6 +96,21 @@ Technology Intelligence / Reporting
 - Technology Intelligence consumes TechnologyMatch.version when already resolved and does not independently override it.
 - Live-target validation is separate from this architecture step.
 
+### Evidence quality vs ownership (post-validation hardening)
+
+Extractors produce evidence. `VersionCandidate` retains technology identity, version value,
+evidence type/source, ownership, and confidence axes through adaptation.
+
+Confirmation requires **both**:
+
+1. Technology-scoped ownership strong enough to attribute the observation
+2. Evidence quality strong enough to confirm (weak `reference` / `generic_literal` methods
+   and weak source labels cannot enter the strong-conflict path even if ownership was
+   stamped high by a technology-scoped extractor)
+
+Canonical resolution (`resolve_primary_version`) alone selects Primary / Alternate / Unknown.
+Technology Intelligence consumes that canonical result.
+
 ## Pipeline
 
 ```

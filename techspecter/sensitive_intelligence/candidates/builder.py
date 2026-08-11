@@ -52,15 +52,26 @@ def build_candidate(
 
 
 def _resolve_analysis_value(match: DetectorMatch) -> str | None:
-    """Prefer raw_value, then parse evidence for assigned literals."""
+    """Prefer raw_value, then parse evidence for assigned literals.
+
+    Never treat redacted display labels or bare rule identifiers as analysis
+    values. Credential *names* are resolved separately.
+    """
     if match.raw_value is not None:
         if match.subtype == "correlated-credentials":
             return match.raw_value
         extracted = _extract_assigned_literal(match.raw_value)
-        return extracted if extracted is not None else match.raw_value
+        if extracted is not None:
+            return extracted
+        # Keyword/LHS-only captures are credential names, not secret values.
+        if _looks_like_identifier_only(match.raw_value):
+            return None
+        return match.raw_value
 
     if not match.evidence:
         if "[redacted]" in match.matched_value:
+            return None
+        if _looks_like_identifier_only(match.matched_value):
             return None
         return match.matched_value
 
@@ -74,9 +85,23 @@ def _resolve_analysis_value(match: DetectorMatch) -> str | None:
     if assigned is not None:
         return assigned
 
-    if "[redacted]" not in match.matched_value:
+    if "[redacted]" not in match.matched_value and not _looks_like_identifier_only(
+        match.matched_value,
+    ):
         return match.matched_value
     return None
+
+
+def _looks_like_identifier_only(text: str | None) -> bool:
+    """Return True when text is only a credential/field identifier."""
+    if not text:
+        return False
+    stripped = text.strip()
+    if len(stripped) > 64:
+        return False
+    if _GENERIC_LITERAL.search(stripped) or _BEARER_VALUE.search(stripped):
+        return False
+    return bool(_CREDENTIAL_NAME.fullmatch(stripped.replace("-", "_")))
 
 
 def _extract_assigned_literal(text: str) -> str | None:
@@ -91,17 +116,14 @@ def _extract_assigned_literal(text: str) -> str | None:
 
 
 def _resolve_credential_name(match: DetectorMatch, analysis_value: str | None) -> str | None:
-    """Extract a semantic credential field name for future correlation."""
-    for text in (match.evidence, match.raw_value, match.matched_pattern, match.subtype):
+    """Extract a semantic credential field name (never treat it as the secret)."""
+    _ = analysis_value
+    for text in (match.evidence, match.raw_value, match.matched_pattern):
         if not text:
             continue
         found = _CREDENTIAL_NAME.search(text)
         if found:
             return found.group(1).lower().replace("-", "_")
-    if match.subtype:
-        return match.subtype.lower().replace("-", "_")
-    if analysis_value is None:
-        return None
     return None
 
 

@@ -393,7 +393,8 @@ def normalize_version(raw: str) -> str | None:
 
 
 def candidate_supports_confirmation(candidate: VersionCandidate) -> bool:
-    """Return True when a collected candidate has enough ownership to confirm."""
+    """Return True when ownership and evidence quality both support confirmation."""
+    from techspecter.versioning.confidence import evidence_quality_supports_confirmation
     from techspecter.versioning.ownership import (
         VersionOwnershipAssessment,
         ownership_supports_confirmation,
@@ -406,4 +407,12 @@ def candidate_supports_confirmation(candidate: VersionCandidate) -> bool:
         reason="candidate",
         basis=candidate.ownership_basis or "none",
     )
-    return ownership_supports_confirmation(assessment)
+    if not ownership_supports_confirmation(assessment):
+        return False
+    method = candidate.metadata.get("method") if candidate.metadata else None
+    return evidence_quality_supports_confirmation(
+        source=candidate.source,
+        priority=candidate.priority,
+        evidence_type=candidate.evidence_type,
+        method=method if isinstance(method, str) else None,
+    )

@@ -298,7 +298,7 @@ def _evidence_quality_bonus(candidate: VersionCandidate) -> float:
     source = candidate.source.lower()
     if source in {"package", "package_metadata", "manifest"}:
         return 5.0
-    if source in {"runtime", "build_metadata"}:
+    if source in {"runtime", "build_metadata", "version_candidate"}:
         return 4.0
     if source in {"banner", "metadata", "sourcemap", "source_map"}:
         return 3.0

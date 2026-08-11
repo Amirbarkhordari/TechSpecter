@@ -22,6 +22,9 @@ _REJECT_SIGNALS = frozenset(
         NegativeEvidence.SELF_REFERENCE,
         NegativeEvidence.GENERATED_TEMPLATE,
         NegativeEvidence.EXAMPLE_VALUE,
+        NegativeEvidence.METADATA_AS_VALUE,
+        NegativeEvidence.MISSING_SOURCE_VALUE,
+        NegativeEvidence.CREDENTIAL_NAME_AS_VALUE,
     },
 )
 

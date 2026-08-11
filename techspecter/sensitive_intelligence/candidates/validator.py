@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from techspecter.sensitive_intelligence.candidates.builder import build_candidate, pair_values
+from techspecter.sensitive_intelligence.candidates.content_contract import (
+    is_metadata_as_value,
+    source_derived_secret_value,
+)
 from techspecter.sensitive_intelligence.candidates.context import ContextAnalyzer
 from techspecter.sensitive_intelligence.candidates.models import (
     NegativeEvidence,
@@ -34,6 +38,9 @@ _HARD_REJECT = frozenset(
         NegativeEvidence.HTML_ATTRIBUTE,
         NegativeEvidence.SELF_REFERENCE,
         NegativeEvidence.GENERATED_TEMPLATE,
+        NegativeEvidence.METADATA_AS_VALUE,
+        NegativeEvidence.MISSING_SOURCE_VALUE,
+        NegativeEvidence.CREDENTIAL_NAME_AS_VALUE,
     },
 )
 
@@ -124,8 +131,35 @@ class SensitiveCandidateValidator:
         """Run context/value analysis and apply the quality gate."""
         self.context_analyzer.analyze(candidate)
         self.value_analyzer.analyze(candidate)
+        self._enforce_content_contract(candidate)
         self._apply_policy(candidate)
         return self.quality_gate.evaluate(candidate)
+
+    def _enforce_content_contract(self, candidate: SensitiveCandidate) -> None:
+        """Reject metadata-as-value and missing source-derived payloads early."""
+        if candidate.finding_type in _CONTACT_TYPES:
+            return
+        if candidate.finding_type == FindingType.IP and candidate.subtype in {"ipv4", "ipv6"}:
+            return
+
+        secret = source_derived_secret_value(candidate)
+        if secret is None:
+            # Developer artifacts / config markers may confirm on pattern evidence
+            # without a classic secret payload (e.g. TODO comments).
+            if candidate.category in {
+                FindingCategory.DEVELOPER_ARTIFACTS,
+                FindingCategory.SENSITIVE_CONFIGURATION,
+            }:
+                return
+            _add_negative(candidate, NegativeEvidence.MISSING_SOURCE_VALUE)
+            return
+
+        if is_metadata_as_value(candidate, secret):
+            _add_negative(candidate, NegativeEvidence.METADATA_AS_VALUE)
+            return
+
+        if candidate.credential_name and secret.strip().lower() == candidate.credential_name.strip().lower():
+            _add_negative(candidate, NegativeEvidence.CREDENTIAL_NAME_AS_VALUE)
 
     def _apply_policy(self, candidate: SensitiveCandidate) -> None:
         """Adjust confidence and provisional state before the quality gate."""
@@ -154,9 +188,23 @@ class SensitiveCandidateValidator:
             NegativeEvidence.HTML_ATTRIBUTE,
             NegativeEvidence.SELF_REFERENCE,
             NegativeEvidence.FORM_FIELD,
+            NegativeEvidence.METADATA_AS_VALUE,
+            NegativeEvidence.MISSING_SOURCE_VALUE,
+            NegativeEvidence.CREDENTIAL_NAME_AS_VALUE,
         }:
             candidate.validation_state = ValidationState.REJECTED
-            candidate.rejection_reason = sorted(negatives & _HARD_REJECT)[0].value
+            candidate.rejection_reason = sorted(
+                negatives
+                & {
+                    NegativeEvidence.EMPTY_VALUE,
+                    NegativeEvidence.HTML_ATTRIBUTE,
+                    NegativeEvidence.SELF_REFERENCE,
+                    NegativeEvidence.FORM_FIELD,
+                    NegativeEvidence.METADATA_AS_VALUE,
+                    NegativeEvidence.MISSING_SOURCE_VALUE,
+                    NegativeEvidence.CREDENTIAL_NAME_AS_VALUE,
+                },
+            )[0].value
             return
 
         rule_id = candidate.rule_id or candidate.subtype

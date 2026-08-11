@@ -30,6 +30,7 @@ candidate validation spine (`candidates/`).
 |--------|----------------|
 | `candidates/models.py` | `SensitiveCandidate`, evidence enums, `ValueStrength`, `ContextKind`, `SensitiveCorrelation` |
 | `candidates/builder.py` | `DetectorMatch` → candidate (+ credential name for correlation) |
+| `candidates/content_contract.py` | Global metadata vs source-derived value separation |
 | `candidates/context.py` | Static / runtime / empty / placeholder / docs / fixture / form context |
 | `candidates/value.py` | Empty / placeholder / weak / runtime / provider / realistic classification |
 | `candidates/placeholders.py` | Centralized placeholder normalization + detection |
@@ -43,6 +44,23 @@ candidate validation spine (`candidates/`).
 **Flow:** detectors emit `DetectorMatch` → candidates are validated → eligible candidates are
 correlated within the same asset/source/proximity scope → severity is calibrated → only
 confirmed candidates enter `FindingTracker`.
+
+### Metadata vs extracted content (data contract)
+
+Rule/detector metadata is **not** secret content:
+
+| Metadata (never a secret value) | Extracted content (source-derived) |
+|--------------------------------|-------------------------------------|
+| `rule_id`, `detector_id` | `raw_value` / matched span from the asset |
+| `finding_type`, `subtype` | `analysis_value` (literal/secret payload) |
+| `credential_category`, rule name | evidence snippet pointing at source text |
+| `credential_name` (field label) | `credential_value` / analysis payload |
+
+`credential_name` may support correlation, but it is never itself the secret.
+Confirmation requires source-derived content evidence. Redacted display labels such as
+`"{subtype} [redacted]"` are detector-facing safety markers and must not become the
+confirmed finding value. `FindingTracker` persists a display form of the source-derived
+payload and deduplicates by content identity.
 
 **Correlation** is evidence, not automatic confirmation. Weak/placeholder/runtime pairs cannot
 escalate to Critical merely because related fields are nearby. Strong pairs add

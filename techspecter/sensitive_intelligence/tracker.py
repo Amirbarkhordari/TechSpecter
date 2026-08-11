@@ -6,6 +6,10 @@ import logging
 from dataclasses import dataclass, field
 from uuid import uuid4
 
+from techspecter.sensitive_intelligence.candidates.content_contract import (
+    finding_content_key,
+    finding_display_value,
+)
 from techspecter.sensitive_intelligence.candidates.models import SensitiveCandidate, ValidationState
 from techspecter.sensitive_intelligence.detectors.base import (
     BaseSensitiveDetector,
@@ -31,6 +35,8 @@ class FindingTracker:
         """Add a validated/confirmed candidate with asset attribution.
 
         Rejected and candidate-only results are ignored (not confirmed findings).
+        Confirmed findings must carry source-derived secret content; detector/rule
+        metadata alone never becomes ``matched_value``.
         """
         if candidate.validation_state != ValidationState.CONFIRMED:
             logger.debug(
@@ -41,8 +47,17 @@ class FindingTracker:
             )
             return None
 
+        display = finding_display_value(candidate)
+        if display is None:
+            logger.debug(
+                "Skipping confirmed candidate without source-derived value %s/%s",
+                candidate.finding_type.value,
+                candidate.subtype,
+            )
+            return None
+
         match = candidate.match
-        key = _finding_key(match)
+        key = finding_content_key(candidate, display)
         location = FindingLocation(
             source_file=candidate.source_file,
             source_url=candidate.source_url,
@@ -54,7 +69,7 @@ class FindingTracker:
         )
         existing = self._findings.get(key)
         if existing is not None:
-            return self._merge(existing, location, candidate.confidence)
+            return self._merge(existing, location, candidate.confidence, key)
 
         record = SensitiveFindingRecord(
             finding_id=str(uuid4()),
@@ -64,7 +79,7 @@ class FindingTracker:
             severity=candidate.severity,
             confidence=candidate.confidence,
             confidence_level=BaseSensitiveDetector.confidence_level(candidate.confidence),
-            matched_value=match.matched_value,
+            matched_value=display,
             matched_pattern=match.matched_pattern,
             detector_name=candidate.detector_id,
             rule_id=match.rule_id,
@@ -116,7 +131,7 @@ class FindingTracker:
         )
         existing = self._findings.get(key)
         if existing is not None:
-            return self._merge(existing, location, match.confidence)
+            return self._merge(existing, location, match.confidence, key)
 
         record = SensitiveFindingRecord(
             finding_id=str(uuid4()),
@@ -157,6 +172,7 @@ class FindingTracker:
         existing: SensitiveFindingRecord,
         location: FindingLocation,
         confidence: float,
+        key: str,
     ) -> SensitiveFindingRecord:
         locations = list(existing.locations)
         if not _location_exists(locations, location):
@@ -178,7 +194,7 @@ class FindingTracker:
                 "confidence_level": BaseSensitiveDetector.confidence_level(merged_confidence),
             },
         )
-        self._findings[_finding_key_from_record(updated)] = updated
+        self._findings[key] = updated
         logger.debug(
             "Merged duplicate finding %s/%s (occurrences=%d)",
             updated.finding_type.value,
@@ -196,10 +212,6 @@ def _finding_key(match: DetectorMatch) -> str:
             match.matched_value,
         ],
     )
-
-
-def _finding_key_from_record(record: SensitiveFindingRecord) -> str:
-    return "|".join([record.finding_type.value, record.subtype, record.matched_value])
 
 
 def _location_exists(locations: list[FindingLocation], candidate: FindingLocation) -> bool:

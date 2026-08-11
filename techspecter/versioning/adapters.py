@@ -41,6 +41,31 @@ def source_label_for_method(method: VersionEvidenceType) -> str:
     return _METHOD_TO_SOURCE.get(method, "content")
 
 
+def _ownership_for_js_method(
+    method: VersionEvidenceType,
+    *,
+    stamped_class: VersionOwnershipClass | None,
+    stamped_confidence: float,
+) -> tuple[VersionOwnershipClass, float]:
+    """Derive technology-scoped ownership that respects extraction method quality.
+
+    Extractors are technology-scoped, but weak reference/literal methods must not
+    inherit default OWNED@95 confirmability. Callers may still stamp stronger
+    ownership explicitly for strong methods.
+    """
+    from techspecter.versioning.confidence import method_supports_confirmation
+
+    if not method_supports_confirmation(method):
+        # Keep technology scope, but remain below confirmation thresholds.
+        return VersionOwnershipClass.ASSOCIATED, min(stamped_confidence, 60.0)
+
+    ownership_class = stamped_class or VersionOwnershipClass.OWNED
+    ownership_confidence = stamped_confidence
+    if ownership_class == VersionOwnershipClass.OWNED and ownership_confidence < 65.0:
+        ownership_confidence = max(ownership_confidence, 95.0)
+    return ownership_class, ownership_confidence
+
+
 def extracted_versions_to_candidates(
     extracted: list[ExtractedVersion] | tuple[ExtractedVersion, ...],
     *,
@@ -63,13 +88,16 @@ def extracted_versions_to_candidates(
             continue
         seen.add(key)
         primary_evidence = item.evidence[0] if item.evidence else None
-        ownership_class = item.ownership_class or VersionOwnershipClass.OWNED
-        ownership_confidence = item.ownership_confidence
         method_confidence, _ = score_extraction_method(item.method)
         # Extractor method confidence is the ranking authority for JS observations.
         priority = method_confidence
         version_confidence = (
             item.version_confidence if item.version_confidence is not None else item.confidence
+        )
+        ownership_class, ownership_confidence = _ownership_for_js_method(
+            item.method,
+            stamped_class=item.ownership_class,
+            stamped_confidence=item.ownership_confidence,
         )
         candidates.append(
             VersionCandidate(
